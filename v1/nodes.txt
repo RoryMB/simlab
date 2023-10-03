@@ -1,0 +1,41 @@
+1 Arm1 moveto PlateStation
+2 Arm1 grab # plate
+3 Arm1 moveto BuildStation
+4 Arm1 release # plate
+5 Arm1 moveto HomeStation
+6 Arm1 clear BuildStation
+
+7 Arm2 moveto BreadStation
+8 Arm2 grab # bread
+9 Arm2 moveto BuildStation
+10 Arm2 release # bread
+11 Arm2 moveto HomeStation
+12 Arm2 clear BuildStation
+
+13 Arm1 moveto HamStation
+14 Arm1 grab # ham
+15 Arm1 moveto BuildStation
+16 Arm1 release # ham
+17 Arm1 moveto HomeStation
+18 Arm1 clear BuildStation
+
+19 Arm2 moveto CheeseStation
+20 Arm2 grab # cheese
+21 Arm2 moveto BuildStation
+22 Arm2 release # cheese
+23 Arm2 moveto HomeStation
+24 Arm2 clear BuildStation
+
+25 Arm2 moveto BreadStation
+26 Arm2 grab # bread
+27 Arm2 moveto BuildStation
+28 Arm2 release # bread
+29 Arm2 moveto HomeStation
+30 Arm2 clear BuildStation
+
+31 Arm3 moveto BuildStation
+32 Arm3 grab # sandwich
+33 Arm3 moveto CustomerStation
+34 Arm3 release # sandwich
+35 Arm3 moveto HomeStation
+36 Arm3 clear BuildStation
