@@ -1,0 +1,72 @@
+[submodule "reference/MADSci_Core"]
+	path = reference/MADSci_Core
+	url = https://github.com/AD-SDL/MADSci.git
+[submodule "reference/MADSci_Examples"]
+	path = reference/MADSci_Examples
+	url = https://github.com/AD-SDL/MADSci_Examples.git
+[submodule "reference/MADSci_Modules/a4s_sealer_module"]
+	path = reference/MADSci_Modules/a4s_sealer_module
+	url = https://github.com/AD-SDL/a4s_sealer_module.git
+[submodule "reference/MADSci_Modules/barty_module"]
+	path = reference/MADSci_Modules/barty_module
+	url = https://github.com/AD-SDL/barty_module.git
+[submodule "reference/MADSci_Modules/big_kahuna_module"]
+	path = reference/MADSci_Modules/big_kahuna_module
+	url = https://github.com/AD-SDL/big_kahuna_module.git
+[submodule "reference/MADSci_Modules/brooks_xpeel_module"]
+	path = reference/MADSci_Modules/brooks_xpeel_module
+	url = https://github.com/AD-SDL/brooks_xpeel_module.git
+[submodule "reference/MADSci_Modules/camera_module"]
+	path = reference/MADSci_Modules/camera_module
+	url = https://github.com/AD-SDL/camera_module.git
+[submodule "reference/MADSci_Modules/hidex_module"]
+	path = reference/MADSci_Modules/hidex_module
+	url = https://github.com/AD-SDL/hidex_module.git
+[submodule "reference/MADSci_Modules/hudson_platecrane_module"]
+	path = reference/MADSci_Modules/hudson_platecrane_module
+	url = https://github.com/AD-SDL/hudson_platecrane_module.git
+[submodule "reference/MADSci_Modules/hudson_solo_module"]
+	path = reference/MADSci_Modules/hudson_solo_module
+	url = https://github.com/AD-SDL/hudson_solo_module.git
+[submodule "reference/MADSci_Modules/inheco_incubator_module"]
+	path = reference/MADSci_Modules/inheco_incubator_module
+	url = https://github.com/AD-SDL/inheco_incubator_module.git
+[submodule "reference/MADSci_Modules/labjack_module"]
+	path = reference/MADSci_Modules/labjack_module
+	url = https://github.com/AD-SDL/labjack_module.git
+[submodule "reference/MADSci_Modules/liconic_module"]
+	path = reference/MADSci_Modules/liconic_module
+	url = https://github.com/AD-SDL/liconic_module.git
+[submodule "reference/MADSci_Modules/metrohm_m101_module"]
+	path = reference/MADSci_Modules/metrohm_m101_module
+	url = https://github.com/AD-SDL/metrohm_m101_module.git
+[submodule "reference/MADSci_Modules/object_detection_module"]
+	path = reference/MADSci_Modules/object_detection_module
+	url = https://github.com/AD-SDL/object_detection_module.git
+[submodule "reference/MADSci_Modules/ot2_module"]
+	path = reference/MADSci_Modules/ot2_module
+	url = https://github.com/AD-SDL/ot2_module.git
+[submodule "reference/MADSci_Modules/pal_module"]
+	path = reference/MADSci_Modules/pal_module
+	url = https://github.com/AD-SDL/pal_module.git
+[submodule "reference/MADSci_Modules/pe_icp_module"]
+	path = reference/MADSci_Modules/pe_icp_module
+	url = https://github.com/AD-SDL/pe_icp_module.git
+[submodule "reference/MADSci_Modules/pf400_module"]
+	path = reference/MADSci_Modules/pf400_module
+	url = https://github.com/AD-SDL/pf400_module.git
+[submodule "reference/MADSci_Modules/sciclops_module"]
+	path = reference/MADSci_Modules/sciclops_module
+	url = https://github.com/AD-SDL/sciclops_module.git
+[submodule "reference/MADSci_Modules/transfer_meta_module"]
+	path = reference/MADSci_Modules/transfer_meta_module
+	url = https://github.com/AD-SDL/transfer_meta_module.git
+[submodule "reference/MADSci_Modules/ur_module"]
+	path = reference/MADSci_Modules/ur_module
+	url = https://github.com/AD-SDL/ur_module.git
+[submodule "reference/MADSci_Modules/vention_rail_module"]
+	path = reference/MADSci_Modules/vention_rail_module
+	url = https://github.com/AD-SDL/vention_rail_module.git
+[submodule "reference/MADSci_Modules/zigbee_module"]
+	path = reference/MADSci_Modules/zigbee_module
+	url = https://github.com/AD-SDL/zigbee_module.git

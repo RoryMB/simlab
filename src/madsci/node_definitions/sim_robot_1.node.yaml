@@ -1,0 +1,7 @@
+node_name: sim_robot_1
+node_id: 01JYF9NXSJK36NTFASXP14XSZF
+node_description: A basic node.
+node_type: device
+module_name: sim_robot
+module_version: 0.0.1
+capabilities: null
