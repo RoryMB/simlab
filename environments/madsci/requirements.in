@@ -1,5 +1,5 @@
-madsci-client==0.4.2
-madsci-common==0.4.2
-madsci-node-module==0.4.2
+madsci-client==0.4.3
+madsci-common==0.4.3
+madsci-node-module==0.4.3
 numpy
 zmq
