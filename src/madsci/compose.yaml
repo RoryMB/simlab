@@ -1,4 +1,4 @@
-name: madsci_sim_lab
+name: autolab
 
 # * Common configuration
 x-madsci-service: &madsci-service
@@ -8,10 +8,10 @@ x-madsci-service: &madsci-service
     - GROUP_ID=${GROUP_ID:-1000}
   network_mode: host
   volumes:
-    - ./madsci_sim_lab:/home/madsci/madsci_sim_lab
+    - ./config:/home/madsci/config
     - ./.madsci:/home/madsci/.madsci
   restart: unless-stopped
-  working_dir: /home/madsci/madsci_sim_lab
+  working_dir: /home/madsci/config
 
 services:
   # *Databases (note: these are non-persistent, add volumes for persistence)

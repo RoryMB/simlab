@@ -1,3 +1,4 @@
+import sys
 import time
 from pathlib import Path
 from madsci.client.workcell_client import WorkcellClient
@@ -8,7 +9,7 @@ from madsci.common.types.workflow_types import WorkflowDefinition
 # --- Configuration ---
 WORKCELL_URL = "http://localhost:8015"
 RESOURCE_URL = "http://localhost:8013"
-WORKFLOW_PATH = Path("./madsci_sim_lab/transfer_workflow.yaml")
+WORKFLOW_PATH = Path(sys.argv[1])
 
 def setup_initial_state(rc: ResourceClient, wc: WorkcellClient):
     """Ensures the lab is in the correct state to run the workflow."""

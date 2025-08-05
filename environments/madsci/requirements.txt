@@ -31,6 +31,8 @@ dnspython==2.7.0
     # via pymongo
 fastapi==0.116.1
     # via madsci-common
+greenlet==3.2.3
+    # via sqlalchemy
 h11==0.16.0
     # via uvicorn
 httptools==0.6.4
@@ -65,6 +67,8 @@ minio==7.2.16
     # via madsci-client
 multiprocess==0.70.18
     # via madsci-common
+numpy==2.3.2
+    # via -r requirements.in
 platformdirs==4.3.8
     # via textual
 pycparser==2.22

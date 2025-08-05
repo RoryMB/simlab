@@ -27,7 +27,19 @@ actions:
   transfer:
     name: transfer
     description: Transfer a plate from source to target location using ZMQ robot control.
-    args: {}
+    args:
+      coordinate_type:
+        name: coordinate_type
+        description: 'Coordinate system: ''joint_angles'' or ''cartesian'''
+        argument_type: str
+        required: false
+        default: null
+      auto_detect_coordinates:
+        name: auto_detect_coordinates
+        description: Automatically detect coordinate system
+        argument_type: bool
+        required: false
+        default: false
     locations:
       source:
         name: source
@@ -41,6 +53,57 @@ actions:
         argument_type: location
         required: true
         default: null
+    files: {}
+    results: {}
+    blocking: false
+    asynchronous: true
+  movej:
+    name: movej
+    description: Move the robot using joint angles
+    args:
+      joints:
+        name: joints
+        description: Joint angles to move to
+        argument_type: Union[LocationArgument, list]
+        required: true
+        default: null
+      coordinate_type:
+        name: coordinate_type
+        description: Coordinate system override
+        argument_type: str
+        required: false
+        default: null
+    locations: {}
+    files: {}
+    results: {}
+    blocking: false
+    asynchronous: true
+  movel:
+    name: movel
+    description: Move the robot using linear motion
+    args:
+      target:
+        name: target
+        description: Cartesian target to move to
+        argument_type: Union[LocationArgument, list]
+        required: true
+        default: null
+      coordinate_type:
+        name: coordinate_type
+        description: Coordinate system override
+        argument_type: str
+        required: false
+        default: null
+    locations: {}
+    files: {}
+    results: {}
+    blocking: false
+    asynchronous: true
+  get_pose:
+    name: get_pose
+    description: Get current end-effector pose
+    args: {}
+    locations: {}
     files: {}
     results: {}
     blocking: false

@@ -17,7 +17,6 @@ from madsci.node_module.rest_node_module import RestNode
 import json
 import zmq
 import numpy as np
-import math
 
 
 class CoordinateType(Enum):
@@ -28,37 +27,37 @@ class CoordinateType(Enum):
 
 class UR5eKinematics:
     """Simple UR5e kinematics for pose-to-joint conversion."""
-    
+
     def __init__(self):
         # UR5e DH parameters (simplified)
         self.a = [0.0, -0.425, -0.3922, 0.0, 0.0, 0.0]
         self.d = [0.1625, 0.0, 0.0, 0.1333, 0.0997, 0.0996]
         self.alpha = [np.pi/2, 0.0, 0.0, np.pi/2, -np.pi/2, 0.0]
-        
+
         # Joint limits (radians)
         self.joint_limits = [
             (-2*np.pi, 2*np.pi),
-            (-2*np.pi, 2*np.pi), 
+            (-2*np.pi, 2*np.pi),
             (-np.pi, np.pi),
             (-2*np.pi, 2*np.pi),
             (-2*np.pi, 2*np.pi),
             (-2*np.pi, 2*np.pi)
         ]
-    
+
     def forward_kinematics(self, joints: list) -> list:
         """Calculate forward kinematics to get end-effector pose."""
         if len(joints) != 6:
             raise ValueError("Expected 6 joint angles")
-            
+
         # Simplified forward kinematics using DH parameters
         T = np.eye(4)
-        
+
         for i in range(6):
             ct = np.cos(joints[i])
             st = np.sin(joints[i])
             ca = np.cos(self.alpha[i])
             sa = np.sin(self.alpha[i])
-            
+
             Ti = np.array([
                 [ct, -st*ca, st*sa, self.a[i]*ct],
                 [st, ct*ca, -ct*sa, self.a[i]*st],
@@ -66,14 +65,14 @@ class UR5eKinematics:
                 [0, 0, 0, 1]
             ])
             T = T @ Ti
-        
+
         # Extract position and rotation
         pos = T[:3, 3]
-        
+
         # Convert rotation matrix to Euler angles (simplified)
         sy = np.sqrt(T[0,0]**2 + T[1,0]**2)
         singular = sy < 1e-6
-        
+
         if not singular:
             rx = np.arctan2(T[2,1], T[2,2])
             ry = np.arctan2(-T[2,0], sy)
@@ -82,45 +81,45 @@ class UR5eKinematics:
             rx = np.arctan2(-T[1,2], T[1,1])
             ry = np.arctan2(-T[2,0], sy)
             rz = 0
-            
+
         return [float(pos[0]), float(pos[1]), float(pos[2]), float(rx), float(ry), float(rz)]
-    
+
     def inverse_kinematics(self, pose: list) -> list:
         """Simple inverse kinematics (analytical solution for specific poses)."""
         if len(pose) != 6:
             raise ValueError("Expected 6-element pose [x, y, z, rx, ry, rz]")
-            
+
         x, y, z, rx, ry, rz = pose
-        
+
         # Simplified inverse kinematics for common positions
         # This is a basic implementation - full IK would be more complex
-        
+
         # Base joint (rotation around z-axis)
         q1 = np.arctan2(y, x)
-        
+
         # Distance in xy plane
         r = np.sqrt(x**2 + y**2)
-        
+
         # Simplified calculation for remaining joints
         q2 = -np.pi/2 + np.arctan2(z - self.d[0], r)
         q3 = 0.0  # Simplified
         q4 = -(q2 + q3) + ry  # Wrist alignment
         q5 = 0.0  # Simplified
         q6 = rz - q1  # End-effector orientation
-        
+
         joints = [q1, q2, q3, q4, q5, q6]
-        
+
         # Apply joint limits
         for i, (joint, (min_val, max_val)) in enumerate(zip(joints, self.joint_limits)):
             joints[i] = np.clip(joint, min_val, max_val)
-            
+
         return joints
-    
+
     def validate_joints(self, joints: list) -> bool:
         """Validate joint angles are within limits."""
         if len(joints) != 6:
             return False
-            
+
         for joint, (min_val, max_val) in zip(joints, self.joint_limits):
             if not (min_val <= joint <= max_val):
                 return False
@@ -134,9 +133,9 @@ class SimRobotInterface:
     device_number: int = 0
 
     def __init__(
-        self, 
-        device_number: int = 0, 
-        zmq_server_url: str = "tcp://localhost:5555", 
+        self,
+        device_number: int = 0,
+        zmq_server_url: str = "tcp://localhost:5555",
         logger: Optional[EventClient] = None,
         coordinate_type: CoordinateType = CoordinateType.JOINT_ANGLES,
         robot_model: str = "UR5e"
@@ -147,7 +146,7 @@ class SimRobotInterface:
         self.zmq_server_url = zmq_server_url
         self.coordinate_type = coordinate_type
         self.robot_model = robot_model
-        
+
         # Initialize kinematics
         if robot_model.upper() == "UR5E":
             self.kinematics = UR5eKinematics()
@@ -198,14 +197,14 @@ class SimRobotInterface:
     def move_to_location(self, location_coordinates: list, coordinate_type: Optional[CoordinateType] = None) -> bool:
         """Move robot to specified location coordinates."""
         self.logger.log(f"Moving to location: {location_coordinates}")
-        
+
         # Use provided coordinate type or default
         coord_type = coordinate_type or self.coordinate_type
-        
+
         try:
             # Convert location to joint angles
             joint_angles = self.process_location(location_coordinates, coord_type)
-            
+
             # Validate joint angles
             if not self.kinematics.validate_joints(joint_angles):
                 self.logger.log(f"Joint angles out of bounds: {joint_angles}")
@@ -222,7 +221,7 @@ class SimRobotInterface:
                 self.logger.log(f"Failed to move to location: {response.get('message', 'Unknown error')}")
 
             return success
-            
+
         except Exception as e:
             self.logger.log(f"Error processing location {location_coordinates}: {e}")
             return False
@@ -242,14 +241,14 @@ class SimRobotInterface:
         """Process location coordinates based on coordinate system type."""
         if not location_coordinates:
             return [0.0, -1.57, 0.0, -1.57, 0.0, 0.0]  # Default home position
-            
+
         if coordinate_type == CoordinateType.JOINT_ANGLES:
             return self.handle_joint_angles(location_coordinates)
         elif coordinate_type == CoordinateType.CARTESIAN:
             return self.handle_cartesian_coordinates(location_coordinates)
         else:
             raise ValueError(f"Unsupported coordinate type: {coordinate_type}")
-    
+
     def handle_joint_angles(self, joint_angles: list) -> list:
         """Handle joint angle input."""
         if len(joint_angles) == 6:
@@ -260,7 +259,7 @@ class SimRobotInterface:
             return self.legacy_4dof_to_6dof(joint_angles)
         else:
             raise ValueError(f"Expected 6 joint angles, got {len(joint_angles)}")
-    
+
     def handle_cartesian_coordinates(self, pose: list) -> list:
         """Handle Cartesian coordinate input (pose)."""
         if len(pose) == 6:
@@ -276,39 +275,39 @@ class SimRobotInterface:
             return self.legacy_4dof_to_6dof(pose)
         else:
             raise ValueError(f"Expected 3 or 6 pose elements, got {len(pose)}")
-    
+
     def legacy_4dof_to_6dof(self, coords: list) -> list:
         """Convert legacy 4-DOF coordinates to 6-DOF joint angles."""
         if len(coords) < 2:
             return [0.0, -1.57, 0.0, -1.57, 0.0, 0.0]
-            
+
         x, y = coords[0], coords[1]
-        
+
         # Convert legacy coordinate system to joint angles
         # Normalize legacy coordinates (assumed to be in some arbitrary units)
         joint_1 = (x - 150) / 100.0  # Base rotation
         joint_2 = -1.57 + (y - 150) / 100.0  # Shoulder lift
-        
+
         # Use additional coordinates if available
         joint_3 = coords[2] / 100.0 if len(coords) > 2 else 0.0
         joint_4 = coords[3] / 100.0 if len(coords) > 3 else -1.57
-        
+
         return [joint_1, joint_2, joint_3, joint_4, 0.0, 0.0]
-    
+
     def detect_coordinate_type(self, location_coordinates: list) -> CoordinateType:
         """Automatically detect coordinate system type based on values."""
         if len(location_coordinates) != 6:
             return self.coordinate_type  # Use default for non-6DOF inputs
-            
+
         # Heuristic: joint angles are typically in radians (-π to π range)
         # Cartesian coordinates are typically in meters (larger values)
         max_abs_value = max(abs(x) for x in location_coordinates)
-        
+
         if max_abs_value > 10:  # Likely Cartesian (meters or mm)
             return CoordinateType.CARTESIAN
         else:  # Likely joint angles (radians)
             return CoordinateType.JOINT_ANGLES
-    
+
     def get_pose_from_joints(self) -> list:
         """Get current end-effector pose from joint positions."""
         joints = self.get_current_position()
@@ -358,7 +357,7 @@ class SimRobotNode(RestNode):
         auto_detect_coordinates: Annotated[bool, "Automatically detect coordinate system"] = False,
     ) -> ActionResult:
         """Transfer a plate from source to target location using ZMQ robot control."""
-        
+
         # Determine coordinate system
         coord_type = None
         if coordinate_type:
@@ -366,7 +365,7 @@ class SimRobotNode(RestNode):
                 coord_type = CoordinateType(coordinate_type.lower())
             except ValueError:
                 return ActionFailed(errors=[Error(message=f"Invalid coordinate type: {coordinate_type}")])
-        
+
         if self.resource_client:
             try:
                 popped_plate, _ = self.resource_client.pop(resource=source.resource_id)
@@ -375,12 +374,12 @@ class SimRobotNode(RestNode):
 
             # Move to source location via ZMQ
             source_coords = source.location  # LocationArgument.location contains the coordinates
-            
+
             # Auto-detect coordinate system if requested
             if auto_detect_coordinates and coord_type is None:
                 coord_type = self.sim_robot.detect_coordinate_type(source_coords)
                 self.logger.log(f"Auto-detected coordinate system: {coord_type.value}")
-            
+
             if not self.sim_robot.move_to_location(source_coords, coord_type):
                 return ActionFailed(errors=[Error(message="Failed to move to source location")])
 
@@ -392,11 +391,11 @@ class SimRobotNode(RestNode):
 
             # Move to target location via ZMQ
             target_coords = target.location  # LocationArgument.location contains the coordinates
-            
+
             # Auto-detect for target as well if needed
             if auto_detect_coordinates and coord_type is None:
                 coord_type = self.sim_robot.detect_coordinate_type(target_coords)
-            
+
             if not self.sim_robot.move_to_location(target_coords, coord_type):
                 return ActionFailed(errors=[Error(message="Failed to move to target location")])
 
@@ -415,7 +414,7 @@ class SimRobotNode(RestNode):
             position = self.sim_robot.get_current_position()
             return AdminCommandResponse(data=position)
         return AdminCommandResponse(data=[0, 0, 0, 0, 0, 0])
-    
+
     @action
     def movej(
         self,
@@ -425,20 +424,20 @@ class SimRobotNode(RestNode):
         """Move the robot using joint angles"""
         try:
             coord_type = CoordinateType(coordinate_type) if coordinate_type else CoordinateType.JOINT_ANGLES
-            
+
             if isinstance(joints, LocationArgument):
                 joint_coords = joints.location
             else:
                 joint_coords = joints
-                
+
             if self.sim_robot.move_to_location(joint_coords, coord_type):
                 return ActionSucceeded()
             else:
                 return ActionFailed(errors=[Error(message="Failed to move to joint position")])
-                
+
         except Exception as e:
             return ActionFailed(errors=[Error(message=f"Joint movement error: {str(e)}")])
-    
+
     @action
     def movel(
         self,
@@ -448,20 +447,20 @@ class SimRobotNode(RestNode):
         """Move the robot using linear motion"""
         try:
             coord_type = CoordinateType(coordinate_type) if coordinate_type else CoordinateType.CARTESIAN
-            
+
             if isinstance(target, LocationArgument):
                 target_coords = target.location
             else:
                 target_coords = target
-                
+
             if self.sim_robot.move_to_location(target_coords, coord_type):
                 return ActionSucceeded()
             else:
                 return ActionFailed(errors=[Error(message="Failed to move to target position")])
-                
+
         except Exception as e:
             return ActionFailed(errors=[Error(message=f"Linear movement error: {str(e)}")])
-    
+
     @action
     def get_pose(
         self,
@@ -510,7 +509,7 @@ if __name__ == "__main__":
     print(f"Connecting to ZMQ server at: {args.zmq_server}")
     print(f"Coordinate system: {args.coordinate_type}")
     print(f"Robot model: {args.robot_model}")
-    
+
     robot_interface = SimRobotInterface(
         device_number=args.device_number,
         zmq_server_url=args.zmq_server,
