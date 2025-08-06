@@ -1,2 +1,3 @@
 isaacsim[all,extscache]==4.5.0
+requests
 zmq
