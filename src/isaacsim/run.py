@@ -3,16 +3,19 @@ from isaacsim import SimulationApp
 # This MUST be run before importing ANYTHING else
 simulation_app = SimulationApp({"headless": False})
 
-import numpy as np
-import sys
 import json
+import sys
 import threading
+
+import numpy as np
 import zmq
+
+import utils
 from isaacsim.core.api import World
 from isaacsim.core.api.robots import Robot
+from isaacsim.core.utils.rotations import quat_to_euler_angles
 from isaacsim.core.utils.stage import add_reference_to_stage
 from isaacsim.storage.native import get_assets_root_path
-
 
 ASSETS_ROOT_PATH = get_assets_root_path()
 if ASSETS_ROOT_PATH is None:
@@ -96,9 +99,14 @@ class ZMQRobotServer:
 
             try:
                 joint_positions = self.robot.get_joint_positions()
-                # TODO: Calculate forward kinematics
-                # For now, return a placeholder pose
-                pose = [0.5, 0.0, 1.0, 0.0, 0.0, 0.0]  # [x,y,z,rx,ry,rz]
+
+                # Calculate forward kinematics using utils
+                ee_pos, ee_orient = utils.get_robot_end_effector_pose(self.robot)
+                # Convert quaternion (w,x,y,z) to euler angles using Isaac Sim utilities
+                euler = quat_to_euler_angles(ee_orient)
+                pose = [ee_pos[0], ee_pos[1], ee_pos[2], euler[0], euler[1], euler[2]]
+                print(f"FK calculated pose: position={ee_pos}, orientation={ee_orient}")
+
                 return {"status": "success", "pose": pose, "joint_angles": joint_positions.tolist()}
             except Exception as e:
                 return {"status": "error", "message": f"Failed to get pose: {str(e)}"}
@@ -118,6 +126,14 @@ def create_robots(world, robots_config):
             usd_path=config["asset_path"],
             prim_path=f"/World/{config['name']}",
         )
+        if "position" in config or "orientation" in config:
+            robot_prim = world.stage.GetPrimAtPath(f"/World/{config['name']}")
+
+            position = np.array(config.get("position", [0.0, 0.0, 0.0]))
+            orientation = np.array(config.get("orientation", [1.0, 0.0, 0.0, 0.0]))
+
+            utils.set_prim_world_pose(robot_prim, position=position, orientation=orientation)
+
         robot = world.scene.add(Robot(
             prim_path=f"/World/{config['name']}",
             name=config["name"],
@@ -143,6 +159,8 @@ def main():
             "name": "ur5e_robot",
             "port": 5555,
             "asset_path": ASSETS_ROOT_PATH + "/Isaac/Robots/UniversalRobots/ur5e/ur5e.usd",
+            "position": [2.0, 0.0, 0.0],  # [x, y, z] in world frame
+            "orientation": [1.0, 0.0, 0.0, 0.0],  # [w, x, y, z] quaternion
         }
     ]
 
