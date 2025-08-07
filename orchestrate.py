@@ -9,15 +9,20 @@ Coordinates the startup and shutdown of the 4-terminal Autolab system:
 
 Usage:
 python orchestrate.py \
-    --node-cmd ". activate-madsci.sh && cd src/madsci/ && ./run_node_ur5e.sh" \
-    --node-cmd ". activate-madsci.sh && cd src/madsci/ && ./run_node_ot2.sh" \
-    --isaac-cmd ". activate-isaacsim.sh && cd src/isaacsim/ && python run.py" \
+    --node-cmd "source activate-madsci.sh && cd src/madsci/ && ./run_node_ur5e.sh" \
+    --node-cmd "source activate-madsci.sh && cd src/madsci/ && ./run_node_ot2.sh" \
+    --isaac-cmd "source activate-isaacsim.sh && cd src/isaacsim/ && python run.py" \
     --madsci-cmd "cd src/madsci/ && ./run_madsci.sh" \
-    --workflow-cmd ". activate-madsci.sh && cd projects/prototyping/ && python run_workflow.py workflow.yaml" \
+    --workflow-cmd "source activate-madsci.sh && cd projects/prototyping/ && python run_workflow.py workflow.yaml" \
     --nodes-ready-keyword "EventType.NODE_START" \
     --isaac-ready-keyword "Simulation App Startup Complete" \
     --madsci-ready-keyword "Uvicorn running on http://localhost:8015" \
     --timeout 30
+
+Adding the --extremely-verbose argument will help reveal startup errors, but will cause incredibly large amounts of output to print. Use sparingly. Usage:
+python orchestrate.py \
+    --extremely-verbose \
+    ...
 """
 
 import argparse
@@ -32,7 +37,7 @@ from typing import Optional
 
 logging.basicConfig(
     level=logging.INFO,
-    format='[%(levelname)s] %(message)s',
+    format='%(message)s',
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
@@ -47,11 +52,18 @@ class ProcessManager:
         """Start a subprocess with shell execution"""
         logger.info(f"Starting {name}: {command}")
 
+        # Set environment variables for unbuffered output
+        env = os.environ.copy()
+        env['PYTHONUNBUFFERED'] = '1'  # Force unbuffered Python output
+        env['PYTHONIOENCODING'] = 'utf-8'  # Ensure UTF-8 encoding
+
         process = await asyncio.create_subprocess_shell(
             command,
             stdout=PIPE,
             stderr=PIPE,
             preexec_fn=os.setsid,  # Create new process group for clean shutdown
+            executable='/bin/bash',  # Use bash to support 'source' command
+            env=env,  # Pass environment with unbuffered settings
         )
 
         self.processes[name] = process
@@ -62,18 +74,16 @@ class ProcessManager:
         name: str,
         process: asyncio.subprocess.Process,
         ready_keyword: str,
-        stream_name: str = "stdout",
+        extremely_verbose: bool,
     ):
         """Monitor process output for ready keyword and general logging"""
-        stream = process.stdout if stream_name == "stdout" else process.stderr
-
         while True:
-            line = await stream.readline()
+            line = await process.stdout.readline()
             if not line:
                 break
 
             line_str = line.decode().strip()
-            if name in self.ready_flags:
+            if extremely_verbose or name in self.ready_flags:
                 logger.info(f"[{name.upper()}] {line_str}")
 
             # Check for ready keyword
@@ -88,6 +98,8 @@ class ProcessManager:
         while name not in self.ready_flags and not self.shutdown_event.is_set():
             if asyncio.get_event_loop().time() - start_time > timeout:
                 raise TimeoutError(f"{name} failed to start within {timeout} seconds")
+            if rc_name := self.check_process_health():
+                raise TimeoutError(f"{rc_name} exited while {name} was starting")
             await asyncio.sleep(0.1)
 
     async def shutdown_process(self, name: str):
@@ -135,12 +147,12 @@ class ProcessManager:
         await self.shutdown_process('isaac')
 
     def check_process_health(self):
-        """Check if any critical processes have died"""
+        """Check if any processes have returned"""
         for name, process in self.processes.items():
-            if process.returncode is not None and process.returncode != 0:
-                logger.error(f"{name} process failed with return code {process.returncode}")
-                return False
-        return True
+            if process.returncode is not None:
+                logger.info(f"{name} process return code {process.returncode}")
+                return name
+        return None
 
 def setup_signal_handlers(pm: ProcessManager):
     """Setup signal handlers for graceful shutdown"""
@@ -164,44 +176,54 @@ async def main():
     parser.add_argument('--nodes-ready-keyword', default='Connected', help='Keyword to detect robot nodes readiness')
 
     parser.add_argument('--timeout', type=int, default=60, help='How long to wait for each process to initialize')
+    parser.add_argument('--extremely-verbose', action='store_true', help='Show all output from all processes')
 
     args = parser.parse_args()
 
     pm = ProcessManager()
     setup_signal_handlers(pm)
 
+    isaac_cmd_with_redirect = f"({args.isaac_cmd}) 2>&1"
+    isaac_process = await pm.start_process('isaac', isaac_cmd_with_redirect)
+    asyncio.create_task(pm.monitor_output('isaac', isaac_process, args.isaac_ready_keyword, args.extremely_verbose))
+
+    # Let Isaac have an extra moment to stabilize
+    await asyncio.sleep(5)
+
     for i, node_cmd in enumerate(args.node_cmd):
-        node_process = await pm.start_process(f'node_{i}', node_cmd)
-        asyncio.create_task(pm.monitor_output(f'node_{i}', node_process, args.nodes_ready_keyword))
+        node_cmd_with_redirect = f"({node_cmd}) 2>&1"
+        node_process = await pm.start_process(f'node_{i}', node_cmd_with_redirect)
+        asyncio.create_task(pm.monitor_output(f'node_{i}', node_process, args.nodes_ready_keyword, args.extremely_verbose))
 
-    isaac_process = await pm.start_process('isaac', args.isaac_cmd)
-    asyncio.create_task(pm.monitor_output('isaac', isaac_process, args.isaac_ready_keyword))
+    madsci_cmd_with_redirect = f"({args.madsci_cmd}) 2>&1"
+    madsci_process = await pm.start_process('madsci', madsci_cmd_with_redirect)
+    asyncio.create_task(pm.monitor_output('madsci', madsci_process, args.madsci_ready_keyword, args.extremely_verbose))
 
-    madsci_process = await pm.start_process('madsci', args.madsci_cmd)
-    asyncio.create_task(pm.monitor_output('madsci', madsci_process, args.madsci_ready_keyword))
+    # Wait for Isaac, all nodes, and MADSci to be ready
+    try:
+        await pm.wait_for_ready('isaac', args.timeout)
+        for i in range(len(args.node_cmd)):
+            await pm.wait_for_ready(f'node_{i}', args.timeout)
+        await pm.wait_for_ready('madsci', args.timeout)
+    except Exception as e:
+        logger.info(f"Error while starting processes: {e}")
+        await pm.shutdown_all()
 
-    # Wait for all nodes, Isaac, and MADSci to be ready
-    for i in range(len(args.node_cmd)):
-        await pm.wait_for_ready(f'node_{i}', args.timeout)
-    await pm.wait_for_ready('isaac', args.timeout)
-    await pm.wait_for_ready('madsci', args.timeout)
-
-    if pm.shutdown_event.is_set():
+    if pm.shutdown_event.is_set() or pm.check_process_health():
         logger.error("System failed")
         return 1
 
     logger.info("=== Submitting Workflow ===")
 
-    workflow_process = await pm.start_process('workflow', args.workflow_cmd)
-    asyncio.create_task(pm.monitor_output('workflow', workflow_process, None))
+    workflow_cmd_with_redirect = f"({args.workflow_cmd}) 2>&1"
+    workflow_process = await pm.start_process('workflow', workflow_cmd_with_redirect)
+    asyncio.create_task(pm.monitor_output('workflow', workflow_process, None, args.extremely_verbose))
 
     # Monitor system health and wait for shutdown signal
     while not pm.shutdown_event.is_set():
-        if not pm.check_process_health():
-            logger.error("Process health check failed, initiating shutdown")
+        if pm.check_process_health():
+            logger.info("Health check indicated a process is no longer running, initiating shutdown")
             await pm.shutdown_all()
-            logger.error("System failed")
-            return 1
 
         await asyncio.sleep(1)
 

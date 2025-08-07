@@ -33,7 +33,7 @@ config:
   update_node_files: true
   status_update_interval: 2.0
   state_update_interval: 2.0
-  node_url: http://127.0.0.1:8009/
+  node_url: http://127.0.0.1:8019/
   uvicorn_kwargs: {}
   ot2_ip: ''
   resource_server_url: http://localhost:8013

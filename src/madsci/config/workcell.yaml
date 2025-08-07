@@ -3,7 +3,7 @@ manager_type: workcell_manager
 workcell_id: 01JK7069DXAKAMWE0PDX6EY1PC
 description: A MADSci workcell.
 nodes:
-  sim_robot_1: http://127.0.0.1:8008/
+  sim_robot_1: http://127.0.0.1:8018/
 locations:
 - location_name: location_1
   location_id: 01K0QB11W1RRG2ZX5K51RK83EQ

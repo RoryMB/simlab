@@ -114,7 +114,7 @@ config:
   update_node_files: true
   status_update_interval: 2.0
   state_update_interval: 2.0
-  node_url: http://127.0.0.1:8008/
+  node_url: http://127.0.0.1:8018/
   uvicorn_kwargs: {}
 config_schema:
   description: Default Configuration for a MADSci Node that communicates over REST.
