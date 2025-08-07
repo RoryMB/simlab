@@ -2,7 +2,7 @@ name: "Transfer Plate Workflow"
 description: "A simple workflow to transfer a plate from location_1 to location_2"
 steps:
   - name: "Transfer Plate from 1 to 2"
-    node: "sim_robot_1"
+    node: "sim_ur5e_1"
     action: "transfer"
     locations:
       source: "location_1"

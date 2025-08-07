@@ -1,0 +1,7 @@
+node_name: sim_ur5e_1
+node_id: 01JYF9NXSJK36NTFASXP14XSZF
+node_description: UR5e robot node for Isaac Sim integration.
+node_type: device
+module_name: sim_ur5e
+module_version: 0.0.1
+capabilities: null

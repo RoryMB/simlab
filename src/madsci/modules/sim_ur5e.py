@@ -1,4 +1,4 @@
-"""A robot module with ZMQ client interface for testing."""
+"""A UR5e robot module with ZMQ client interface for Isaac Sim integration."""
 
 import argparse
 import json
@@ -91,7 +91,7 @@ def simple_inverse_kinematics(pose: list) -> list:
     return joints
 
 
-class SimRobotInterface:
+class SimUR5eInterface:
     """A robot interface that communicates via ZMQ."""
 
     status_code: int = 0
@@ -104,7 +104,7 @@ class SimRobotInterface:
         logger: Optional[EventClient] = None,
         coordinate_type: CoordinateType = CoordinateType.JOINT_ANGLES,
         robot_model: str = "UR5e"
-    ) -> "SimRobotInterface":
+    ) -> "SimUR5eInterface":
         """Initialize the robot ZMQ client."""
         self.logger = logger or EventClient()
         self.device_number = device_number
@@ -121,7 +121,7 @@ class SimRobotInterface:
         self.socket = self.context.socket(zmq.REQ)
         self.socket.connect(self.zmq_server_url)
 
-        self.logger.log(f"SimRobotInterface connected to ZMQ server at {self.zmq_server_url}")
+        self.logger.log(f"SimUR5eInterface connected to ZMQ server at {self.zmq_server_url}")
         self.logger.log(f"Coordinate system: {self.coordinate_type.value}, Robot model: {self.robot_model}")
 
     def __del__(self):
@@ -277,21 +277,21 @@ class SimRobotInterface:
         return get_pose_from_joint_angles(joints, "UR5e")
 
 
-class SimRobotNode(RestNode):
+class SimUR5eNode(RestNode):
     """A robot node module with 6-DOF support."""
 
-    sim_robot: SimRobotInterface = None
+    sim_ur5e: SimUR5eInterface = None
 
-    def set_robot_interface(self, robot_interface: SimRobotInterface) -> None:
+    def set_robot_interface(self, robot_interface: SimUR5eInterface) -> None:
         """Set the robot interface instance."""
-        self.sim_robot = robot_interface
+        self.sim_ur5e = robot_interface
 
     def startup_handler(self) -> None:
         """Called to (re)initialize the node. Should be used to open connections to devices or initialize any other resources."""
-        if self.sim_robot is None:
+        if self.sim_ur5e is None:
             raise RuntimeError("Robot interface not set. Call set_robot_interface() before starting node.")
 
-        resource_name = "sim_robot_gripper_" + str(self.node_definition.node_name)
+        resource_name = "sim_ur5e_gripper_" + str(self.node_definition.node_name)
         slot_def = SlotResourceDefinition(resource_name=resource_name)
         self.gripper = self.resource_client.init_resource(slot_def)
         self.logger.log("Robot initialized!")
@@ -299,15 +299,15 @@ class SimRobotNode(RestNode):
     def shutdown_handler(self) -> None:
         """Called to shutdown the node. Should be used to close connections to devices or release any other resources."""
         self.logger.log("Shutting down")
-        if self.sim_robot:
-            del self.sim_robot
+        if self.sim_ur5e:
+            del self.sim_ur5e
 
     def state_handler(self) -> dict[str, any]:
         """Periodically called to get the current state of the node."""
-        if self.sim_robot is not None:
-            current_position = self.sim_robot.get_current_position()
+        if self.sim_ur5e is not None:
+            current_position = self.sim_ur5e.get_current_position()
             self.node_state = {
-                "sim_robot_status_code": self.sim_robot.status_code,
+                "sim_ur5e_status_code": self.sim_ur5e.status_code,
                 "current_joint_positions": current_position,
             }
 
@@ -346,10 +346,10 @@ class SimRobotNode(RestNode):
 
             # Auto-detect coordinate system if requested
             if auto_detect_coordinates and coord_type is None:
-                coord_type = self.sim_robot.detect_coordinate_type(source_coords)
+                coord_type = self.sim_ur5e.detect_coordinate_type(source_coords)
                 self.logger.log(f"Auto-detected coordinate system: {coord_type.value}")
 
-            if not self.sim_robot.move_to_location(source_coords, coord_type):
+            if not self.sim_ur5e.move_to_location(source_coords, coord_type):
                 return ActionFailed(errors=[Error(message="Failed to move to source location")])
 
             # Simulate gripper pickup
@@ -363,9 +363,9 @@ class SimRobotNode(RestNode):
 
             # Auto-detect for target as well if needed
             if auto_detect_coordinates and coord_type is None:
-                coord_type = self.sim_robot.detect_coordinate_type(target_coords)
+                coord_type = self.sim_ur5e.detect_coordinate_type(target_coords)
 
-            if not self.sim_robot.move_to_location(target_coords, coord_type):
+            if not self.sim_ur5e.move_to_location(target_coords, coord_type):
                 return ActionFailed(errors=[Error(message="Failed to move to target location")])
 
             # Simulate gripper release
@@ -379,8 +379,8 @@ class SimRobotNode(RestNode):
 
     def get_location(self) -> AdminCommandResponse:
         """Get the robot's current location"""
-        if self.sim_robot:
-            position = self.sim_robot.get_current_position()
+        if self.sim_ur5e:
+            position = self.sim_ur5e.get_current_position()
             return AdminCommandResponse(data=position)
         return AdminCommandResponse(data=[0, 0, 0, 0, 0, 0])
 
@@ -399,7 +399,7 @@ class SimRobotNode(RestNode):
             else:
                 joint_coords = joints
 
-            if self.sim_robot.move_to_location(joint_coords, coord_type):
+            if self.sim_ur5e.move_to_location(joint_coords, coord_type):
                 return ActionSucceeded()
             else:
                 return ActionFailed(errors=[Error(message="Failed to move to joint position")])
@@ -422,7 +422,7 @@ class SimRobotNode(RestNode):
             else:
                 target_coords = target
 
-            if self.sim_robot.move_to_location(target_coords, coord_type):
+            if self.sim_ur5e.move_to_location(target_coords, coord_type):
                 return ActionSucceeded()
             else:
                 return ActionFailed(errors=[Error(message="Failed to move to target position")])
@@ -436,8 +436,8 @@ class SimRobotNode(RestNode):
     ) -> ActionResult:
         """Get current end-effector pose"""
         try:
-            if self.sim_robot:
-                pose = self.sim_robot.get_pose_from_joints()
+            if self.sim_ur5e:
+                pose = self.sim_ur5e.get_pose_from_joints()
                 return ActionSucceeded(data={"pose": pose})
             else:
                 return ActionFailed(errors=[Error(message="Robot interface not available")])
@@ -479,7 +479,7 @@ if __name__ == "__main__":
     print(f"Coordinate system: {args.coordinate_type}")
     print(f"Robot model: {args.robot_model}")
 
-    robot_interface = SimRobotInterface(
+    robot_interface = SimUR5eInterface(
         device_number=args.device_number,
         zmq_server_url=args.zmq_server,
         coordinate_type=CoordinateType(args.coordinate_type),
@@ -487,7 +487,7 @@ if __name__ == "__main__":
     )
 
     # Create and configure the node
-    node = SimRobotNode()
+    node = SimUR5eNode()
     node.set_robot_interface(robot_interface)
 
     # Start the node (this will call startup_handler)

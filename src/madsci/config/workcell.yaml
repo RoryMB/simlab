@@ -3,13 +3,13 @@ manager_type: workcell_manager
 workcell_id: 01JK7069DXAKAMWE0PDX6EY1PC
 description: A MADSci workcell.
 nodes:
-  sim_robot_1: http://127.0.0.1:8018/
+  sim_ur5e_1: http://127.0.0.1:8018/
 locations:
 - location_name: location_1
   location_id: 01K0QB11W1RRG2ZX5K51RK83EQ
   description: The source location for the transfer
   lookup:
-    sim_robot_1:
+    sim_ur5e_1:
     - 0.0
     - -1.57
     - 0.0
@@ -32,7 +32,7 @@ locations:
   location_id: 01K0QB11WE133NA4ESABMERH35
   description: The target location for the transfer
   lookup:
-    sim_robot_1:
+    sim_ur5e_1:
     - 0.785
     - -1.2
     - -0.5

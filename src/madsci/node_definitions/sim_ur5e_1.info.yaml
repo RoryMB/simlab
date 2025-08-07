@@ -1,8 +1,8 @@
-node_name: sim_robot_1
+node_name: sim_ur5e_1
 node_id: 01JYF9NXSJK36NTFASXP14XSZF
-node_description: A basic node.
+node_description: UR5e robot node for Isaac Sim integration.
 node_type: device
-module_name: sim_robot
+module_name: sim_ur5e
 module_version: 0.0.1
 capabilities:
   get_info: true
@@ -109,7 +109,7 @@ actions:
     blocking: false
     asynchronous: true
 config:
-  node_definition: node_definitions/sim_robot_1.node.yaml
+  node_definition: node_definitions/sim_ur5e_1.node.yaml
   node_info_path: null
   update_node_files: true
   status_update_interval: 2.0

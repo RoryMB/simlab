@@ -72,15 +72,18 @@ madsci-client==0.4.3
     # via
     #   -r requirements.in
     #   madsci-node-module
+    #   pf400-module
 madsci-common==0.4.3
     # via
     #   -r requirements.in
     #   madsci-client
     #   madsci-node-module
+    #   pf400-module
 madsci-node-module==0.4.3
     # via
     #   -r requirements.in
     #   ot2-module
+    #   pf400-module
     #   ur-module
 markdown-it-py==3.0.0
     # via
@@ -117,6 +120,8 @@ paramiko==4.0.0
     # via
     #   scp
     #   ur-module
+pf400-module @ git+https://github.com/AD-SDL/pf400_module.git@9b12a95dc5878ff99c69c5b50958a4424b433867
+    # via -r requirements.in
 platformdirs==4.3.8
     # via textual
 pycparser==2.22
@@ -156,7 +161,9 @@ pymongo==4.13.2
 pynacl==1.5.0
     # via paramiko
 pynput==1.8.1
-    # via ur-module
+    # via
+    #   pf400-module
+    #   ur-module
 pyparsing==3.2.3
     # via pyepics
 pyrsistent==0.20.0

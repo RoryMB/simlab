@@ -15,6 +15,7 @@ from isaacsim.storage.native import get_assets_root_path
 import utils
 from zmq_ot2_server import ZMQ_OT2_Server
 from zmq_ur5e_server import ZMQ_UR5e_Server
+from zmq_pf400_server import ZMQ_PF400_Server
 
 CUSTOM_ASSETS_ROOT_PATH = str(Path("../../assets").resolve())
 
@@ -53,6 +54,8 @@ def create_robots(world, robots_config):
         robot_type = config.get("type", "generic")
         if robot_type == "ot2":
             zmq_server = ZMQ_OT2_Server(simulation_app, robot, config["name"], config["port"])
+        elif robot_type == "pf400":
+            zmq_server = ZMQ_PF400_Server(simulation_app, robot, config["name"], config["port"])
         else:
             # Default to generic robot server (for UR5e, etc.)
             zmq_server = ZMQ_UR5e_Server(simulation_app, robot, config["name"], config["port"])
@@ -76,6 +79,14 @@ def main():
             "port": 5555,
             "asset_path": NVIDIA_ASSETS_ROOT_PATH + "/Isaac/Robots/UniversalRobots/ur5e/ur5e.usd",
             "position": [2.0, 0.0, 0.0],  # [x, y, z] in world frame
+            "orientation": [1.0, 0.0, 0.0, 0.0],  # [w, x, y, z] quaternion
+        },
+        {
+            "name": "pf400_robot",
+            "type": "pf400",
+            "port": 5557,
+            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/temp/robots/pf400.usda",
+            "position": [-2.0, 0.0, 0.0],  # [x, y, z] in world frame
             "orientation": [1.0, 0.0, 0.0, 0.0],  # [w, x, y, z] quaternion
         },
         {
