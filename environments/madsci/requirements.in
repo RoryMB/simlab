@@ -1,4 +1,6 @@
+-e ./opentrons
 git+https://github.com/AD-SDL/ur_module.git
+git+https://github.com/AD-SDL/ot2_module.git
 madsci-client==0.4.3
 madsci-common==0.4.3
 madsci-node-module==0.4.3

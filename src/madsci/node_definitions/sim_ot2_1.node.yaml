@@ -1,0 +1,6 @@
+node_name: sim_ot2_1
+node_description: A basic node.
+node_type: device
+module_name: sim_ot2
+module_version: 0.0.1
+capabilities: null
