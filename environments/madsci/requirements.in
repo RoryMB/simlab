@@ -1,3 +1,4 @@
+git+https://github.com/AD-SDL/ur_module.git
 madsci-client==0.4.3
 madsci-common==0.4.3
 madsci-node-module==0.4.3

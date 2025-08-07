@@ -12,12 +12,17 @@ argon2-cffi==25.1.0
     # via minio
 argon2-cffi-bindings==25.1.0
     # via argon2-cffi
+bcrypt==4.3.0
+    # via paramiko
 certifi==2025.8.3
     # via
     #   minio
     #   requests
 cffi==1.17.1
-    # via argon2-cffi-bindings
+    # via
+    #   argon2-cffi-bindings
+    #   cryptography
+    #   pynacl
 charset-normalizer==3.4.2
     # via requests
 click==8.2.1
@@ -25,12 +30,18 @@ click==8.2.1
     #   madsci-client
     #   trogon
     #   uvicorn
+cryptography==45.0.6
+    # via paramiko
 dill==0.4.0
     # via multiprocess
 dnspython==2.7.0
     # via pymongo
+evdev==1.9.2
+    # via pynput
 fastapi==0.116.1
-    # via madsci-common
+    # via
+    #   madsci-common
+    #   ur-module
 greenlet==3.2.3
     # via sqlalchemy
 h11==0.16.0
@@ -41,6 +52,8 @@ idna==3.10
     # via
     #   anyio
     #   requests
+invoke==2.2.0
+    # via paramiko
 linkify-it-py==2.0.3
     # via markdown-it-py
 madsci-client==0.4.3
@@ -53,12 +66,16 @@ madsci-common==0.4.3
     #   madsci-client
     #   madsci-node-module
 madsci-node-module==0.4.3
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   ur-module
 markdown-it-py==3.0.0
     # via
     #   mdit-py-plugins
     #   rich
     #   textual
+math3d @ git+https://github.com/Dozgulbas/pymath3d.git@511bd8c409831c5ec6e5623e141d54246013ef90#egg=math3d
+    # via urx
 mdit-py-plugins==0.4.2
     # via markdown-it-py
 mdurl==0.1.2
@@ -68,7 +85,15 @@ minio==7.2.16
 multiprocess==0.70.18
     # via madsci-common
 numpy==2.3.2
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   pyepics
+    #   ur-module
+    #   urx
+paramiko==4.0.0
+    # via
+    #   scp
+    #   ur-module
 platformdirs==4.3.8
     # via textual
 pycparser==2.22
@@ -94,12 +119,20 @@ pydantic-settings==2.10.1
     #   pydantic-settings-export
 pydantic-settings-export==1.0.2
     # via madsci-common
+pyepics==3.5.8
+    # via ur-module
 pygments==2.19.2
     # via
     #   rich
     #   textual
 pymongo==4.13.2
     # via madsci-common
+pynacl==1.5.0
+    # via paramiko
+pynput==1.8.1
+    # via ur-module
+pyparsing==3.2.3
+    # via pyepics
 python-dotenv==1.1.1
     # via
     #   madsci-common
@@ -109,6 +142,8 @@ python-multipart==0.0.20
     # via madsci-common
 python-ulid==3.0.0
     # via madsci-common
+python-xlib==0.33
+    # via pynput
 pyyaml==6.0.2
     # via
     #   madsci-common
@@ -119,10 +154,18 @@ requests==2.32.4
     # via madsci-common
 rich==14.1.0
     # via textual
+scp==0.15.0
+    # via ur-module
 semver==3.0.4
     # via madsci-common
+six==1.17.0
+    # via
+    #   pynput
+    #   python-xlib
 sniffio==1.3.1
     # via anyio
+sockets==1.0.0
+    # via ur-module
 sqlalchemy==2.0.42
     # via sqlmodel
 sqlmodel==0.0.24
@@ -151,12 +194,18 @@ typing-inspection==0.4.1
     #   pydantic-settings
 uc-micro-py==1.0.3
     # via linkify-it-py
+ur-module @ git+https://github.com/AD-SDL/ur_module.git@f6487d5d4c203bd1991e6ed341027a234aeecf5e
+    # via -r requirements.in
 urllib3==2.5.0
     # via
     #   minio
     #   requests
+urx @ git+https://github.com/Dozgulbas/python-urx.git@3be8fa15684d5df887b76d583dfb242fcdc68341
+    # via ur-module
 uvicorn==0.35.0
-    # via madsci-common
+    # via
+    #   madsci-common
+    #   ur-module
 uvloop==0.21.0
     # via uvicorn
 watchfiles==1.1.0

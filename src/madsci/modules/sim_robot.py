@@ -18,6 +18,8 @@ import json
 import zmq
 import numpy as np
 
+from ur_interface.ur_kinematics import get_pose_from_joint_angles, forward_kinematics
+
 
 class CoordinateType(Enum):
     """Supported coordinate system types."""
@@ -25,105 +27,66 @@ class CoordinateType(Enum):
     CARTESIAN = "cartesian"
 
 
-class UR5eKinematics:
-    """Simple UR5e kinematics for pose-to-joint conversion."""
+def validate_ur5e_joints(joints: list) -> bool:
+    """Validate UR5e joint angles are within standard limits."""
+    if len(joints) != 6:
+        return False
 
-    def __init__(self):
-        # UR5e DH parameters (simplified)
-        self.a = [0.0, -0.425, -0.3922, 0.0, 0.0, 0.0]
-        self.d = [0.1625, 0.0, 0.0, 0.1333, 0.0997, 0.0996]
-        self.alpha = [np.pi/2, 0.0, 0.0, np.pi/2, -np.pi/2, 0.0]
+    # UR5e joint limits (radians)
+    joint_limits = [
+        (-2*np.pi, 2*np.pi),
+        (-2*np.pi, 2*np.pi),
+        (-np.pi, np.pi),
+        (-2*np.pi, 2*np.pi),
+        (-2*np.pi, 2*np.pi),
+        (-2*np.pi, 2*np.pi)
+    ]
 
-        # Joint limits (radians)
-        self.joint_limits = [
-            (-2*np.pi, 2*np.pi),
-            (-2*np.pi, 2*np.pi),
-            (-np.pi, np.pi),
-            (-2*np.pi, 2*np.pi),
-            (-2*np.pi, 2*np.pi),
-            (-2*np.pi, 2*np.pi)
-        ]
-
-    def forward_kinematics(self, joints: list) -> list:
-        """Calculate forward kinematics to get end-effector pose."""
-        if len(joints) != 6:
-            raise ValueError("Expected 6 joint angles")
-
-        # Simplified forward kinematics using DH parameters
-        T = np.eye(4)
-
-        for i in range(6):
-            ct = np.cos(joints[i])
-            st = np.sin(joints[i])
-            ca = np.cos(self.alpha[i])
-            sa = np.sin(self.alpha[i])
-
-            Ti = np.array([
-                [ct, -st*ca, st*sa, self.a[i]*ct],
-                [st, ct*ca, -ct*sa, self.a[i]*st],
-                [0, sa, ca, self.d[i]],
-                [0, 0, 0, 1]
-            ])
-            T = T @ Ti
-
-        # Extract position and rotation
-        pos = T[:3, 3]
-
-        # Convert rotation matrix to Euler angles (simplified)
-        sy = np.sqrt(T[0,0]**2 + T[1,0]**2)
-        singular = sy < 1e-6
-
-        if not singular:
-            rx = np.arctan2(T[2,1], T[2,2])
-            ry = np.arctan2(-T[2,0], sy)
-            rz = np.arctan2(T[1,0], T[0,0])
-        else:
-            rx = np.arctan2(-T[1,2], T[1,1])
-            ry = np.arctan2(-T[2,0], sy)
-            rz = 0
-
-        return [float(pos[0]), float(pos[1]), float(pos[2]), float(rx), float(ry), float(rz)]
-
-    def inverse_kinematics(self, pose: list) -> list:
-        """Simple inverse kinematics (analytical solution for specific poses)."""
-        if len(pose) != 6:
-            raise ValueError("Expected 6-element pose [x, y, z, rx, ry, rz]")
-
-        x, y, z, rx, ry, rz = pose
-
-        # Simplified inverse kinematics for common positions
-        # This is a basic implementation - full IK would be more complex
-
-        # Base joint (rotation around z-axis)
-        q1 = np.arctan2(y, x)
-
-        # Distance in xy plane
-        r = np.sqrt(x**2 + y**2)
-
-        # Simplified calculation for remaining joints
-        q2 = -np.pi/2 + np.arctan2(z - self.d[0], r)
-        q3 = 0.0  # Simplified
-        q4 = -(q2 + q3) + ry  # Wrist alignment
-        q5 = 0.0  # Simplified
-        q6 = rz - q1  # End-effector orientation
-
-        joints = [q1, q2, q3, q4, q5, q6]
-
-        # Apply joint limits
-        for i, (joint, (min_val, max_val)) in enumerate(zip(joints, self.joint_limits)):
-            joints[i] = np.clip(joint, min_val, max_val)
-
-        return joints
-
-    def validate_joints(self, joints: list) -> bool:
-        """Validate joint angles are within limits."""
-        if len(joints) != 6:
+    for joint, (min_val, max_val) in zip(joints, joint_limits):
+        if not (min_val <= joint <= max_val):
             return False
+    return True
 
-        for joint, (min_val, max_val) in zip(joints, self.joint_limits):
-            if not (min_val <= joint <= max_val):
-                return False
-        return True
+
+def simple_inverse_kinematics(pose: list) -> list:
+    """Simple inverse kinematics for UR5e (basic analytical solution)."""
+    if len(pose) != 6:
+        raise ValueError("Expected 6-element pose [x, y, z, rx, ry, rz]")
+
+    x, y, z, rx, ry, rz = pose
+
+    # UR5e DH d parameters for calculations
+    d1 = 0.1625
+
+    # Base joint (rotation around z-axis)
+    q1 = np.arctan2(y, x)
+
+    # Distance in xy plane
+    r = np.sqrt(x**2 + y**2)
+
+    # Simplified calculation for remaining joints
+    q2 = -np.pi/2 + np.arctan2(z - d1, r)
+    q3 = 0.0  # Simplified
+    q4 = -(q2 + q3) + ry  # Wrist alignment
+    q5 = 0.0  # Simplified
+    q6 = rz - q1  # End-effector orientation
+
+    joints = [q1, q2, q3, q4, q5, q6]
+
+    # Apply joint limits
+    joint_limits = [
+        (-2*np.pi, 2*np.pi),
+        (-2*np.pi, 2*np.pi),
+        (-np.pi, np.pi),
+        (-2*np.pi, 2*np.pi),
+        (-2*np.pi, 2*np.pi),
+        (-2*np.pi, 2*np.pi)
+    ]
+
+    for i, (joint, (min_val, max_val)) in enumerate(zip(joints, joint_limits)):
+        joints[i] = np.clip(joint, min_val, max_val)
+
+    return joints
 
 
 class SimRobotInterface:
@@ -147,11 +110,9 @@ class SimRobotInterface:
         self.coordinate_type = coordinate_type
         self.robot_model = robot_model
 
-        # Initialize kinematics
-        if robot_model.upper() == "UR5E":
-            self.kinematics = UR5eKinematics()
-        else:
-            raise ValueError(f"Unsupported robot model: {robot_model}")
+        # Validate robot model
+        if robot_model.upper() != "UR5E":
+            raise ValueError(f"Unsupported robot model: {robot_model}. Only UR5E is supported.")
 
         # Initialize ZMQ client
         self.context = zmq.Context()
@@ -206,7 +167,7 @@ class SimRobotInterface:
             joint_angles = self.process_location(location_coordinates, coord_type)
 
             # Validate joint angles
-            if not self.kinematics.validate_joints(joint_angles):
+            if not validate_ur5e_joints(joint_angles):
                 self.logger.log(f"Joint angles out of bounds: {joint_angles}")
                 return False
 
@@ -264,11 +225,11 @@ class SimRobotInterface:
         """Handle Cartesian coordinate input (pose)."""
         if len(pose) == 6:
             # Full 6-DOF pose [x, y, z, rx, ry, rz]
-            return self.kinematics.inverse_kinematics(pose)
+            return simple_inverse_kinematics(pose)
         elif len(pose) == 3:
             # Position only [x, y, z] - assume zero orientation
             full_pose = pose + [0.0, 0.0, 0.0]
-            return self.kinematics.inverse_kinematics(full_pose)
+            return simple_inverse_kinematics(full_pose)
         elif len(pose) == 4:
             # Legacy format - convert to pose
             self.logger.log("Converting legacy 4-element coordinates to pose")
@@ -311,7 +272,7 @@ class SimRobotInterface:
     def get_pose_from_joints(self) -> list:
         """Get current end-effector pose from joint positions."""
         joints = self.get_current_position()
-        return self.kinematics.forward_kinematics(joints)
+        return get_pose_from_joint_angles(joints, "UR5e")
 
 
 class SimRobotNode(RestNode):
