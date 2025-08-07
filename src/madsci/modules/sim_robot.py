@@ -1,9 +1,17 @@
 """A robot module with ZMQ client interface for testing."""
 
 import argparse
+import json
+import os
+import signal
+import sys
 import time
-from typing import Annotated, Optional, Union
 from enum import Enum
+from typing import Annotated, Optional, Union
+
+import numpy as np
+import zmq
+from ur_interface.ur_kinematics import forward_kinematics, get_pose_from_joint_angles
 
 from madsci.client.event_client import EventClient
 from madsci.common.types.action_types import ActionFailed, ActionResult, ActionSucceeded
@@ -13,12 +21,6 @@ from madsci.common.types.location_types import LocationArgument
 from madsci.common.types.resource_types.definitions import SlotResourceDefinition
 from madsci.node_module.helpers import action
 from madsci.node_module.rest_node_module import RestNode
-
-import json
-import zmq
-import numpy as np
-
-from ur_interface.ur_kinematics import get_pose_from_joint_angles, forward_kinematics
 
 
 class CoordinateType(Enum):
@@ -308,6 +310,12 @@ class SimRobotNode(RestNode):
                 "sim_robot_status_code": self.sim_robot.status_code,
                 "current_joint_positions": current_position,
             }
+
+    def _exception_handler(self, e: Exception, set_node_errored: bool = True):
+        """Overrides the default exception handler to force a shutdown."""
+        super()._exception_handler(e, set_node_errored)
+        self.logger.log_critical("Error detected in simulation fail-fast mode. Forcing node shutdown.")
+        os.kill(os.getpid(), signal.SIGTERM)
 
     @action
     def transfer(
