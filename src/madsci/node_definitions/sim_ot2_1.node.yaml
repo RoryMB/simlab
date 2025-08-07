@@ -1,4 +1,5 @@
 node_name: sim_ot2_1
+node_id: 01K21DTGF6Q35ZVNZ7XK0P9BW5
 node_description: A basic node.
 node_type: device
 module_name: sim_ot2

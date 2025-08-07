@@ -13,9 +13,15 @@ from ot2_interface.config import OT2_Config
 class SimOT2NodeConfig(OT2NodeConfig):
     """Configuration for the simulated OT2 node module."""
 
+    resource_server_url: str = "http://localhost:8013"
+    "Temporary hack to fix ot2_rest_node.py:49"
+
+    ot2_ip: str = ""
+    "We don't use the ot2_ip in the simulated version"
+
     zmq_server_url: str = "tcp://localhost:5556"
     "ZMQ server URL for Isaac Sim communication"
-    
+
     python_executable: str = "python"
     "Python executable to use for running protocols"
 
@@ -23,6 +29,7 @@ class SimOT2NodeConfig(OT2NodeConfig):
 class SimOT2Node(OT2Node):
     """Simulated node module for Opentrons Robots using ZMQ backend"""
 
+    config: SimOT2NodeConfig = SimOT2NodeConfig()
     config_model = SimOT2NodeConfig
 
     def startup_handler(self) -> None:
@@ -46,7 +53,7 @@ class SimOT2Node(OT2Node):
         try:
             # Create config for compatibility
             ot2_config = OT2_Config(ip=self.config.ot2_ip)
-            
+
             # Initialize simulation driver instead of real driver
             self.ot2_interface = SimOT2_Driver(
                 config=ot2_config,
@@ -64,7 +71,7 @@ class SimOT2Node(OT2Node):
         """Execute protocol using simulation driver with protocol_path passed through."""
         protocol_file_path = Path(protocol_path)
         self.logger.log(f"Simulated execution: {protocol_file_path.resolve()}")
-        
+
         try:
             protocol_id, run_id = self.ot2_interface.transfer(protocol_file_path)
             self.logger.log(f"Simulated OT2 {self.node_definition.node_name} protocol validated")
@@ -73,9 +80,9 @@ class SimOT2Node(OT2Node):
             # Pass the protocol path to the simulation driver's execute method
             resp = self.ot2_interface.execute(run_id, protocol_path=protocol_file_path)
             self.run_id = None
-            
+
             print(f"Simulation execution result: {resp}")
-            
+
             if resp["data"]["status"] == "succeeded":
                 self.logger.log(f"Simulated OT2 {self.node_definition.node_name} succeeded")
                 return "succeeded", "Protocol executed successfully in simulation", run_id
@@ -85,7 +92,7 @@ class SimOT2Node(OT2Node):
             else:
                 self.logger.log(f"Simulated OT2 {self.node_definition.node_name} failed")
                 return "failed", f"Protocol failed in simulation: {resp['data']}", run_id
-                
+
         except Exception as err:
             error_msg = f"Simulation error: {traceback.format_exc()}"
             self.logger.log(error_msg)

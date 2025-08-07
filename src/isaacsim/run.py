@@ -6,6 +6,7 @@ simulation_app = SimulationApp({"headless": False})
 import json
 import sys
 import threading
+from pathlib import Path
 
 import numpy as np
 import zmq
@@ -18,7 +19,7 @@ from isaacsim.core.utils.stage import add_reference_to_stage
 from isaacsim.storage.native import get_assets_root_path
 
 
-CUSTOM_ASSETS_ROOT_PATH = "../../assets"
+CUSTOM_ASSETS_ROOT_PATH = str(Path("../../assets").resolve())
 
 NVIDIA_ASSETS_ROOT_PATH = get_assets_root_path()
 if NVIDIA_ASSETS_ROOT_PATH is None:
