@@ -2,9 +2,14 @@ git clone https://github.com/AD-SDL/MADSci.git MADSci_Core
 
 git clone https://github.com/AD-SDL/MADSci_Examples.git MADSci_Examples
 
+mkdir MADSci_Labs
+cd MADSci_Labs
+git clone https://github.com/AD-SDL/rpl_sdl.git
+cd ..
+
 mkdir MADSci_Experiments
 cd MADSci_Experiments
-git clone https://github.com/AD-SDL/colorpicker_experiment.git MADSci_Experiments/colorpicker_experiment
+git clone https://github.com/AD-SDL/colorpicker_experiment.git
 cd ..
 
 mkdir MADSci_Modules
