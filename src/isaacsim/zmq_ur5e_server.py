@@ -1,13 +1,14 @@
 import numpy as np
 from isaacsim.core.utils.rotations import quat_to_euler_angles
+from isaacsim.core.utils.types import ArticulationAction
 
 import utils
 from zmq_robot_server import ZMQ_Robot_Server
 
 class ZMQ_UR5e_Server(ZMQ_Robot_Server):
     """Handles ZMQ communication for UR5e robot"""
-    def __init__(self, simulation_app, robot, robot_name: str, port: int):
-        super().__init__(simulation_app, robot, robot_name, port)
+    def __init__(self, simulation_app, robot, robot_name: str, port: int, motion_type: str = "teleport"):
+        super().__init__(simulation_app, robot, robot_name, port, motion_type)
 
     def handle_command(self, request):
         """Handle incoming ZMQ command from MADSci"""
@@ -20,8 +21,13 @@ class ZMQ_UR5e_Server(ZMQ_Robot_Server):
                 return self.create_error_response(f"Expected 6 joint angles, got {len(joint_angles)}")
 
             try:
-                self.robot.set_joint_positions(np.array(joint_angles))
-                return self.create_success_response("moved", joint_angles=joint_angles)
+                if self.motion_type == "teleport":
+                    self.robot.set_joint_positions(np.array(joint_angles))
+                    return self.create_success_response("moved", joint_angles=joint_angles)
+                else:  # smooth motion
+                    action = ArticulationAction(joint_positions=np.array(joint_angles))
+                    self.robot.apply_action(action)
+                    return self.create_success_response("started_moving", joint_angles=joint_angles)
             except Exception as e:
                 return self.create_error_response(f"Failed to move robot: {str(e)}")
 

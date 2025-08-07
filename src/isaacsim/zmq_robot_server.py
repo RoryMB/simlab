@@ -6,11 +6,12 @@ from abc import ABC, abstractmethod
 class ZMQ_Robot_Server(ABC):
     """Base class for ZMQ robot servers handling communication between Isaac Sim and MADSci"""
     
-    def __init__(self, simulation_app, robot, robot_name: str, port: int):
+    def __init__(self, simulation_app, robot, robot_name: str, port: int, motion_type: str = "teleport"):
         self.simulation_app = simulation_app
         self.robot = robot  # Isaac Sim Robot object from world.scene.add(Robot(...))
         self.robot_name = robot_name
         self.port = port
+        self.motion_type = motion_type  # "teleport" or "smooth"
         self.context = None
         self.socket = None
 

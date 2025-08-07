@@ -2,8 +2,8 @@ from zmq_robot_server import ZMQ_Robot_Server
 
 class ZMQ_OT2_Server(ZMQ_Robot_Server):
     """Handles ZMQ communication for OT-2 robot with opentrons-specific commands"""
-    def __init__(self, simulation_app, robot, robot_name: str, port: int):
-        super().__init__(simulation_app, robot, robot_name, port)
+    def __init__(self, simulation_app, robot, robot_name: str, port: int, motion_type: str = "teleport"):
+        super().__init__(simulation_app, robot, robot_name, port, motion_type)
 
         # OT-2 joint mapping (joint index -> joint name)
         self.joint_names = [

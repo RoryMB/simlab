@@ -52,13 +52,15 @@ def create_robots(world, robots_config):
 
         # Create appropriate ZMQ server based on robot type
         robot_type = config.get("type", "generic")
+        motion_type = config.get("motion_type", "teleport")
+        
         if robot_type == "ot2":
-            zmq_server = ZMQ_OT2_Server(simulation_app, robot, config["name"], config["port"])
+            zmq_server = ZMQ_OT2_Server(simulation_app, robot, config["name"], config["port"], motion_type)
         elif robot_type == "pf400":
-            zmq_server = ZMQ_PF400_Server(simulation_app, robot, config["name"], config["port"])
+            zmq_server = ZMQ_PF400_Server(simulation_app, robot, config["name"], config["port"], motion_type)
         else:
             # Default to generic robot server (for UR5e, etc.)
-            zmq_server = ZMQ_UR5e_Server(simulation_app, robot, config["name"], config["port"])
+            zmq_server = ZMQ_UR5e_Server(simulation_app, robot, config["name"], config["port"], motion_type)
 
         robots.append(robot)
         zmq_servers.append(zmq_server)
@@ -76,6 +78,7 @@ def main():
         {
             "name": "ur5e_robot",
             "type": "generic",
+            "motion_type": "smooth",  # Enable smooth motion for demo
             "port": 5555,
             "asset_path": NVIDIA_ASSETS_ROOT_PATH + "/Isaac/Robots/UniversalRobots/ur5e/ur5e.usd",
             "position": [2.0, 0.0, 0.0],  # [x, y, z] in world frame
@@ -84,6 +87,7 @@ def main():
         {
             "name": "pf400_robot",
             "type": "pf400",
+            "motion_type": "smooth",  # Enable smooth motion for demo
             "port": 5557,
             "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/temp/robots/pf400.usda",
             "position": [-2.0, 0.0, 0.0],  # [x, y, z] in world frame
@@ -92,6 +96,7 @@ def main():
         {
             "name": "ot2_robot",
             "type": "ot2",
+            "motion_type": "teleport",  # Keep teleport for OT2 (we haven't updated OT2 server yet)
             "port": 5556,
             "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/temp/robots/ot2.usda",
             "position": [0.0, 2.0, 0.0],  # [x, y, z] in world frame

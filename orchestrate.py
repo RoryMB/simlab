@@ -188,7 +188,7 @@ async def main():
     asyncio.create_task(pm.monitor_output('isaac', isaac_process, args.isaac_ready_keyword, args.extremely_verbose))
 
     # Let Isaac have an extra moment to stabilize
-    await asyncio.sleep(5)
+    await asyncio.sleep(10)
 
     for i, node_cmd in enumerate(args.node_cmd):
         node_cmd_with_redirect = f"({node_cmd}) 2>&1"
@@ -211,6 +211,7 @@ async def main():
 
     if pm.shutdown_event.is_set() or pm.check_process_health():
         logger.error("System failed")
+        await pm.shutdown_all()
         return 1
 
     logger.info("=== Submitting Workflow ===")

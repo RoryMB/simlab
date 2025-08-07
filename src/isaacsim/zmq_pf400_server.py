@@ -1,11 +1,12 @@
 import numpy as np
+from isaacsim.core.utils.types import ArticulationAction
 from zmq_robot_server import ZMQ_Robot_Server
 
 class ZMQ_PF400_Server(ZMQ_Robot_Server):
     """Handles ZMQ communication for PF400 robot"""
     
-    def __init__(self, simulation_app, robot, robot_name: str, port: int):
-        super().__init__(simulation_app, robot, robot_name, port)
+    def __init__(self, simulation_app, robot, robot_name: str, port: int, motion_type: str = "teleport"):
+        super().__init__(simulation_app, robot, robot_name, port, motion_type)
         
         # PF400 joint limits based on PF400 specifications
         # Joint 1 (Z/vertical): Typically 0 to 350mm
@@ -14,6 +15,7 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
         # Joint 4 (Gripper rotation): -180 to 180 degrees
         # Joint 5 (Gripper tilt): -90 to 90 degrees
         # Joint 6 (Rail): 0 to 600mm (X-axis movement)
+        # Joint 7 (Gripper): 0 (closed) to 1 (open)
         self.joint_limits = [
             (0.0, 0.35),      # Joint 1: Z (meters)
             (-3.14159, 3.14159),  # Joint 2: Shoulder (radians)
@@ -21,10 +23,11 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
             (-3.14159, 3.14159),  # Joint 4: Gripper rotation (radians)
             (-1.5708, 1.5708),    # Joint 5: Gripper tilt (radians)
             (0.0, 0.6),       # Joint 6: Rail (meters)
+            (0.0, 1.0),       # Joint 7: Gripper (0=closed, 1=open)
         ]
         
-        # PF400 home position (safe position)
-        self.home_position = [0.2, 0.0, 1.5708, 0.0, 0.0, 0.3]  # 200mm Z, 90deg elbow, 300mm rail
+        # PF400 home position (safe position) - 7 joints to match robot
+        self.home_position = [0.2, 0.0, 1.5708, 0.0, 0.0, 0.3, 0.0]  # 200mm Z, 90deg elbow, 300mm rail, gripper closed
         
         # Gripper state
         self.gripper_open = False
@@ -36,8 +39,8 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
         if action == "move_joints":
             joint_angles = request.get("joint_angles", [])
 
-            if len(joint_angles) != 6:
-                return self.create_error_response(f"Expected 6 joint angles, got {len(joint_angles)}")
+            if len(joint_angles) != 7:
+                return self.create_error_response(f"Expected 7 joint angles, got {len(joint_angles)}")
 
             # Validate joint limits
             for i, (angle, (min_val, max_val)) in enumerate(zip(joint_angles, self.joint_limits)):
@@ -45,8 +48,13 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
                     return self.create_error_response(f"Joint {i+1} angle {angle} out of bounds [{min_val}, {max_val}]")
 
             try:
-                self.robot.set_joint_positions(np.array(joint_angles))
-                return self.create_success_response("moved", joint_angles=joint_angles)
+                if self.motion_type == "teleport":
+                    self.robot.set_joint_positions(np.array(joint_angles))
+                    return self.create_success_response("moved", joint_angles=joint_angles)
+                else:  # smooth motion
+                    action = ArticulationAction(joint_positions=np.array(joint_angles))
+                    self.robot.apply_action(action)
+                    return self.create_success_response("started_moving", joint_angles=joint_angles)
             except Exception as e:
                 return self.create_error_response(f"Failed to move robot: {str(e)}")
 
@@ -68,17 +76,29 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
                 # In a full implementation, we'd use the PF400 kinematics class
                 joint_angles = self.simple_cartesian_to_joints(cartesian_coords)
                 
-                self.robot.set_joint_positions(np.array(joint_angles))
-                return self.create_success_response("moved to cartesian position", 
-                                                 cartesian_coordinates=cartesian_coords,
-                                                 joint_angles=joint_angles)
+                if self.motion_type == "teleport":
+                    self.robot.set_joint_positions(np.array(joint_angles))
+                    return self.create_success_response("moved to cartesian position", 
+                                                     cartesian_coordinates=cartesian_coords,
+                                                     joint_angles=joint_angles)
+                else:  # smooth motion
+                    action = ArticulationAction(joint_positions=np.array(joint_angles))
+                    self.robot.apply_action(action)
+                    return self.create_success_response("started moving to cartesian position", 
+                                                     cartesian_coordinates=cartesian_coords,
+                                                     joint_angles=joint_angles)
             except Exception as e:
                 return self.create_error_response(f"Failed to move to cartesian position: {str(e)}")
 
         elif action == "home":
             try:
-                self.robot.set_joint_positions(np.array(self.home_position))
-                return self.create_success_response("homed", joint_angles=self.home_position)
+                if self.motion_type == "teleport":
+                    self.robot.set_joint_positions(np.array(self.home_position))
+                    return self.create_success_response("homed", joint_angles=self.home_position)
+                else:  # smooth motion
+                    action = ArticulationAction(joint_positions=np.array(self.home_position))
+                    self.robot.apply_action(action)
+                    return self.create_success_response("started homing", joint_angles=self.home_position)
             except Exception as e:
                 return self.create_error_response(f"Failed to home robot: {str(e)}")
 
@@ -139,7 +159,10 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
         # Joint 6: Rail position (use x coordinate)
         joint6 = max(0.0, min(0.6, x))
         
-        return [joint1, joint2, joint3, joint4, joint5, joint6]
+        # Joint 7: Gripper (default closed)
+        joint7 = 0.0
+        
+        return [joint1, joint2, joint3, joint4, joint5, joint6, joint7]
 
     def validate_joint_limits(self, joint_angles):
         """Validate that joint angles are within PF400 limits"""
