@@ -3,7 +3,7 @@ from isaacsim.core.utils.types import ArticulationAction
 from zmq_robot_server import ZMQ_Robot_Server
 
 class ZMQ_PF400_Server(ZMQ_Robot_Server):
-    """Handles ZMQ communication for PF400 robot"""
+    """Handles ZMQ communication for PF400 robot with integrated control"""
     
     def __init__(self, simulation_app, robot, robot_name: str, port: int, motion_type: str = "teleport"):
         super().__init__(simulation_app, robot, robot_name, port, motion_type)
@@ -32,9 +32,21 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
         # Gripper state
         self.gripper_open = False
         
+        # Integrated control state
+        self.current_action = None  # Current action being executed
+        self.target_joints = None   # Target joint positions
+        self.is_moving = False      # Whether robot is currently moving
+        self.collision_detected = False  # Collision flag
+        self.motion_complete = False     # Motion completion flag
+        self.collision_actors = None     # Actors involved in collision
+        
     def handle_command(self, request):
-        """Handle incoming ZMQ command from MADSci"""
+        """Handle incoming ZMQ command - defer execution to update loop"""
         action = request.get("action", "")
+
+        # Check for collisions
+        if self.collision_detected:
+            return self.create_error_response(f"Robot halted due to collision: {self.collision_actors}")
 
         if action == "move_joints":
             joint_angles = request.get("joint_angles", [])
@@ -47,16 +59,13 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
                 if not (min_val <= angle <= max_val):
                     return self.create_error_response(f"Joint {i+1} angle {angle} out of bounds [{min_val}, {max_val}]")
 
-            try:
-                if self.motion_type == "teleport":
-                    self.robot.set_joint_positions(np.array(joint_angles))
-                    return self.create_success_response("moved", joint_angles=joint_angles)
-                else:  # smooth motion
-                    action = ArticulationAction(joint_positions=np.array(joint_angles))
-                    self.robot.apply_action(action)
-                    return self.create_success_response("started_moving", joint_angles=joint_angles)
-            except Exception as e:
-                return self.create_error_response(f"Failed to move robot: {str(e)}")
+            # Store command for execution in update loop
+            self.current_action = "move_joints"
+            self.target_joints = np.array(joint_angles)
+            self.is_moving = True
+            self.motion_complete = False
+            
+            return self.create_success_response("command queued", joint_angles=joint_angles)
 
         elif action == "get_joints":
             try:
@@ -72,49 +81,49 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
                 return self.create_error_response(f"Expected 4 or 6 cartesian coordinates, got {len(cartesian_coords)}")
                 
             try:
-                # For now, we'll use a simplified inverse kinematics
-                # In a full implementation, we'd use the PF400 kinematics class
+                # Convert to joint angles using simplified IK
                 joint_angles = self.simple_cartesian_to_joints(cartesian_coords)
                 
-                if self.motion_type == "teleport":
-                    self.robot.set_joint_positions(np.array(joint_angles))
-                    return self.create_success_response("moved to cartesian position", 
-                                                     cartesian_coordinates=cartesian_coords,
-                                                     joint_angles=joint_angles)
-                else:  # smooth motion
-                    action = ArticulationAction(joint_positions=np.array(joint_angles))
-                    self.robot.apply_action(action)
-                    return self.create_success_response("started moving to cartesian position", 
-                                                     cartesian_coordinates=cartesian_coords,
-                                                     joint_angles=joint_angles)
+                # Store command for execution in update loop
+                self.current_action = "move_joints"
+                self.target_joints = np.array(joint_angles)
+                self.is_moving = True
+                self.motion_complete = False
+                
+                return self.create_success_response("cartesian move queued", 
+                                                 cartesian_coordinates=cartesian_coords,
+                                                 joint_angles=joint_angles)
             except Exception as e:
-                return self.create_error_response(f"Failed to move to cartesian position: {str(e)}")
+                return self.create_error_response(f"Failed to convert cartesian position: {str(e)}")
 
         elif action == "home":
-            try:
-                if self.motion_type == "teleport":
-                    self.robot.set_joint_positions(np.array(self.home_position))
-                    return self.create_success_response("homed", joint_angles=self.home_position)
-                else:  # smooth motion
-                    action = ArticulationAction(joint_positions=np.array(self.home_position))
-                    self.robot.apply_action(action)
-                    return self.create_success_response("started homing", joint_angles=self.home_position)
-            except Exception as e:
-                return self.create_error_response(f"Failed to home robot: {str(e)}")
+            # Store command for execution in update loop
+            self.current_action = "move_joints"
+            self.target_joints = np.array(self.home_position)
+            self.is_moving = True
+            self.motion_complete = False
+            
+            return self.create_success_response("homing queued", joint_angles=self.home_position)
 
         elif action == "gripper_open":
             try:
                 self.gripper_open = True
-                return self.create_success_response("gripper opened", gripper_state="open")
+                # Store command for execution in update loop
+                self.current_action = "gripper_open"
+                self.motion_complete = False
+                return self.create_success_response("gripper open queued", gripper_state="open")
             except Exception as e:
-                return self.create_error_response(f"Failed to open gripper: {str(e)}")
+                return self.create_error_response(f"Failed to queue gripper open: {str(e)}")
 
         elif action == "gripper_close":
             try:
                 self.gripper_open = False
-                return self.create_success_response("gripper closed", gripper_state="closed")
+                # Store command for execution in update loop  
+                self.current_action = "gripper_close"
+                self.motion_complete = False
+                return self.create_success_response("gripper close queued", gripper_state="closed")
             except Exception as e:
-                return self.create_error_response(f"Failed to close gripper: {str(e)}")
+                return self.create_error_response(f"Failed to queue gripper close: {str(e)}")
 
         elif action == "get_status":
             try:
@@ -122,7 +131,10 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
                 return self.create_success_response("status retrieved",
                                                  joint_angles=joint_positions.tolist(),
                                                  gripper_state="open" if self.gripper_open else "closed",
-                                                 is_homed=np.allclose(joint_positions, self.home_position, atol=0.01))
+                                                 is_homed=np.allclose(joint_positions, self.home_position, atol=0.01),
+                                                 is_moving=self.is_moving,
+                                                 collision_detected=self.collision_detected,
+                                                 motion_complete=self.motion_complete)
             except Exception as e:
                 return self.create_error_response(f"Failed to get status: {str(e)}")
 
@@ -170,3 +182,106 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
             if not (min_val <= angle <= max_val):
                 return False, f"Joint {i+1} angle {angle} out of bounds [{min_val}, {max_val}]"
         return True, "Valid"
+
+    def update(self):
+        """Called every simulation frame to execute robot actions"""
+        if self.collision_detected:
+            # Stop all motion if collision detected
+            if self.is_moving:
+                self.halt_motion()
+            return
+
+        if self.current_action is None:
+            return
+
+        try:
+            if self.current_action == "move_joints":
+                self._execute_move_joints()
+            elif self.current_action == "gripper_open":
+                self._execute_gripper_open()
+            elif self.current_action == "gripper_close":
+                self._execute_gripper_close()
+                
+        except Exception as e:
+            print(f"Error executing action {self.current_action}: {e}")
+            self.current_action = None
+            self.is_moving = False
+
+    def _execute_move_joints(self):
+        """Execute joint movement in simulation"""
+        if self.target_joints is None:
+            return
+
+        if self.motion_type == "teleport":
+            # Teleport directly
+            self.robot.set_joint_positions(self.target_joints)
+            self.motion_complete = True
+            self.is_moving = False
+            self.current_action = None
+        else:
+            # Smooth motion
+            action = ArticulationAction(joint_positions=self.target_joints)
+            self.robot.apply_action(action)
+            
+            # Check if motion is complete
+            current_joints = self.robot.get_joint_positions()
+            diff = np.abs(current_joints - self.target_joints)
+            max_diff = np.max(diff)
+            
+            velocities = self.robot.get_joint_velocities() 
+            max_vel = np.max(np.abs(velocities))
+            
+            # Motion is complete when close to target and low velocity
+            if max_diff < 0.01 and max_vel < 0.008:
+                self.motion_complete = True
+                self.is_moving = False
+                self.current_action = None
+                print(f"Robot {self.robot_name} completed motion")
+
+    def _execute_gripper_open(self):
+        """Execute gripper opening"""
+        current_joints = self.robot.get_joint_positions()
+        current_joints[6] = 1.0  # Open gripper (7th joint)
+        
+        action = ArticulationAction(joint_positions=current_joints)
+        self.robot.apply_action(action)
+        
+        self.motion_complete = True
+        self.current_action = None
+        print(f"Robot {self.robot_name} opened gripper")
+
+    def _execute_gripper_close(self):
+        """Execute gripper closing"""
+        current_joints = self.robot.get_joint_positions()
+        current_joints[6] = 0.0  # Close gripper (7th joint)
+        
+        action = ArticulationAction(joint_positions=current_joints)
+        self.robot.apply_action(action)
+        
+        self.motion_complete = True
+        self.current_action = None
+        print(f"Robot {self.robot_name} closed gripper")
+
+    def halt_motion(self):
+        """Immediately halt robot motion"""
+        # Apply current joint positions to stop motion
+        current_joints = self.robot.get_joint_positions()
+        action = ArticulationAction(joint_positions=current_joints)
+        self.robot.apply_action(action)
+        
+        self.is_moving = False
+        self.current_action = None
+        print(f"Robot {self.robot_name} motion halted")
+
+    def on_collision(self, actor0, actor1):
+        """Called when collision is detected involving this robot"""
+        self.collision_detected = True
+        self.collision_actors = f"{actor0} <-> {actor1}"
+        print(f"Robot {self.robot_name} collision detected: {self.collision_actors}")
+        self.halt_motion()
+
+    def on_motion_complete(self):
+        """Called when motion is completed (currently handled internally)"""
+        self.motion_complete = True
+        self.is_moving = False
+        print(f"Robot {self.robot_name} motion completed")
