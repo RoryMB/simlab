@@ -2,7 +2,7 @@ from typing import Optional
 
 import numpy as np
 import omni.usd
-from pxr import UsdGeom
+from pxr import UsdGeom, UsdPhysics
 
 from isaacsim.core.api.robots import Robot
 from isaacsim.core.prims import SingleXFormPrim
@@ -113,31 +113,6 @@ def local_to_world_coords(relative_to_prim, local_position: np.ndarray, local_or
     # Use Isaac Sim's existing function
     return get_world_pose_from_relative(relative_to_prim, local_position, local_orientation)
 
-# =============================================================================
-# Robot-Specific Utilities
-# =============================================================================
-
-def get_robot_end_effector_pose(robot: Robot) -> tuple[np.ndarray, np.ndarray]:
-    """Get current end-effector pose using robot's kinematics.
-
-    Args:
-        robot: Isaac Sim Robot object
-
-    Returns:
-        Tuple of (position, orientation) where:
-        - position: [x, y, z] in world frame
-        - orientation: [w, x, y, z] quaternion in world frame
-
-    Raises:
-        RuntimeError: If robot kinematics solver is not available
-    """
-    # Check if robot has kinematics solver available
-    if hasattr(robot, '_kinematics_solver') and robot._kinematics_solver is not None:
-        # Use proper kinematics solver if available
-        return robot._kinematics_solver.compute_end_effector_pose()
-    else:
-        raise RuntimeError("Robot kinematics solver not available. Initialize robot with kinematics solver.")
-
 
 # =============================================================================
 # Prim Manipulation Utilities
@@ -203,3 +178,69 @@ def list_child_prims(parent_prim) -> list[str]:
         child_paths.append(str(child.GetPath()))
 
     return child_paths
+
+
+# =============================================================================
+# Physics Utilities
+# =============================================================================
+
+def add_collision_to_prim(prim, approximation_type: str = "convexHull") -> None:
+    """Add collision detection to a prim.
+
+    This function adds collision detection to geometry prims (Cube, Sphere, Mesh, etc.)
+    without adding rigid body dynamics, making them static collision objects.
+
+    Args:
+        prim: USD prim object to add collision to
+        approximation_type: Collision approximation type for meshes
+                          ("convexHull", "convexDecomposition", "boundingCube", etc.)
+
+    Raises:
+        ValueError: If prim is invalid or not a geometry prim
+    """
+    # Check if prim is a geometry prim (Cube, Sphere, Mesh, etc.)
+    if not (prim.IsA(UsdGeom.Gprim) or prim.IsA(UsdGeom.Mesh)):
+        raise ValueError(f"Prim at {prim.GetPath()} is not a geometry prim")
+
+    # Apply collision API if not already present
+    if not prim.HasAPI(UsdPhysics.CollisionAPI):
+        collision_api = UsdPhysics.CollisionAPI.Apply(prim)
+    else:
+        collision_api = UsdPhysics.CollisionAPI(prim)
+
+    # Enable collision
+    collision_api.CreateCollisionEnabledAttr(True)
+
+    # For mesh prims, add mesh-specific collision properties
+    if prim.IsA(UsdGeom.Mesh):
+        if not prim.HasAPI(UsdPhysics.MeshCollisionAPI):
+            mesh_collision_api = UsdPhysics.MeshCollisionAPI.Apply(prim)
+        else:
+            mesh_collision_api = UsdPhysics.MeshCollisionAPI(prim)
+        mesh_collision_api.CreateApproximationAttr().Set(approximation_type)
+
+
+# =============================================================================
+# Robot-Specific Utilities
+# =============================================================================
+
+def get_robot_end_effector_pose(robot: Robot) -> tuple[np.ndarray, np.ndarray]:
+    """Get current end-effector pose using robot's kinematics.
+
+    Args:
+        robot: Isaac Sim Robot object
+
+    Returns:
+        Tuple of (position, orientation) where:
+        - position: [x, y, z] in world frame
+        - orientation: [w, x, y, z] quaternion in world frame
+
+    Raises:
+        RuntimeError: If robot kinematics solver is not available
+    """
+    # Check if robot has kinematics solver available
+    if hasattr(robot, '_kinematics_solver') and robot._kinematics_solver is not None:
+        # Use proper kinematics solver if available
+        return robot._kinematics_solver.compute_end_effector_pose()
+    else:
+        raise RuntimeError("Robot kinematics solver not available. Initialize robot with kinematics solver.")

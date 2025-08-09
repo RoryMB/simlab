@@ -17,6 +17,7 @@ from zmq_ot2_server import ZMQ_OT2_Server
 from zmq_ur5e_server import ZMQ_UR5e_Server
 from zmq_pf400_server import ZMQ_PF400_Server
 
+
 CUSTOM_ASSETS_ROOT_PATH = str(Path("../../assets").resolve())
 
 NVIDIA_ASSETS_ROOT_PATH = get_assets_root_path()
@@ -53,7 +54,7 @@ def create_robots(world, robots_config):
         # Create appropriate ZMQ server based on robot type
         robot_type = config.get("type", "generic")
         motion_type = config.get("motion_type", "teleport")
-        
+
         if robot_type == "ot2":
             zmq_server = ZMQ_OT2_Server(simulation_app, robot, config["name"], config["port"], motion_type)
         elif robot_type == "pf400":
