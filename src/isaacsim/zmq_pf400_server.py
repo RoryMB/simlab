@@ -6,7 +6,6 @@ from isaacsim.core.utils.types import ArticulationAction
 from isaacsim.robot_motion.motion_generation import LulaKinematicsSolver, ArticulationKinematicsSolver
 from omni.isaac.dynamic_control import _dynamic_control
 from omni.physx import get_physx_scene_query_interface
-from omni.physx.scripts import physicsUtils as pxutils
 from omni.usd.commands.usd_commands import DeletePrimsCommand
 from pxr import Sdf, Gf, UsdPhysics
 
@@ -271,8 +270,15 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
 
         # Create physics joint
         try:
-            joint_prim = pxutils.createJoint(stage, 'Fixed', pointer_prim, hit_prim)
-            self._grab_joint = joint_prim.GetPath().pathString
+            # Create a unique joint path
+            joint_path = pointer_prim.GetPath().AppendChild("grip_joint")
+            joint_prim = UsdPhysics.FixedJoint.Define(stage, joint_path)
+            
+            # Set the bodies to connect
+            joint_prim.CreateBody0Rel().SetTargets([pointer_prim.GetPath()])
+            joint_prim.CreateBody1Rel().SetTargets([hit_prim.GetPath()])
+            
+            self._grab_joint = joint_path.pathString
             print(f"Robot {self.robot_name} attached object: {hit_prim.GetPath()}")
             return True
         except Exception as e:
