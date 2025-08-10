@@ -96,7 +96,7 @@ def main():
         {
             "name": "ot2_1",
             "type": "ot2",
-            "motion_type": "teleport",  # Keep teleport for OT2 (we haven't updated OT2 server yet)
+            "motion_type": "smooth",  # Enable smooth motion for OT2
             "port": 5556,
             "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/temp/robots/ot2.usda",
             "position": [0.0, 0.0, 0.0],  # [x, y, z] in world frame

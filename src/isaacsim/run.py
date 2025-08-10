@@ -159,15 +159,15 @@ def main():
             "position": [0.0, 0.0, 0.0],  # [x, y, z] in world frame
             "orientation": [1.0, 0.0, 0.0, 0.0],  # [w, x, y, z] quaternion
         },
-        # {
-        #     "name": "ot2_1",
-        #     "type": "ot2",
-        #     "motion_type": "teleport",  # Keep teleport for OT2 (we haven't updated OT2 server yet)
-        #     "port": 5556,
-        #     "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/temp/robots/ot2.usda",
-        #     "position": [0.0, 2.0, 0.0],  # [x, y, z] in world frame
-        #     "orientation": [1.0, 0.0, 0.0, 0.0],  # [w, x, y, z] quaternion
-        # },
+        {
+            "name": "ot2_1",
+            "type": "ot2",
+            "motion_type": "smooth",  # Enable smooth motion for OT2
+            "port": 5556,
+            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/temp/robots/ot2.usda",
+            "position": [0.0, 2.0, 0.0],  # [x, y, z] in world frame
+            "orientation": [1.0, 0.0, 0.0, 0.0],  # [w, x, y, z] quaternion
+        },
     ]
 
     # Create robots and their ZMQ servers

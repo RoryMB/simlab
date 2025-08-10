@@ -2,7 +2,7 @@ from zmq_robot_server import ZMQ_Robot_Server
 
 class ZMQ_OT2_Server(ZMQ_Robot_Server):
     """Handles ZMQ communication for OT-2 robot with opentrons-specific commands"""
-    def __init__(self, simulation_app, robot, robot_name: str, port: int, motion_type: str = "teleport"):
+    def __init__(self, simulation_app, robot, robot_name: str, port: int, motion_type: str = "smooth"):
         super().__init__(simulation_app, robot, robot_name, port, motion_type)
 
         # OT-2 joint mapping (joint index -> joint name)
@@ -70,6 +70,10 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
     def handle_command(self, request):
         """Handle incoming ZMQ command from opentrons package"""
         action = request.get("action", "")
+        
+        # DEBUG: Log all incoming requests
+        print(f"[ZMQ_OT2_SERVER] RECEIVED REQUEST: {request}")
+        print(f"[ZMQ_OT2_SERVER] ACTION: {action}")
 
         if action == "move_joint":
             joint_name = request.get("joint")
@@ -116,49 +120,74 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
             return self.dispense(mount, volume)
 
         else:
-            return self.create_error_response(f"Unknown action: {action}")
+            error_response = self.create_error_response(f"Unknown action: {action}")
+            print(f"[ZMQ_OT2_SERVER] UNKNOWN ACTION RESPONSE: {error_response}")
+            return error_response
 
     def move_single_joint(self, joint_name: str, target_position: float):
         """Move a single joint to target position (physical or virtual)"""
+        print(f"[ZMQ_OT2_SERVER] MOVE_SINGLE_JOINT: {joint_name} -> {target_position}")
+        
         if not (self.is_physical_joint(joint_name) or self.is_virtual_joint(joint_name)):
-            return self.create_error_response(f"Unknown joint: {joint_name}")
+            error_response = self.create_error_response(f"Unknown joint: {joint_name}")
+            print(f"[ZMQ_OT2_SERVER] MOVE_SINGLE_JOINT ERROR: {error_response}")
+            return error_response
 
         # Check limits
         min_pos, max_pos = self.joint_limits[joint_name]
+        print(f"[ZMQ_OT2_SERVER] JOINT_LIMITS: {joint_name} [{min_pos}, {max_pos}]")
         if target_position < min_pos or target_position > max_pos:
-            return self.create_error_response(f"Target position {target_position} out of bounds for {joint_name} [{min_pos}, {max_pos}]")
+            error_response = self.create_error_response(f"Target position {target_position} out of bounds for {joint_name} [{min_pos}, {max_pos}]")
+            print(f"[ZMQ_OT2_SERVER] LIMITS ERROR: {error_response}")
+            return error_response
 
         try:
             # Handle virtual joints (soft simulation)
             if self.is_virtual_joint(joint_name):
+                print(f"[ZMQ_OT2_SERVER] VIRTUAL JOINT: {joint_name} -> {target_position}")
                 self.virtual_joints[joint_name] = target_position
                 print(f"Virtual joint {joint_name} moved to {target_position} (soft simulation)")
-                return self.create_success_response(
+                response = self.create_success_response(
                     f"Virtual joint {joint_name} moved to {target_position}m (soft simulation)",
                     joint=joint_name,
                     target_position=target_position,
                     virtual=True
                 )
+                print(f"[ZMQ_OT2_SERVER] VIRTUAL JOINT RESPONSE: {response}")
+                return response
 
             # Handle physical joints (Isaac Sim control)
+            print(f"[ZMQ_OT2_SERVER] PHYSICAL JOINT: {joint_name} -> {target_position}")
             current_positions = self.robot.get_joint_positions()
             joint_index = self.joint_names.index(joint_name)
+            print(f"[ZMQ_OT2_SERVER] CURRENT POSITIONS: {current_positions}")
+            print(f"[ZMQ_OT2_SERVER] JOINT INDEX: {joint_index}")
 
             # Update the specific joint
             new_positions = current_positions.copy()
             new_positions[joint_index] = target_position
+            print(f"[ZMQ_OT2_SERVER] NEW POSITIONS: {new_positions}")
 
-            # Apply to robot
-            self.robot.set_joint_positions(new_positions)
+            # Use base class motion execution system for smooth/teleport motion
+            self.current_action = "move_joints"
+            self.target_joints = new_positions
+            self.is_moving = True
+            self.motion_complete = False
+            
+            print(f"[ZMQ_OT2_SERVER] MOTION QUEUED (motion_type={self.motion_type})")
 
-            return self.create_success_response(
+            response = self.create_success_response(
                 f"Physical joint {joint_name} moved to {target_position}m",
                 joint=joint_name,
                 target_position=target_position,
                 virtual=False
             )
+            print(f"[ZMQ_OT2_SERVER] PHYSICAL JOINT RESPONSE: {response}")
+            return response
         except Exception as e:
-            return self.create_error_response(f"Failed to move joint: {str(e)}")
+            error_response = self.create_error_response(f"Failed to move joint: {str(e)}")
+            print(f"[ZMQ_OT2_SERVER] JOINT MOVE EXCEPTION: {error_response}")
+            return error_response
 
     def move_multiple_joints(self, joint_commands):
         """Move multiple joints simultaneously (physical and virtual)"""
@@ -194,9 +223,13 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
                 self.virtual_joints[joint_name] = target_position
                 print(f"Virtual joint {joint_name} moved to {target_position} (soft simulation)")
 
-            # Handle physical joints
+            # Handle physical joints using base class motion execution system
             if physical_commands:
-                self.robot.set_joint_positions(new_positions)
+                self.current_action = "move_joints"
+                self.target_joints = new_positions
+                self.is_moving = True
+                self.motion_complete = False
+                print(f"Physical joints motion queued (motion_type={self.motion_type})")
 
             return {
                 "status": "success",
@@ -244,6 +277,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
 
     def home_robot(self):
         """Return all joints (physical and virtual) to home positions"""
+        print(f"[ZMQ_OT2_SERVER] HOME_ROBOT: Starting home sequence")
         try:
             home_commands = []
             for joint_name, home_pos in self.home_positions.items():
@@ -251,9 +285,12 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
                     "joint": joint_name,
                     "target_position": home_pos
                 })
-
+            
+            print(f"[ZMQ_OT2_SERVER] HOME_COMMANDS: {home_commands}")
             print("Homing robot (physical and virtual joints)...")
-            return self.move_multiple_joints(home_commands)
+            result = self.move_multiple_joints(home_commands)
+            print(f"[ZMQ_OT2_SERVER] HOME_RESULT: {result}")
+            return result
 
         except Exception as e:
             return {"status": "error", "message": f"Failed to home robot: {str(e)}"}

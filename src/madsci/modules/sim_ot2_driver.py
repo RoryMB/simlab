@@ -66,15 +66,30 @@ class SimOT2_Driver(OT2_Driver):
         print(f"Executing protocol: {protocol_path}")
         print(f"Using ZMQ server: {self.zmq_server_url}")
         
+        # OpenTrons requires .py extension - copy temp file if needed
+        temp_py_path = None
+        if not protocol_path.suffix == ".py":
+            import tempfile
+            import shutil
+            # Create a temporary .py file
+            temp_py_file = tempfile.NamedTemporaryFile(suffix='.py', delete=False)
+            temp_py_file.close()
+            temp_py_path = Path(temp_py_file.name)
+            
+            # Copy the content
+            shutil.copy2(protocol_path, temp_py_path)
+            protocol_path = temp_py_path
+            print(f"Copied to temporary .py file: {protocol_path}")
+        
         # Set up environment variables for hacked opentrons package
         env = os.environ.copy()
         env['OPENTRONS_SIMULATION_MODE'] = 'zmq'
         env['OT2_SIMULATION_SERVER'] = self.zmq_server_url
         
         try:
-            # Execute the protocol as a subprocess
+            # Execute the protocol using OpenTrons execute function
             result = subprocess.run(
-                [self.python_executable, str(protocol_path)],
+                [self.python_executable, "-m", "opentrons.execute", str(protocol_path)],
                 env=env,
                 capture_output=True,
                 text=True,
@@ -121,3 +136,8 @@ class SimOT2_Driver(OT2_Driver):
                     "error": str(e)
                 }
             }
+        finally:
+            # Clean up temporary .py file if created
+            if temp_py_path and temp_py_path.exists():
+                temp_py_path.unlink()
+                print(f"Cleaned up temporary file: {temp_py_path}")

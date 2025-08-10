@@ -1,0 +1,19 @@
+name: OT-2 Movement Debug Test
+
+metadata:
+  author: Claude Code
+  info: Minimal workflow to test robot movement and ZMQ communication
+  version: 1.0
+
+parameters:
+  - "name": protocol_path
+
+steps:
+  - name: Debug Robot Movement
+    node: sim_ot2_1
+    action: run_protocol
+    args:
+      parameters:
+        test_mode: "debug"
+    files:
+      protocol: $protocol_path
