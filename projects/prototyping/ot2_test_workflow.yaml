@@ -6,18 +6,14 @@ metadata:
   version: 1.0
 
 parameters:
-  - "name": test_wells
-  - "name": test_volumes
   - "name": protocol_path
 
 steps:
-  - name: Initialize OT-2 System Test
+  - name: Run OT-2 Comprehensive Integration Test
     node: sim_ot2_1
     action: run_protocol
     args:
       parameters:
-        wells: $test_wells
-        volumes: $test_volumes
         test_mode: "comprehensive"
     files:
       protocol: $protocol_path

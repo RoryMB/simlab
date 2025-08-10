@@ -77,8 +77,6 @@ class OT2TestApplication:
             workflow_result = wc_client.submit_workflow(
                 workflow=self.ot2_test_workflow,
                 parameters={
-                    "test_wells": self.config.test_wells,
-                    "test_volumes": self.config.test_volumes,
                     "protocol_path": str(self.config.protocol_directory / "ot2_test_protocol.py"),
                 },
                 await_completion=True
@@ -110,12 +108,35 @@ class OT2TestApplication:
             print("OT-2 INTEGRATION TEST FAILED!")
             print("="*70)
             print(f"Error: {e}")
-            print("\nTroubleshooting steps:")
-            print("1. Ensure Isaac Sim is running with OT-2 robot loaded")
-            print("2. Check that ZMQ server is listening on tcp://localhost:5556")
-            print("3. Verify SimOT2Node is running on http://127.0.0.1:8019/")
-            print("4. Check MADSci services are running (docker-compose up)")
-            print("5. Verify protocol file paths are correct")
+            print(f"Error type: {type(e).__name__}")
+            
+            # Print detailed error information
+            import traceback
+            print(f"\nDetailed error trace:")
+            traceback.print_exc()
+            
+            print("\n" + "="*50)
+            print("TROUBLESHOOTING GUIDE")
+            print("="*50)
+            print("1. ISAAC SIM SETUP:")
+            print("   - Ensure Isaac Sim is running")
+            print("   - Verify OT-2 robot is loaded and visible")
+            print("   - Check ZMQ server is listening on tcp://localhost:5556")
+            print("   - Look for 'ot2_1 ZMQ server listening on port 5556' message")
+            print("")
+            print("2. MADSCI SETUP:")
+            print("   - Check MADSci services: cd src/madsci && ./run_madsci.sh")
+            print("   - Verify OT-2 node: cd src/madsci && ./run_node_ot2.sh")
+            print("   - Check node status at http://127.0.0.1:8019/status")
+            print("   - Verify workcell at http://localhost:8015")
+            print("")
+            print("3. PROTOCOL ISSUES:")
+            print("   - Check protocol file exists:", self.config.protocol_directory / "ot2_test_protocol.py")
+            print("   - Verify workflow file exists:", self.config.workflow_directory / "ot2_test_workflow.yaml")
+            print("")
+            print("4. NETWORK CONNECTIVITY:")
+            print("   - Test MADSci connection: curl http://localhost:8015/health")
+            print("   - Test OT-2 node: curl http://127.0.0.1:8019/status")
             print("="*70)
             
             return False
@@ -133,16 +154,10 @@ class OT2TestApplication:
             wc_client = WorkcellClient(workcell_server_url=self.config.workcell_url)
             time.sleep(1)
 
-            # Use minimal test parameters
-            quick_wells = ["A1", "A2"]
-            quick_volumes = [100.0, 100.0]
-
             # Submit simplified workflow
             workflow_result = wc_client.submit_workflow(
                 workflow=self.ot2_test_workflow,
                 parameters={
-                    "test_wells": quick_wells,
-                    "test_volumes": quick_volumes,
                     "protocol_path": str(self.config.protocol_directory / "ot2_test_protocol.py"),
                 },
                 await_completion=True
@@ -155,6 +170,43 @@ class OT2TestApplication:
             print(f"Quick test failed: {e}")
             return False
 
+    def test_connections(self) -> bool:
+        """Test connectivity to all required services."""
+        print("\n" + "="*50)
+        print("TESTING SERVICE CONNECTIVITY")
+        print("="*50)
+        
+        try:
+            # Test MADSci workcell connection
+            print("1. Testing MADSci workcell connection...")
+            wc_client = WorkcellClient(workcell_server_url=self.config.workcell_url)
+            print("   ✓ MADSci workcell connection successful")
+            
+            # Test protocol file existence
+            protocol_path = self.config.protocol_directory / "ot2_test_protocol.py"
+            print(f"2. Testing protocol file: {protocol_path}")
+            if protocol_path.exists():
+                print("   ✓ Protocol file found")
+            else:
+                print("   ✗ Protocol file missing")
+                return False
+                
+            # Test workflow file existence
+            workflow_path = self.config.workflow_directory / "ot2_test_workflow.yaml"
+            print(f"3. Testing workflow file: {workflow_path}")
+            if workflow_path.exists():
+                print("   ✓ Workflow file found")
+            else:
+                print("   ✗ Workflow file missing")
+                return False
+            
+            print("\n✓ All connectivity tests passed!")
+            return True
+            
+        except Exception as e:
+            print(f"\n✗ Connectivity test failed: {e}")
+            return False
+    
     def clean_up(self) -> None:
         """Clean up test resources."""
         print("Test cleanup completed")
@@ -173,6 +225,11 @@ def main():
     test_app = OT2TestApplication()
     
     try:
+        # First test basic connectivity
+        if not test_app.test_connections():
+            print("\nCONNECTIVITY TEST FAILED. Please fix the issues above before running integration tests.")
+            return
+        
         # Run the comprehensive integration test
         success = test_app.run_integration_test()
         

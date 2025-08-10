@@ -343,6 +343,11 @@ class SimulationController:
         """Set module controls."""
         self._module_controls = value
     
+    async def hard_halt(self) -> None:
+        """Hard halt robot (compatibility method for simulation)."""
+        # In simulation, we can just halt normally
+        await self.halt()
+    
     async def clean_up(self) -> None:
         """Clean up simulation controller."""
         await self.disconnect()

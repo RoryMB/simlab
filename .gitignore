@@ -4,7 +4,7 @@ CLAUDE.md
 /reference/MADSci_Labs
 /reference/MADSci_Experiments
 /reference/MADSci_Modules
-.madsci
+.madsci/
 
 # UV virtual environments
 /environments/isaacsim/.venv/
