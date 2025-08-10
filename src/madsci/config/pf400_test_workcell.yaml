@@ -1,23 +1,22 @@
-workcell_name: pf400_test_wc
+workcell_name: Workcell
 manager_type: workcell_manager
-workcell_id: 01JP3B5TE2FRNADGSJEVWMKQ99
-description: PF400 test workcell for Isaac Sim integration testing
+workcell_id: 01JK7069DXAKAMWE0PDX6EY1PC
+description: A MADSci workcell.
 nodes:
   pf400: http://127.0.0.1:8020/
-
 locations:
 - location_name: platform1
-  location_id: 01JQ9XAW9GF4RB1HWQXD7T674R
+  location_id: 01K2A7BZXKGA2A9ZKSW24FAN55
   description: Platform 1 for plate storage
   lookup:
     pf400:
-    - 0.11185723543167114
-    - 0.16178643703460693
-    - 0.7826536893844604
-    - -1.0880162715911865
-    - 0.3059576451778412
-    - -0.035572439432144165
-    - 2.7887049114383444e-08
+    - 0.09218951314687729
+    - 0.16269785165786743
+    - 0.7130396366119385
+    - -1.0754061937332153
+    - 0.36237603425979614
+    - 0
+    - 0
   resource_definition:
     resource_name: platform1
     resource_name_prefix: null
@@ -31,19 +30,18 @@ locations:
     default_child_template: null
     default_child_quantity: null
     resource_type: ''
-
-- location_name: platform2  
-  location_id: 01JQ9XAW9GF4RB1HWQXD7T674S
+- location_name: platform2
+  location_id: 01K2A7BZXZWEE12P76YS77JGF9
   description: Platform 2 for plate storage
   lookup:
     pf400:
-    - 0.09838245064020157
-    - 0.1618965119123459
-    - -0.7348084449768066
-    - 1.0788553953170776
-    - -0.3443334996700287
-    - -0.03513535112142563
-    - 0.01723644509911537
+    - 0.09218951314687729
+    - 0.16269785165786743
+    - -0.7130396366119385
+    - 1.0754061937332153
+    - -0.36237603425979614
+    - 0
+    - 0
   resource_definition:
     resource_name: platform2
     resource_name_prefix: null
@@ -57,19 +55,18 @@ locations:
     default_child_template: null
     default_child_quantity: null
     resource_type: ''
-
 - location_name: high_position
-  location_id: 01JQ9XAW9GF4RB1HWQXD7T674T
+  location_id: 01K2A7BZY08BJGCF1Q226QGPNW
   description: High position for safe movements
   lookup:
     pf400:
-    - -0.018312804400920868
-    - 0.9048928022384644
-    - 0.31274712085723877
-    - 0.014583121053874493
-    - -0.3273316025733948
-    - -0.03513777628540993
-    - 0.017232874408364296
+    - -0.017617395147681236
+    - 0.8618930578231812
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
   resource_definition:
     resource_name: high_position
     resource_name_prefix: null
@@ -83,20 +80,18 @@ locations:
     default_child_template: null
     default_child_quantity: null
     resource_type: ''
-
-
 - location_name: approach_position
-  location_id: 01JQ9XAW9GF4RB1HWQXD7T674V
+  location_id: 01K2A7BZY0BY61WM2GPXQTSQXC
   description: Approach position for safe movements
   lookup:
     pf400:
-    - 0.23396505415439606
-    - 0.3625894784927368
-    - 0.9922060370445251
-    - -1.5264338254928589
-    - 0.5342376828193665
-    - -0.035139571875333786
-    - 0.017233170568943024
+    - -0.017617395147681236
+    - 0.4626961052417755
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
   resource_definition:
     resource_name: approach_position
     resource_name_prefix: null
@@ -110,5 +105,3 @@ locations:
     default_child_template: null
     default_child_quantity: null
     resource_type: ''
-
-workcell_directory: ~/.madsci/workcells/pf400_test_wc

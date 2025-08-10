@@ -1,9 +1,9 @@
 node_name: sim_ot2_1
 node_id: 01K21DTGF6Q35ZVNZ7XK0P9BW5
-node_description: A basic node.
+node_description: Simulated OT-2 node for Isaac Sim integration testing
 node_type: device
-module_name: sim_ot2
-module_version: 0.0.1
+module_name: sim_ot2_rest_node
+module_version: 1.0.0
 capabilities:
   get_info: true
   get_state: true
@@ -26,7 +26,28 @@ capabilities:
   - shutdown
   - unlock
 node_url: null
-actions: {}
+actions:
+  run_protocol:
+    name: run_protocol
+    description: "\n        Run a given protocol on the simulated OT-2\n        "
+    args:
+      parameters:
+        name: parameters
+        description: Parameters for insertion into the protocol
+        argument_type: dict[str, Any]
+        required: false
+        default: {}
+    locations: {}
+    files:
+      protocol:
+        name: protocol
+        description: Protocol File
+        argument_type: file
+        required: true
+        default: null
+    results: {}
+    blocking: false
+    asynchronous: true
 config:
   node_definition: node_definitions/sim_ot2_1.node.yaml
   node_info_path: null

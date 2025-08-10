@@ -25,8 +25,8 @@ def run(protocol: protocol_api.ProtocolContext):
     print("=" * 60)
 
     # Get test parameters (will be substituted by MADSci)
-    wells = $wells
-    volumes = $volumes
+    wells = $test_wells
+    volumes = $test_volumes
     test_mode = $test_mode
 
     print(f"Test parameters: wells={wells}, volumes={volumes}, mode={test_mode}")

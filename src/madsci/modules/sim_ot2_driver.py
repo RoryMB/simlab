@@ -46,10 +46,9 @@ class SimOT2_Driver(OT2_Driver):
         if not protocol_path.exists():
             raise FileNotFoundError(f"Protocol file not found: {protocol_path}")
             
-        if not protocol_path.suffix == ".py":
-            raise ValueError(f"Protocol file must be a Python file: {protocol_path}")
-            
-        print(f"Protocol file validated: {protocol_path}")
+        # Note: MADSci passes temporary files without .py extension, so we don't check suffix
+        # The file contents are already validated by MADSci
+        print(f"Protocol file received: {protocol_path}")
         
         # Generate dummy IDs for compatibility with MADSci interface
         protocol_id = f"sim_protocol_{int(time.time())}"

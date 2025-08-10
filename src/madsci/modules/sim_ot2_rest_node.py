@@ -3,8 +3,10 @@
 
 import traceback
 from pathlib import Path
-from typing import Any
+from typing import Any, Annotated
 
+from madsci.node_module.helpers import action
+from madsci.common.types.action_types import ActionResult, ActionSucceeded, ActionFailed
 from ot2_rest_node import OT2Node, OT2NodeConfig
 from sim_ot2_driver import SimOT2_Driver
 from ot2_interface.config import OT2_Config
@@ -97,6 +99,44 @@ class SimOT2Node(OT2Node):
             error_msg = f"Simulation error: {traceback.format_exc()}"
             self.logger.log(error_msg)
             return False, error_msg, None
+
+    @action
+    def run_protocol(
+        self,
+        protocol: Annotated[Path, "Protocol File"],
+        parameters: Annotated[dict[str, Any], "Parameters for insertion into the protocol"] = {},
+    ) -> ActionResult:
+        """
+        Run a given protocol on the simulated OT-2
+        """
+        try:
+            # Call the parent's run_protocol logic but return proper ActionResult
+            if protocol:
+                with protocol.open(mode="r") as f:
+                    file_text = f.read()
+                    for key in parameters.keys():
+                        file_text = file_text.replace("$" + key, str(parameters[key]))
+                with protocol.open(mode="w") as f:
+                    f.write(file_text)
+                    
+                response_flag, response_msg, run_id = self.execute(protocol, parameters)
+                
+                if response_flag == "succeeded":
+                    self.logger.log("Protocol executed successfully")
+                    return ActionSucceeded(data={"run_id": run_id, "message": response_msg})
+                elif response_flag == "stopped":
+                    self.logger.log("Protocol execution stopped")
+                    return ActionFailed(data={"run_id": run_id, "message": response_msg})
+                else:
+                    self.logger.log(f"Protocol execution failed: {response_msg}")
+                    return ActionFailed(data={"run_id": run_id, "message": response_msg})
+            else:
+                return ActionFailed(data={"message": "No protocol file provided"})
+                
+        except Exception as e:
+            error_msg = f"Error in run_protocol: {traceback.format_exc()}"
+            self.logger.log(error_msg)
+            return ActionFailed(data={"message": error_msg})
 
 
 if __name__ == "__main__":

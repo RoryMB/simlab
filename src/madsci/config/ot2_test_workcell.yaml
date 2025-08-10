@@ -1,12 +1,11 @@
-workcell_name: ot2_test_wc
+workcell_name: Workcell
 manager_type: workcell_manager
-workcell_id: 01K21DTGF6Q35ZVNZ7XK0P9BW6
-description: Test workcell for simulated OT-2 integration validation
+workcell_id: 01JK7069DXAKAMWE0PDX6EY1PC
+description: A MADSci workcell.
 nodes:
   sim_ot2_1: http://127.0.0.1:8019/
 locations:
 - location_name: ot2_deck_1
-  location_id: 01K21DTGF6Q35ZVNZ7XK0P9BW7
   description: OT-2 deck position 1 (tip rack)
   lookup:
     sim_ot2_1: [0.0, 0.0, 0.0]  # Placeholder coordinates - OT-2 handles internal positioning
@@ -24,7 +23,6 @@ locations:
     default_child_quantity: null
     resource_type: ''
 - location_name: ot2_deck_2
-  location_id: 01K21DTGF6Q35ZVNZ7XK0P9BW8
   description: OT-2 deck position 2 (plate)
   lookup:
     sim_ot2_1: [0.0, 0.0, 0.0]
@@ -42,7 +40,6 @@ locations:
     default_child_quantity: null
     resource_type: ''
 - location_name: ot2_deck_5
-  location_id: 01K21DTGF6Q35ZVNZ7XK0P9BW9
   description: OT-2 deck position 5 (reservoir 1)
   lookup:
     sim_ot2_1: [0.0, 0.0, 0.0]
@@ -60,7 +57,6 @@ locations:
     default_child_quantity: null
     resource_type: ''
 - location_name: ot2_deck_6
-  location_id: 01K21DTGF6Q35ZVNZ7XK0P9BWA
   description: OT-2 deck position 6 (reservoir 2)
   lookup:
     sim_ot2_1: [0.0, 0.0, 0.0]
@@ -77,4 +73,3 @@ locations:
     default_child_template: null
     default_child_quantity: null
     resource_type: ''
-workcell_directory: ~/.madsci/workcells/ot2_test_wc
