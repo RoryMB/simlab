@@ -1,7 +1,6 @@
 import numpy as np
 from pathlib import Path
 
-import omni.usd
 from isaacsim.core.utils.stage import get_current_stage
 from isaacsim.core.utils.types import ArticulationAction
 from isaacsim.robot_motion.motion_generation import LulaKinematicsSolver, ArticulationKinematicsSolver
@@ -9,12 +8,13 @@ from omni.isaac.dynamic_control import _dynamic_control
 from omni.physx import get_physx_scene_query_interface
 from omni.physx.scripts import physicsUtils as pxutils
 from omni.usd.commands.usd_commands import DeletePrimsCommand
-from pxr import Usd, Sdf, Gf, UsdPhysics
+from pxr import Sdf, Gf, UsdPhysics
 
+import utils
 from zmq_robot_server import ZMQ_Robot_Server
 
 
-CUSTOM_ASSETS_ROOT_PATH = str(Path("../../assets").resolve())
+CUSTOM_ASSETS_ROOT_PATH = str(Path(__file__).parent / "../../assets")
 
 class ZMQ_PF400_Server(ZMQ_Robot_Server):
     """Handles ZMQ communication for PF400 robot with integrated control"""
@@ -31,7 +31,7 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
         self._validate_pointer_prim()
 
         # Gripper state
-        self.gripper_open = False
+        self.gripper_open = True
         self._grab_joint = None  # Track physics joint for gripping
 
         # Integrated control state
@@ -76,8 +76,6 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
             except Exception as e:
                 return self.create_error_response(f"Failed to get joint positions: {str(e)}")
 
-        # Remove hardcoded home action - will be replaced with motion planning based approach
-
         elif action == "gripper_open":
             try:
                 self.gripper_open = True
@@ -105,7 +103,6 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
                     "status retrieved",
                     joint_angles=joint_positions.tolist(),
                     gripper_state="open" if self.gripper_open else "closed",
-                    is_homed=np.allclose(joint_positions, self.home_position, atol=0.01),
                     is_moving=self.is_moving,
                     collision_detected=self.collision_detected,
                     motion_complete=self.motion_complete,
@@ -128,49 +125,32 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
 
             return self.create_success_response("goto_pose queued", position=position, orientation=orientation)
 
-        elif action == "goto_pose_safe":
-            position = request.get("position", [])
-            orientation = request.get("orientation", [])
-            z_offset = request.get("z_offset", 0.1)  # Default 10cm safety offset
 
-            if len(position) != 3 or len(orientation) != 4:
-                return self.create_error_response("goto_pose_safe requires position [x,y,z] and orientation [w,x,y,z]")
+        elif action == "get_relative_pose":
+            prim_path = request.get("prim_path", "")
 
-            # Add Z-offset for safety
-            safe_position = np.array(position)
-            safe_position[2] += z_offset
+            if not prim_path:
+                return self.create_error_response("get_relative_pose requires prim_path parameter")
 
-            self.current_action = "goto_pose_safe"
-            self.target_pose = (safe_position, np.array(orientation))
-            self.is_moving = True
-            self.motion_complete = False
+            try:
+                stage = get_current_stage()
+                target_prim = stage.GetPrimAtPath(prim_path)
+                if not target_prim or not target_prim.IsValid():
+                    raise RuntimeError(f"Prim not found: {prim_path}")
 
-            return self.create_success_response("goto_pose_safe queued",
-                                              position=safe_position.tolist(),
-                                              orientation=orientation,
-                                              z_offset=z_offset)
+                robot_prim_path = f"/World/{self.robot_name}"
+                robot_prim = stage.GetPrimAtPath(robot_prim_path)
+                if not robot_prim or not robot_prim.IsValid():
+                    raise RuntimeError(f"Robot prim not found: {robot_prim_path}")
 
-        elif action == "goto_pose_hover":
-            position = request.get("position", [])
-            orientation = request.get("orientation", [])
-            z_offset = request.get("z_offset", 0.1)  # Default 10cm hover offset
-
-            if len(position) != 3 or len(orientation) != 4:
-                return self.create_error_response("goto_pose_hover requires position [x,y,z] and orientation [w,x,y,z]")
-
-            # Add Z-offset for hovering
-            hover_position = np.array(position)
-            hover_position[2] += z_offset
-
-            self.current_action = "goto_pose_hover"
-            self.target_pose = (hover_position, np.array(orientation))
-            self.is_moving = True
-            self.motion_complete = False
-
-            return self.create_success_response("goto_pose_hover queued",
-                                              position=hover_position.tolist(),
-                                              orientation=orientation,
-                                              z_offset=z_offset)
+                position, orientation = utils.get_relative_pose(target_prim, robot_prim)
+                return self.create_success_response(
+                    "relative pose retrieved",
+                    position=position.tolist(),
+                    orientation=orientation.tolist()
+                )
+            except Exception as e:
+                return self.create_error_response(f"Failed to get relative pose: {str(e)}")
 
         elif action == "clear_collision":
             self.collision_detected = False
@@ -208,7 +188,7 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
     def _validate_pointer_prim(self):
         """Validate that the robot has a pointer prim for end effector calculations"""
         stage = get_current_stage()
-        robot_prim_path = f"/World/{self.robot_name.replace('_robot', '')}"
+        robot_prim_path = f"/World/{self.robot_name}"
         pointer_prim_path = f"{robot_prim_path}/pointer"
 
         pointer_prim = stage.GetPrimAtPath(pointer_prim_path)
@@ -216,33 +196,24 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
             raise RuntimeError(f"Required pointer prim not found at {pointer_prim_path}. "
                              f"Robot {self.robot_name} must have a pointer Xform in its joint hierarchy.")
 
-    def _get_world_pose(self, prim: Usd.Prim):
-        """Get world position and orientation of a prim"""
-        world_transform = omni.usd.get_world_transform_matrix(prim)
-        translation = world_transform.ExtractTranslation()
-        rotation = world_transform.ExtractRotation()
-
-        # Convert to numpy arrays
-        position = np.array([translation[0], translation[1], translation[2]])
-
-        # Convert rotation to quaternion (w, x, y, z)
-        quat = rotation.GetQuat()
-        orientation = np.array([quat.GetReal(), quat.GetImaginary()[0], quat.GetImaginary()[1], quat.GetImaginary()[2]])
-
-        return position, orientation
-
     def _set_robot_base_pose(self):
         """Update robot base pose for motion planning"""
         if self.motion_gen_algo is None:
-            return
+            raise RuntimeError(f"Robot {self.robot_name}: Motion generation algorithm not initialized")
 
         # Get robot base prim
         stage = get_current_stage()
-        robot_prim = stage.GetPrimAtPath(f"/World/{self.robot_name.replace('_robot', '')}")
+        robot_prim_path = f"/World/{self.robot_name}"
+        robot_prim = stage.GetPrimAtPath(robot_prim_path)
 
-        if robot_prim:
-            robot_pos, robot_rot = self._get_world_pose(robot_prim)
+        if not robot_prim or not robot_prim.IsValid():
+            raise RuntimeError(f"Robot {self.robot_name}: Robot prim not found at {robot_prim_path}")
+            
+        try:
+            robot_pos, robot_rot = utils.get_prim_world_pose(robot_prim)
             self.motion_gen_algo.set_robot_base_pose(robot_pos, robot_rot)
+        except Exception as e:
+            raise RuntimeError(f"Robot {self.robot_name}: Failed to set robot base pose: {e}") from e
 
     def _raycast(self, src: Gf.Vec3d, direction: Gf.Vec3d, distance: float, filter_prim_path: str):
         """Perform raycast to detect objects for gripping"""
@@ -278,29 +249,34 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
     def _attach_object(self) -> bool:
         """Attach an object using physics joints (gripping simulation)"""
         if self._grab_joint:
-            print(f"Robot {self.robot_name} already holding something")
-            return False
+            raise RuntimeError(f"Robot {self.robot_name} already holding something - cannot attach another object")
 
         stage = get_current_stage()
-        pointer_prim = stage.GetPrimAtPath(f"/World/{self.robot_name.replace('_robot', '')}/pointer")
+        pointer_prim_path = f"/World/{self.robot_name}/pointer"
+        pointer_prim = stage.GetPrimAtPath(pointer_prim_path)
+        
+        if not pointer_prim or not pointer_prim.IsValid():
+            raise RuntimeError(f"Robot {self.robot_name}: Pointer prim not found at {pointer_prim_path}")
 
         # Get pointer position and do raycast
-        pointer_pos, pointer_rot = self._get_world_pose(pointer_prim)
-        quat = Gf.Quatd(pointer_rot[0], pointer_rot[1], pointer_rot[2], pointer_rot[3])
+        pointer_pos, pointer_rot = utils.get_prim_world_pose(pointer_prim)
+        quat = Gf.Quatd(float(pointer_rot[0]), float(pointer_rot[1]), float(pointer_rot[2]), float(pointer_rot[3]))
         rotation = Gf.Rotation(quat)
         direction = rotation.TransformDir(self.raycast_direction)
 
-        hit_prim = self._raycast(Gf.Vec3d(*pointer_pos), direction, self.raycast_distance,
-                                f"/World/{self.robot_name.replace('_robot', '')}")
+        hit_prim = self._raycast(Gf.Vec3d(float(pointer_pos[0]), float(pointer_pos[1]), float(pointer_pos[2])), direction, self.raycast_distance,
+                                f"/World/{self.robot_name}")
         if not hit_prim:
-            print(f"Robot {self.robot_name}: No object detected for gripping")
-            return False
+            raise RuntimeError(f"Robot {self.robot_name}: No object detected for gripping within {self.raycast_distance}m")
 
         # Create physics joint
-        joint_prim = pxutils.createJoint(stage, 'Fixed', pointer_prim, hit_prim)
-        self._grab_joint = joint_prim.GetPath().pathString
-        print(f"Robot {self.robot_name} attached object: {hit_prim.GetPath()}")
-        return True
+        try:
+            joint_prim = pxutils.createJoint(stage, 'Fixed', pointer_prim, hit_prim)
+            self._grab_joint = joint_prim.GetPath().pathString
+            print(f"Robot {self.robot_name} attached object: {hit_prim.GetPath()}")
+            return True
+        except Exception as e:
+            raise RuntimeError(f"Robot {self.robot_name}: Failed to create physics joint: {e}") from e
 
     def _detach_object(self) -> bool:
         """Detach the currently held object"""
@@ -336,20 +312,14 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
         if self.current_action is None:
             return
 
-        try:
-            if self.current_action == "move_joints":
-                self._execute_move_joints()
-            elif self.current_action in ["goto_pose", "goto_pose_safe", "goto_pose_hover"]:
-                self._execute_goto_pose()
-            elif self.current_action == "gripper_open":
-                self._execute_gripper_open()
-            elif self.current_action == "gripper_close":
-                self._execute_gripper_close()
-
-        except Exception as e:
-            print(f"Error executing action {self.current_action}: {e}")
-            self.current_action = None
-            self.is_moving = False
+        if self.current_action == "move_joints":
+            self._execute_move_joints()
+        elif self.current_action == "goto_pose":
+            self._execute_goto_pose()
+        elif self.current_action == "gripper_open":
+            self._execute_gripper_open()
+        elif self.current_action == "gripper_close":
+            self._execute_gripper_close()
 
     def _execute_move_joints(self):
         """Execute joint movement in simulation"""
@@ -384,11 +354,15 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
 
     def _execute_goto_pose(self):
         """Execute pose-based movement using motion planning"""
-        if self.target_pose is None or self.motion_gen_solver is None:
-            print(f"Robot {self.robot_name}: Cannot execute goto_pose - missing target or solver")
+        if self.target_pose is None:
             self.current_action = None
             self.is_moving = False
-            return
+            raise RuntimeError(f"Robot {self.robot_name}: Cannot execute goto_pose - missing target pose")
+            
+        if self.motion_gen_solver is None:
+            self.current_action = None
+            self.is_moving = False
+            raise RuntimeError(f"Robot {self.robot_name}: Cannot execute goto_pose - motion generation solver not initialized")
 
         target_position, target_orientation = self.target_pose
 
@@ -403,10 +377,9 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
             )
 
             if not success:
-                print(f"Robot {self.robot_name}: IK solve failed for target pose")
                 self.current_action = None
                 self.is_moving = False
-                return
+                raise RuntimeError(f"Robot {self.robot_name}: IK solve failed for target pose {target_position}, {target_orientation}")
 
             # Apply the computed action
             self.robot.apply_action(action)
@@ -419,10 +392,12 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
                 print(f"Robot {self.robot_name} reached target pose")
 
         except Exception as e:
-            print(f"Robot {self.robot_name}: Error in goto_pose execution: {e}")
             self.current_action = None
             self.is_moving = False
-            raise
+            if isinstance(e, RuntimeError):
+                raise  # Re-raise RuntimeError as-is
+            else:
+                raise RuntimeError(f"Robot {self.robot_name}: Error in goto_pose execution: {e}") from e
 
     def _close_to_target(self, action: ArticulationAction) -> bool:
         """Check if robot is close to target position"""
@@ -439,25 +414,33 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
 
     def _execute_gripper_open(self):
         """Execute gripper opening using physics-based detachment"""
-        success = self._detach_object()
-
-        self.motion_complete = True
-        self.current_action = None
-        if success:
-            print(f"Robot {self.robot_name} opened gripper (detached object)")
-        else:
-            print(f"Robot {self.robot_name} opened gripper (no object to detach)")
+        try:
+            success = self._detach_object()
+            self.motion_complete = True
+            self.current_action = None
+            if success:
+                print(f"Robot {self.robot_name} opened gripper (detached object)")
+            else:
+                print(f"Robot {self.robot_name} opened gripper (no object to detach)")
+        except Exception as e:
+            self.motion_complete = False
+            self.current_action = None
+            raise RuntimeError(f"Robot {self.robot_name}: Failed to open gripper: {e}") from e
 
     def _execute_gripper_close(self):
         """Execute gripper closing using physics-based attachment"""
-        success = self._attach_object()
-
-        self.motion_complete = True
-        self.current_action = None
-        if success:
-            print(f"Robot {self.robot_name} closed gripper (attached object)")
-        else:
-            print(f"Robot {self.robot_name} closed gripper (no object detected)")
+        try:
+            success = self._attach_object()
+            self.motion_complete = True
+            self.current_action = None
+            if success:
+                print(f"Robot {self.robot_name} closed gripper (attached object)")
+            else:
+                print(f"Robot {self.robot_name} closed gripper (no object detected)")
+        except Exception as e:
+            self.motion_complete = False
+            self.current_action = None
+            raise RuntimeError(f"Robot {self.robot_name}: Failed to close gripper: {e}") from e
 
     def halt_motion(self):
         """Immediately halt robot motion"""

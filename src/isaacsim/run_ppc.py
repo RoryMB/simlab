@@ -30,7 +30,7 @@ from zmq_ur5e_server import ZMQ_UR5e_Server
 from zmq_pf400_server import ZMQ_PF400_Server
 
 
-CUSTOM_ASSETS_ROOT_PATH = str(Path("../../assets").resolve())
+CUSTOM_ASSETS_ROOT_PATH = str(Path(__file__).parent / "../../assets")
 
 NVIDIA_ASSETS_ROOT_PATH = get_assets_root_path()
 if NVIDIA_ASSETS_ROOT_PATH is None:
@@ -39,22 +39,39 @@ if NVIDIA_ASSETS_ROOT_PATH is None:
     sys.exit()
 
 
+class CollisionDetector:
+    """Handles collision detection and notifies robot servers"""
+
+    def __init__(self, robot_servers):
+        self.robot_servers = robot_servers  # Dict of {robot_name: server}
+
+    def on_collision(self, contact_headers, contact_data):
+        """Handle collision events and notify affected robot servers"""
+
+        for contact_header in contact_headers:
+            if contact_header.type != ContactEventType.CONTACT_FOUND:
+                continue
+
+            actor0 = str(PhysicsSchemaTools.intToSdfPath(contact_header.actor0))
+            actor1 = str(PhysicsSchemaTools.intToSdfPath(contact_header.actor1))
+
+            print(f"Collision detected: {actor0} <-> {actor1}")
+
+            # Check which robot servers are affected by this collision
+            for robot_name, server in self.robot_servers.items():
+                robot_prim_path = f"/World/{robot_name}"
+
+                if actor0.startswith(robot_prim_path) or actor1.startswith(robot_prim_path):
+                    print(f"Notifying {robot_name} server of collision")
+                    if hasattr(server, 'on_collision'):
+                        server.on_collision(actor0, actor1)
+
+
 def create_scene_objects(world):
     """Create scene objects"""
 
     # Add default ground plane
     world.scene.add_default_ground_plane()
-
-    # Create PF400 robot
-    pf400_asset_path = CUSTOM_ASSETS_ROOT_PATH + "/temp/robots/pf400.usda"
-    add_reference_to_stage(
-        usd_path=pf400_asset_path,
-        prim_path="/World/pf400",
-    )
-
-    # Position PF400 at origin
-    pf400_prim = world.stage.GetPrimAtPath("/World/pf400")
-    utils.set_prim_world_pose(pf400_prim, position=np.array([0.0, 0.0, 0.0]))
 
     # Create microplate at position (0.3, 0.3, 0.3)
     microplate_asset_path = CUSTOM_ASSETS_ROOT_PATH + "/temp/objects/microplate.usda"
@@ -86,10 +103,10 @@ def create_scene_objects(world):
         scale=np.array([0.5, 0.5, 0.5]),
     )
 
-    # Add collision detection to all cubes using the utility function
-    utils.add_collision_to_prim(platform1_prim)
-    utils.add_collision_to_prim(platform2_prim)
-    utils.add_collision_to_prim(collision_cube_prim)
+    # Add colliders to all cubes using the utility function
+    utils.add_collider_to_prim(platform1_prim)
+    utils.add_collider_to_prim(platform2_prim)
+    utils.add_collider_to_prim(collision_cube_prim)
 
     # Create reference position markers (invisible prims for navigation)
     high_prim = create_prim(
@@ -113,7 +130,6 @@ def create_scene_objects(world):
     )
 
     return {
-        "pf400": pf400_prim,
         "microplate": microplate_prim,
         "platform1": platform1_prim,
         "platform2": platform2_prim,
@@ -122,34 +138,6 @@ def create_scene_objects(world):
         "side": side_prim,
         "coll": coll_prim,
     }
-
-
-class CollisionDetector:
-    """Handles collision detection and notifies robot servers"""
-
-    def __init__(self, robot_servers):
-        self.robot_servers = robot_servers  # Dict of {robot_name: server}
-
-    def on_collision(self, contact_headers, contact_data):
-        """Handle collision events and notify affected robot servers"""
-
-        for contact_header in contact_headers:
-            if contact_header.type != ContactEventType.CONTACT_FOUND:
-                continue
-
-            actor0 = str(PhysicsSchemaTools.intToSdfPath(contact_header.actor0))
-            actor1 = str(PhysicsSchemaTools.intToSdfPath(contact_header.actor1))
-
-            print(f"Collision detected: {actor0} <-> {actor1}")
-
-            # Check which robot servers are affected by this collision
-            for robot_name, server in self.robot_servers.items():
-                robot_prim_path = f"/World/{robot_name.replace('_robot', '')}"
-
-                if actor0.startswith(robot_prim_path) or actor1.startswith(robot_prim_path):
-                    print(f"Notifying {robot_name} server of collision")
-                    if hasattr(server, 'on_collision'):
-                        server.on_collision(actor0, actor1)
 
 
 def create_robots(world, robots_config):

@@ -184,10 +184,10 @@ def list_child_prims(parent_prim) -> list[str]:
 # Physics Utilities
 # =============================================================================
 
-def add_collision_to_prim(prim, approximation_type: str = "convexHull") -> None:
-    """Add collision detection to a prim.
+def add_collider_to_prim(prim, approximation_type: str = "convexHull") -> None:
+    """Add a collider to a prim.
 
-    This function adds collision detection to geometry prims (Cube, Sphere, Mesh, etc.)
+    This function adds colliders to geometry prims (Cube, Sphere, Mesh, etc.)
     without adding rigid body dynamics, making them static collision objects.
 
     Args:
