@@ -1,0 +1,185 @@
+"""The main colorpicker experiment application."""
+
+import datetime
+from pathlib import Path
+from random import randint
+from string import ascii_uppercase
+from typing import Optional, Union
+
+import numpy as np
+from madsci.client.experiment_application import ExperimentApplication
+from madsci.common.types.base_types import MadsciBaseSettings, PathLike
+from madsci.common.types.experiment_types import ExperimentDesign
+from madsci.common.types.step_types import StepDefinition
+from madsci.common.types.workflow_types import WorkflowDefinition
+from pydantic import Field
+from rich.console import Console
+
+from colorpicker_experiment.bayes_solver import BayesColorSolver
+from colorpicker_experiment.utils import get_colors_from_file
+
+console = Console()
+
+
+class ColorPickerConfig(MadsciBaseSettings):
+    """Configuration for the color picker experiment application."""
+
+    workflow_directory: PathLike = (Path(__file__).parent / "workflows").resolve()
+    """The directory where the workflows are stored."""
+    protocol_directory: PathLike = (Path(__file__).parent / "protocols").resolve()
+    """The directory where the protocols are stored."""
+    image_directory: PathLike = Path("./images").resolve()
+    """The directory where the images are stored."""
+    experiment_design: Union[ExperimentDesign, PathLike] = Path(
+        "./experiment_design.yaml"
+    ).resolve()
+    """The path to the experiment design file."""
+    pop_size: int = 4
+    """The population size for the experiment (i.e. number of colors to mix per iteration)."""
+    well_volume: Union[int, float] = Field(gt=0, default=275)
+    """The volume to fill each well in microliters."""
+    iterations: int = Field(default=4, gt=0)
+    """The number of iterations to run the experiment for."""
+
+
+class ColorPickerExperimentApplication(ExperimentApplication):
+    """A demonstration and benchmarking experimental application: mixing colors autonomously."""
+
+    config = ColorPickerConfig()
+    """The configuration for the color picker experiment application."""
+
+    previous_ratios = None
+    previous_colors = None
+
+    barty_fill_workflow = WorkflowDefinition(
+        name="Reset Colors",
+        steps=[
+            StepDefinition(
+                name="Refill Colors",
+                node="barty",
+                action="fill_all",
+                args={
+                    "amount": 100,
+                },
+            )
+        ],
+    )
+    barty_cleanup_workflow = WorkflowDefinition(
+        name="Cleanup Colors",
+        steps=[
+            StepDefinition(
+                name="Drain Colors",
+                node="barty",
+                action="drain_all",
+                args={
+                    "amount": 100,
+                },
+            ),
+        ],
+    )
+
+    def __init__(
+        self, config: Optional[ColorPickerConfig] = None
+    ) -> "ColorPickerExperimentApplication":
+        """Initialize the color picker experiment application."""
+        if config:
+            self.config = config
+        self.experiment_design = self.config.experiment_design
+        super().__init__()
+        self.target_color = [randint(0, 255), randint(0, 255), randint(0, 255)]  # noqa: S311
+        self.solver = BayesColorSolver(self.config.pop_size, self.target_color)
+        self.total_wells = []
+        self.wells = []
+        for i in range(9):
+            for j in range(1, 13):
+                self.wells.append(ascii_uppercase[i] + str(j))
+        self.mix_colors_workflow = WorkflowDefinition.from_yaml(
+            self.config.workflow_directory / "mix_colors.workflow.yaml"
+        )
+        self.rinse_plate_workflow = WorkflowDefinition.from_yaml(
+            self.config.workflow_directory / "rinse_plate.workflow.yaml"
+        )
+
+    def loop(self, iteration: int, inputs: Optional[list[list[float]]] = None) -> None:
+        """Run one iteration of the main experiment loop."""
+        self.logger.info(f"Running iteration {iteration} of {self.experiment.run_name}")
+        # * Get the input volumes for the ot2 to mix in the plate from the bayesian solver, if not provided
+        if inputs is None:
+            inputs = self.solver.run_iteration(
+                self.previous_ratios, self.previous_colors
+            )
+            inputs = (np.array(inputs) * self.config.well_volume).round(3).tolist()
+
+        # Track which wells in the plate to create samples in
+        current_wells = self.wells[
+            iteration * self.config.pop_size : (iteration + 1) * self.config.pop_size
+        ]
+
+        # Run the color mixing workflow
+        workflow = self.workcell_client.submit_workflow(
+            self.mix_colors_workflow,
+            {
+                "wells": current_wells,
+                "amounts": inputs,
+                "protocol_path": str(self.config.protocol_directory / "mix_colors.py"),
+            },
+        )
+
+        self.total_wells = self.total_wells + current_wells
+        # Retrieve the data generated by the workflow and save it as "image.jpg"
+        self.data_client.save_datapoint_value(
+            workflow.get_datapoint_id_by_label("image"),
+            self.config.image_directory / "plate_image.jpg",
+        )
+
+        # Calculate all the colors on the plate and save the neccessary ones to submit to the solver
+        colors = get_colors_from_file(self.config.image_directory / "plate_image.jpg")
+        reference_colors = []
+        for well in current_wells:
+            reference_colors.append(colors[well])
+        self.previous_colors = reference_colors
+        return reference_colors
+
+    def clean_up(self) -> None:
+        """Ensures that the experiment is cleaned up after completion or failure."""
+        self.workcell_client.submit_workflow(
+            self.barty_cleanup_workflow, await_completion=False
+        )
+        self.workcell_client.submit_workflow(
+            self.rinse_plate_workflow,
+            {
+                "wells": self.total_wells,
+                "protocol_path": str(self.config.protocol_directory / "rinse_plate.py"),
+            },
+            await_completion=False,
+        )
+
+
+if __name__ == "__main__":
+    experiment_app = ColorPickerExperimentApplication()
+    current_time = datetime.datetime.now()
+    with experiment_app.manage_experiment(
+        run_name=f"Color Picker Experiment Run {current_time}",
+        run_description=f"Run for color picker experiment, started at ~{current_time}",
+    ):
+        experiment_app.logger.info(f"{experiment_app.target_color=}")
+        for _ in range(5):
+            console.print(
+                "██████████",
+                style=f"rgb({experiment_app.target_color[0]},{experiment_app.target_color[1]},{experiment_app.target_color[2]})",
+            )
+        experiment_app.logger.info(f"{experiment_app.config=}")
+
+        try:
+            # Reset Colors using Barty
+            experiment_app.workcell_client.submit_workflow(
+                experiment_app.barty_fill_workflow, await_completion=False
+            )
+            for i in range(experiment_app.config.iterations):
+                experiment_app.loop(i)
+        except Exception as e:
+            experiment_app.workcell_client.submit_workflow(
+                experiment_app.barty_cleanup_workflow, await_completion=False
+            )
+            raise e
+        experiment_app.clean_up()
