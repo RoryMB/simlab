@@ -14,7 +14,7 @@ python run.py
 **Terminal 2 (after Isaac Sim loads):**
 ```bash
 cd src/madsci/
-./run.sh
+./run_madsci.sh
 ```
 
 ### Step 3: Start Robot Node
@@ -31,8 +31,8 @@ cd src/madsci/
 **Terminal 4 (after robot node connects):**
 ```bash
 ./activate-madsci.sh
-cd src/
-python run_workflow.py
+cd projects/prototyping/
+python run_workflow.py workflow.yaml
 ```
 
 **Expected Workflow Execution:**

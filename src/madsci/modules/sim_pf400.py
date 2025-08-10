@@ -69,51 +69,74 @@ class SimPF400Interface:
             self.logger.log(f"ZMQ command failed: {e}")
             return {"status": "error", "message": str(e)}
 
-    def move_to_position(self, joint_angles: list) -> bool:
-        """Move PF400 to specified joint positions."""
-        self.logger.log(f"Moving to joint positions: {joint_angles}")
+    def move_to_location_coordinates(self, location_coordinates: list) -> bool:
+        """Move PF400 to location using 6-DOF coordinates [x, y, z, rx, ry, rz]."""
+        self.logger.log(f"Moving to location coordinates: {location_coordinates}")
 
-        if len(joint_angles) != 6:
-            self.logger.log(f"Expected 6 joint angles, got {len(joint_angles)}")
+        if len(location_coordinates) != 6:
+            self.logger.log(f"Expected 6 coordinates [x,y,z,rx,ry,rz], got {len(location_coordinates)}")
             return False
 
         try:
-            # Send move command via ZMQ
-            zmq_command = {"action": "move_joints", "joint_angles": joint_angles}
+            # Convert MADSci 6-DOF coordinates to pose for goto_pose command
+            # PF400 locations: [x, y, z, rx, ry, rz] format from workcell definition
+            x, y, z, rx, ry, rz = location_coordinates
+            
+            # Convert to meters (assuming input coordinates are in appropriate units)
+            position = [x/1000.0, y/1000.0, z/1000.0]  # Convert mm to meters if needed
+            
+            # Convert rotation values to quaternion (simplified for now)
+            # This is a placeholder - real PF400 would have proper coordinate conversion
+            orientation = [1.0, 0.0, 0.0, 0.0]  # w, x, y, z quaternion
+            
+            # Send goto_pose command via ZMQ (using enhanced robot functionality)
+            zmq_command = {
+                "action": "goto_pose", 
+                "position": position,
+                "orientation": orientation
+            }
             response = self.send_zmq_command(zmq_command)
 
             success = response.get("status") == "success"
             if success:
-                self.logger.log(f"Successfully moved to position {joint_angles}")
+                self.logger.log(f"Successfully moved to location {location_coordinates}")
+                # Wait for motion to complete
+                return self.wait_for_motion_complete()
             else:
-                self.logger.log(f"Failed to move to position: {response.get('message', 'Unknown error')}")
+                self.logger.log(f"Failed to move to location: {response.get('message', 'Unknown error')}")
 
             return success
 
         except Exception as e:
-            self.logger.log(f"Error moving to position {joint_angles}: {e}")
+            self.logger.log(f"Error moving to location {location_coordinates}: {e}")
             return False
+    
+    def wait_for_motion_complete(self, max_wait: float = 30.0) -> bool:
+        """Wait for robot motion to complete."""
+        start_time = time.time()
+        
+        while time.time() - start_time < max_wait:
+            status = self.get_status()
+            
+            if status.get("collision_detected", False):
+                self.logger.log("Motion stopped due to collision")
+                return False
+            
+            if status.get("motion_complete", False) or not status.get("is_moving", False):
+                self.logger.log("Motion completed successfully")
+                return True
+                
+            time.sleep(0.1)
+        
+        self.logger.log(f"Motion did not complete within {max_wait} seconds")
+        return False
 
-    def move_to_cartesian(self, cartesian_coords: list) -> bool:
-        """Move PF400 to specified cartesian coordinates."""
-        self.logger.log(f"Moving to cartesian position: {cartesian_coords}")
-
-        try:
-            # Send cartesian move command via ZMQ
-            zmq_command = {"action": "move_cartesian", "cartesian_coordinates": cartesian_coords}
-            response = self.send_zmq_command(zmq_command)
-
-            success = response.get("status") == "success"
-            if success:
-                self.logger.log(f"Successfully moved to cartesian position {cartesian_coords}")
-            else:
-                self.logger.log(f"Failed to move to cartesian position: {response.get('message', 'Unknown error')}")
-
-            return success
-
-        except Exception as e:
-            self.logger.log(f"Error moving to cartesian position {cartesian_coords}: {e}")
-            return False
+    def move_to_approach_location(self, approach_coordinates: list) -> bool:
+        """Move to approach location before main operation."""
+        self.logger.log(f"Moving to approach location: {approach_coordinates}")
+        
+        # Use same coordinate handling as main location movement
+        return self.move_to_location_coordinates(approach_coordinates)
 
     def get_current_position(self) -> list:
         """Get current PF400 joint positions."""
@@ -178,17 +201,33 @@ class SimPF400Interface:
 
         if response.get("status") == "success":
             return {
-                "joint_angles": response.get("joint_angles", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+                "joint_angles": response.get("joint_angles", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
                 "gripper_state": response.get("gripper_state", "unknown"),
-                "is_homed": response.get("is_homed", False)
+                "is_moving": response.get("is_moving", False),
+                "collision_detected": response.get("collision_detected", False),
+                "motion_complete": response.get("motion_complete", True)
             }
         else:
             self.logger.log(f"Failed to get status: {response.get('message', 'Unknown error')}")
             return {
-                "joint_angles": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                "joint_angles": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
                 "gripper_state": "unknown",
-                "is_homed": False
+                "is_moving": False,
+                "collision_detected": False,
+                "motion_complete": True
             }
+    
+    def handle_plate_rotation(self, rotation: str) -> bool:
+        """Handle plate rotation - wide or narrow orientation."""
+        if not rotation or rotation not in ["wide", "narrow"]:
+            return True  # Skip rotation if not specified or invalid
+            
+        self.logger.log(f"Handling plate rotation: {rotation}")
+        
+        # For simulation, we'll just log the rotation
+        # Real PF400 would adjust gripper orientation
+        self.logger.log(f"Plate orientation set to: {rotation}")
+        return True
 
 
 class SimPF400Node(RestNode):
@@ -224,7 +263,9 @@ class SimPF400Node(RestNode):
                 "sim_pf400_status_code": self.sim_pf400.status_code,
                 "current_joint_positions": status["joint_angles"],
                 "gripper_state": status["gripper_state"],
-                "is_homed": status["is_homed"]
+                "is_moving": status["is_moving"],
+                "collision_detected": status["collision_detected"],
+                "motion_complete": status["motion_complete"]
             }
 
     def _exception_handler(self, e: Exception, set_node_errored: bool = True):
@@ -238,8 +279,12 @@ class SimPF400Node(RestNode):
         self,
         source: Annotated[LocationArgument, "The source location"],
         target: Annotated[LocationArgument, "the target location"],
+        source_plate_rotation: Annotated[Optional[str], "Orientation of plate at source: wide or narrow"] = None,
+        target_plate_rotation: Annotated[Optional[str], "Final orientation of plate at target: wide or narrow"] = None,
+        source_approach: Annotated[Optional[LocationArgument], "Location to approach source from"] = None,
+        target_approach: Annotated[Optional[LocationArgument], "Location to approach target from"] = None,
     ) -> ActionResult:
-        """Transfer a plate from source to target location using ZMQ robot control."""
+        """Transfer a plate from source to target location using enhanced robot control."""
 
         if self.resource_client:
             try:
@@ -247,40 +292,50 @@ class SimPF400Node(RestNode):
             except Exception:
                 return ActionFailed(errors=[Error(message="No plate in source!")])
 
+            # Handle source approach if specified
+            if source_approach:
+                self.logger.log("Moving to source approach location")
+                if not self.sim_pf400.move_to_approach_location(source_approach.location):
+                    return ActionFailed(errors=[Error(message="Failed to move to source approach location")])
+
+            # Handle source plate rotation
+            if not self.sim_pf400.handle_plate_rotation(source_plate_rotation):
+                return ActionFailed(errors=[Error(message="Failed to handle source plate rotation")])
+
             # Move to source location via ZMQ
             source_coords = source.location  # LocationArgument.location contains the coordinates
-
-            if not self.sim_pf400.move_to_position(source_coords):
+            if not self.sim_pf400.move_to_location_coordinates(source_coords):
                 return ActionFailed(errors=[Error(message="Failed to move to source location")])
 
-            # Open gripper and simulate pickup
-            if not self.sim_pf400.open_gripper():
-                return ActionFailed(errors=[Error(message="Failed to open gripper")])
+            # Close gripper to pick up plate (using physics-based gripping)
+            if not self.sim_pf400.close_gripper():
+                return ActionFailed(errors=[Error(message="Failed to close gripper")])
                 
             self.resource_client.push(resource=self.gripper.resource_id, child=popped_plate)
             self.logger.log("Picked up plate from source")
 
-            # Close gripper
-            if not self.sim_pf400.close_gripper():
-                return ActionFailed(errors=[Error(message="Failed to close gripper")])
+            # Handle target approach if specified
+            if target_approach:
+                self.logger.log("Moving to target approach location")
+                if not self.sim_pf400.move_to_approach_location(target_approach.location):
+                    return ActionFailed(errors=[Error(message="Failed to move to target approach location")])
 
-            time.sleep(1)  # Simulate pick operation time
+            # Handle target plate rotation
+            if not self.sim_pf400.handle_plate_rotation(target_plate_rotation):
+                return ActionFailed(errors=[Error(message="Failed to handle target plate rotation")])
 
             # Move to target location via ZMQ
             target_coords = target.location  # LocationArgument.location contains the coordinates
-
-            if not self.sim_pf400.move_to_position(target_coords):
+            if not self.sim_pf400.move_to_location_coordinates(target_coords):
                 return ActionFailed(errors=[Error(message="Failed to move to target location")])
 
-            # Open gripper and simulate release
+            # Open gripper to release plate (using physics-based gripping)
             if not self.sim_pf400.open_gripper():
                 return ActionFailed(errors=[Error(message="Failed to open gripper for release")])
                 
             popped_plate, _ = self.resource_client.pop(resource=self.gripper.resource_id)
             self.resource_client.push(resource=target.resource_id, child=popped_plate)
             self.logger.log("Placed plate at target")
-
-            time.sleep(1)  # Simulate place operation time
 
         return ActionSucceeded()
 
@@ -292,44 +347,121 @@ class SimPF400Node(RestNode):
         return AdminCommandResponse(data=[0, 0, 0, 0, 0, 0])
 
     @action
-    def movej(
+    def pick_plate(
         self,
-        joints: Annotated[Union[LocationArgument, list], "Joint angles to move to"],
+        source: Annotated[LocationArgument, "Location to pick plate from"],
+        source_approach: Annotated[Optional[LocationArgument], "Location to approach from"] = None,
     ) -> ActionResult:
-        """Move the robot using joint angles"""
+        """Pick a plate from a source location."""
         try:
-            if isinstance(joints, LocationArgument):
-                joint_coords = joints.location
-            else:
-                joint_coords = joints
+            if self.resource_client:
+                try:
+                    popped_plate, _ = self.resource_client.pop(resource=source.resource_id)
+                except Exception:
+                    return ActionFailed(errors=[Error(message="No plate in source!")])
 
-            if self.sim_pf400.move_to_position(joint_coords):
-                return ActionSucceeded()
-            else:
-                return ActionFailed(errors=[Error(message="Failed to move to joint position")])
+                # Handle approach if specified
+                if source_approach:
+                    if not self.sim_pf400.move_to_approach_location(source_approach.location):
+                        return ActionFailed(errors=[Error(message="Failed to move to approach location")])
 
+                # Move to source location
+                if not self.sim_pf400.move_to_location_coordinates(source.location):
+                    return ActionFailed(errors=[Error(message="Failed to move to source location")])
+
+                # Close gripper to pick up plate
+                if not self.sim_pf400.close_gripper():
+                    return ActionFailed(errors=[Error(message="Failed to close gripper")])
+
+                self.resource_client.push(resource=self.gripper.resource_id, child=popped_plate)
+                self.logger.log("Picked up plate from source")
+
+            return ActionSucceeded()
         except Exception as e:
-            return ActionFailed(errors=[Error(message=f"Joint movement error: {str(e)}")])
-
+            return ActionFailed(errors=[Error(message=f"Pick plate error: {str(e)}")])
+    
     @action
-    def move_cartesian(
+    def place_plate(
         self,
-        target: Annotated[Union[LocationArgument, list], "Cartesian target to move to"],
+        target: Annotated[LocationArgument, "Location to place plate to"],
+        target_approach: Annotated[Optional[LocationArgument], "Location to approach from"] = None,
     ) -> ActionResult:
-        """Move the robot using cartesian coordinates"""
+        """Place a plate to a target location."""
         try:
-            if isinstance(target, LocationArgument):
-                target_coords = target.location
-            else:
-                target_coords = target
+            if self.resource_client:
+                # Handle approach if specified
+                if target_approach:
+                    if not self.sim_pf400.move_to_approach_location(target_approach.location):
+                        return ActionFailed(errors=[Error(message="Failed to move to approach location")])
 
-            if self.sim_pf400.move_to_cartesian(target_coords):
-                return ActionSucceeded()
-            else:
-                return ActionFailed(errors=[Error(message="Failed to move to cartesian position")])
+                # Move to target location
+                if not self.sim_pf400.move_to_location_coordinates(target.location):
+                    return ActionFailed(errors=[Error(message="Failed to move to target location")])
 
+                # Open gripper to release plate
+                if not self.sim_pf400.open_gripper():
+                    return ActionFailed(errors=[Error(message="Failed to open gripper")])
+
+                try:
+                    popped_plate, _ = self.resource_client.pop(resource=self.gripper.resource_id)
+                    self.resource_client.push(resource=target.resource_id, child=popped_plate)
+                    self.logger.log("Placed plate at target")
+                except Exception:
+                    return ActionFailed(errors=[Error(message="No plate in gripper to place!")])
+
+            return ActionSucceeded()
         except Exception as e:
-            return ActionFailed(errors=[Error(message=f"Cartesian movement error: {str(e)}")])
+            return ActionFailed(errors=[Error(message=f"Place plate error: {str(e)}")])
+    
+    @action
+    def remove_lid(
+        self,
+        source: Annotated[LocationArgument, "Location to pick plate from"],
+        target: Annotated[LocationArgument, "Location to place lid to"], 
+        source_plate_rotation: Annotated[Optional[str], "Orientation of plate at source: wide or narrow"] = None,
+        target_plate_rotation: Annotated[Optional[str], "Final orientation of plate at target: wide or narrow"] = None,
+        lid_height: Annotated[Optional[float], "Height of the lid in steps"] = 7.0,
+        source_approach: Annotated[Optional[LocationArgument], "Location to approach source from"] = None,
+        target_approach: Annotated[Optional[LocationArgument], "Location to approach target from"] = None,
+    ) -> ActionResult:
+        """Remove a lid from a plate."""
+        self.logger.log(f"Removing lid with height {lid_height} steps")
+        
+        # For now, treat lid removal like a transfer operation
+        # Real implementation would handle lid-specific gripping and height
+        return self.transfer(
+            source=source,
+            target=target, 
+            source_plate_rotation=source_plate_rotation,
+            target_plate_rotation=target_plate_rotation,
+            source_approach=source_approach,
+            target_approach=target_approach
+        )
+    
+    @action 
+    def replace_lid(
+        self,
+        source: Annotated[LocationArgument, "Location to pick lid from"],
+        target: Annotated[LocationArgument, "Location to place lid on plate"],
+        source_plate_rotation: Annotated[Optional[str], "Orientation of plate at source: wide or narrow"] = None,
+        target_plate_rotation: Annotated[Optional[str], "Final orientation of plate at target: wide or narrow"] = None,
+        lid_height: Annotated[Optional[float], "Height of the lid in steps"] = 7.0,
+        source_approach: Annotated[Optional[LocationArgument], "Location to approach source from"] = None,
+        target_approach: Annotated[Optional[LocationArgument], "Location to approach target from"] = None,
+    ) -> ActionResult:
+        """Replace a lid on a plate."""
+        self.logger.log(f"Replacing lid with height {lid_height} steps")
+        
+        # For now, treat lid replacement like a transfer operation  
+        # Real implementation would handle lid-specific placement and height
+        return self.transfer(
+            source=source,
+            target=target,
+            source_plate_rotation=source_plate_rotation, 
+            target_plate_rotation=target_plate_rotation,
+            source_approach=source_approach,
+            target_approach=target_approach
+        )
 
     @action
     def home(
