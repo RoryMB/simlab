@@ -26,8 +26,21 @@ node_url: null
 actions:
   transfer:
     name: transfer
-    description: Transfer a plate from source to target location using ZMQ robot control.
-    args: {}
+    description: Transfer a plate from source to target location using enhanced robot
+      control.
+    args:
+      source_plate_rotation:
+        name: source_plate_rotation
+        description: 'Orientation of plate at source: wide or narrow'
+        argument_type: str
+        required: false
+        default: null
+      target_plate_rotation:
+        name: target_plate_rotation
+        description: 'Final orientation of plate at target: wide or narrow'
+        argument_type: str
+        required: false
+        default: null
     locations:
       source:
         name: source
@@ -41,36 +54,162 @@ actions:
         argument_type: location
         required: true
         default: null
+      source_approach:
+        name: source_approach
+        description: Location to approach source from
+        argument_type: location
+        required: false
+        default: null
+      target_approach:
+        name: target_approach
+        description: Location to approach target from
+        argument_type: location
+        required: false
+        default: null
     files: {}
     results: {}
     blocking: false
     asynchronous: true
-  movej:
-    name: movej
-    description: Move the robot using joint angles
-    args:
-      joints:
-        name: joints
-        description: Joint angles to move to
-        argument_type: Union[LocationArgument, list]
+  pick_plate:
+    name: pick_plate
+    description: Pick a plate from a source location.
+    args: {}
+    locations:
+      source:
+        name: source
+        description: Location to pick plate from
+        argument_type: location
         required: true
         default: null
-    locations: {}
+      source_approach:
+        name: source_approach
+        description: Location to approach from
+        argument_type: location
+        required: false
+        default: null
     files: {}
     results: {}
     blocking: false
     asynchronous: true
-  move_cartesian:
-    name: move_cartesian
-    description: Move the robot using cartesian coordinates
-    args:
+  place_plate:
+    name: place_plate
+    description: Place a plate to a target location.
+    args: {}
+    locations:
       target:
         name: target
-        description: Cartesian target to move to
-        argument_type: Union[LocationArgument, list]
+        description: Location to place plate to
+        argument_type: location
         required: true
         default: null
-    locations: {}
+      target_approach:
+        name: target_approach
+        description: Location to approach from
+        argument_type: location
+        required: false
+        default: null
+    files: {}
+    results: {}
+    blocking: false
+    asynchronous: true
+  remove_lid:
+    name: remove_lid
+    description: Remove a lid from a plate.
+    args:
+      source_plate_rotation:
+        name: source_plate_rotation
+        description: 'Orientation of plate at source: wide or narrow'
+        argument_type: str
+        required: false
+        default: null
+      target_plate_rotation:
+        name: target_plate_rotation
+        description: 'Final orientation of plate at target: wide or narrow'
+        argument_type: str
+        required: false
+        default: null
+      lid_height:
+        name: lid_height
+        description: Height of the lid in steps
+        argument_type: float
+        required: false
+        default: 7.0
+    locations:
+      source:
+        name: source
+        description: Location to pick plate from
+        argument_type: location
+        required: true
+        default: null
+      target:
+        name: target
+        description: Location to place lid to
+        argument_type: location
+        required: true
+        default: null
+      source_approach:
+        name: source_approach
+        description: Location to approach source from
+        argument_type: location
+        required: false
+        default: null
+      target_approach:
+        name: target_approach
+        description: Location to approach target from
+        argument_type: location
+        required: false
+        default: null
+    files: {}
+    results: {}
+    blocking: false
+    asynchronous: true
+  replace_lid:
+    name: replace_lid
+    description: Replace a lid on a plate.
+    args:
+      source_plate_rotation:
+        name: source_plate_rotation
+        description: 'Orientation of plate at source: wide or narrow'
+        argument_type: str
+        required: false
+        default: null
+      target_plate_rotation:
+        name: target_plate_rotation
+        description: 'Final orientation of plate at target: wide or narrow'
+        argument_type: str
+        required: false
+        default: null
+      lid_height:
+        name: lid_height
+        description: Height of the lid in steps
+        argument_type: float
+        required: false
+        default: 7.0
+    locations:
+      source:
+        name: source
+        description: Location to pick lid from
+        argument_type: location
+        required: true
+        default: null
+      target:
+        name: target
+        description: Location to place lid on plate
+        argument_type: location
+        required: true
+        default: null
+      source_approach:
+        name: source_approach
+        description: Location to approach source from
+        argument_type: location
+        required: false
+        default: null
+      target_approach:
+        name: target_approach
+        description: Location to approach target from
+        argument_type: location
+        required: false
+        default: null
     files: {}
     results: {}
     blocking: false

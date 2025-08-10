@@ -30,7 +30,7 @@ from zmq_ur5e_server import ZMQ_UR5e_Server
 from zmq_pf400_server import ZMQ_PF400_Server
 
 
-CUSTOM_ASSETS_ROOT_PATH = str(Path(__file__).parent / "../../assets")
+CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve())
 
 NVIDIA_ASSETS_ROOT_PATH = get_assets_root_path()
 if NVIDIA_ASSETS_ROOT_PATH is None:

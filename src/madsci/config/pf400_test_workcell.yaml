@@ -11,12 +11,13 @@ locations:
   description: Platform 1 for plate storage
   lookup:
     pf400:
-    - 730.0
-    - 750.0
-    - 295.0
-    - 714.811
-    - 81.916
-    - 995.074
+    - 0.11185723543167114
+    - 0.16178643703460693
+    - 0.7826536893844604
+    - -1.0880162715911865
+    - 0.3059576451778412
+    - -0.035572439432144165
+    - 2.7887049114383444e-08
   resource_definition:
     resource_name: platform1
     resource_name_prefix: null
@@ -36,12 +37,13 @@ locations:
   description: Platform 2 for plate storage
   lookup:
     pf400:
-    - 730.0
-    - -750.0
-    - 295.0
-    - 714.811
-    - 81.916
-    - 995.074
+    - 0.09838245064020157
+    - 0.1618965119123459
+    - -0.7348084449768066
+    - 1.0788553953170776
+    - -0.3443334996700287
+    - -0.03513535112142563
+    - 0.01723644509911537
   resource_definition:
     resource_name: platform2
     resource_name_prefix: null
@@ -61,12 +63,13 @@ locations:
   description: High position for safe movements
   lookup:
     pf400:
-    - 245.0
-    - 0.0
-    - 1043.0
-    - 714.811
-    - 81.916
-    - 995.074
+    - -0.018312804400920868
+    - 0.9048928022384644
+    - 0.31274712085723877
+    - 0.014583121053874493
+    - -0.3273316025733948
+    - -0.03513777628540993
+    - 0.017232874408364296
   resource_definition:
     resource_name: high_position
     resource_name_prefix: null
@@ -75,48 +78,25 @@ locations:
     resource_description: High position for approach movements
     owner: {}
     custom_attributes: null
-    capacity: 0
-    default_children: null
-    default_child_template: null
-    default_child_quantity: null
-    resource_type: ''
-
-- location_name: side_position
-  location_id: 01JQ9XAW9GF4RB1HWQXD7T674U
-  description: Side position for plate pickup
-  lookup:
-    pf400:
-    - 300.0
-    - 300.0
-    - 300.0
-    - 714.811
-    - 81.916
-    - 995.074
-  resource_definition:
-    resource_name: side_position
-    resource_name_prefix: null
-    resource_class: ''
-    base_type: slot
-    resource_description: Side position for testing pickup/place
-    owner: {}
-    custom_attributes: null
     capacity: 1
     default_children: null
     default_child_template: null
     default_child_quantity: null
     resource_type: ''
 
+
 - location_name: approach_position
   location_id: 01JQ9XAW9GF4RB1HWQXD7T674V
   description: Approach position for safe movements
   lookup:
     pf400:
-    - 400.0
-    - 400.0
-    - 500.0
-    - 714.811
-    - 81.916
-    - 995.074
+    - 0.23396505415439606
+    - 0.3625894784927368
+    - 0.9922060370445251
+    - -1.5264338254928589
+    - 0.5342376828193665
+    - -0.035139571875333786
+    - 0.017233170568943024
   resource_definition:
     resource_name: approach_position
     resource_name_prefix: null
@@ -125,7 +105,7 @@ locations:
     resource_description: Approach position for testing
     owner: {}
     custom_attributes: null
-    capacity: 0
+    capacity: 1
     default_children: null
     default_child_template: null
     default_child_quantity: null

@@ -70,45 +70,33 @@ class SimPF400Interface:
             return {"status": "error", "message": str(e)}
 
     def move_to_location_coordinates(self, location_coordinates: list) -> bool:
-        """Move PF400 to location using 6-DOF coordinates [x, y, z, rx, ry, rz]."""
+        """Move PF400 to location using joint angles from workcell definition."""
         self.logger.log(f"Moving to location coordinates: {location_coordinates}")
 
-        if len(location_coordinates) != 6:
-            self.logger.log(f"Expected 6 coordinates [x,y,z,rx,ry,rz], got {len(location_coordinates)}")
+        if len(location_coordinates) != 7:
+            self.logger.log(f"Expected 7 joint angles for PF400, got {len(location_coordinates)}")
             return False
 
         try:
-            # Convert MADSci 6-DOF coordinates to pose for goto_pose command
-            # PF400 locations: [x, y, z, rx, ry, rz] format from workcell definition
-            x, y, z, rx, ry, rz = location_coordinates
-            
-            # Convert to meters (assuming input coordinates are in appropriate units)
-            position = [x/1000.0, y/1000.0, z/1000.0]  # Convert mm to meters if needed
-            
-            # Convert rotation values to quaternion (simplified for now)
-            # This is a placeholder - real PF400 would have proper coordinate conversion
-            orientation = [1.0, 0.0, 0.0, 0.0]  # w, x, y, z quaternion
-            
-            # Send goto_pose command via ZMQ (using enhanced robot functionality)
+            # Send move_joints command via ZMQ
             zmq_command = {
-                "action": "goto_pose", 
-                "position": position,
-                "orientation": orientation
+                "action": "move_joints",
+                "joint_angles": location_coordinates
             }
             response = self.send_zmq_command(zmq_command)
 
             success = response.get("status") == "success"
             if success:
-                self.logger.log(f"Successfully moved to location {location_coordinates}")
+                self.logger.log(f"Successfully moved to joint angles {location_coordinates}")
                 # Wait for motion to complete
                 return self.wait_for_motion_complete()
             else:
-                self.logger.log(f"Failed to move to location: {response.get('message', 'Unknown error')}")
+                self.logger.log(f"Failed to move to joint angles: {response.get('message', 'Unknown error')}")
 
             return success
 
         except Exception as e:
-            self.logger.log(f"Error moving to location {location_coordinates}: {e}")
+            self.logger.log(f"Error moving to joint angles {location_coordinates}: {e}")
             return False
     
     def wait_for_motion_complete(self, max_wait: float = 30.0) -> bool:
@@ -131,12 +119,18 @@ class SimPF400Interface:
         self.logger.log(f"Motion did not complete within {max_wait} seconds")
         return False
 
-    def move_to_approach_location(self, approach_coordinates: list) -> bool:
+    def move_to_approach_location(self, approach_coordinates) -> bool:
         """Move to approach location before main operation."""
         self.logger.log(f"Moving to approach location: {approach_coordinates}")
         
+        # Extract coordinates from dictionary if needed
+        if isinstance(approach_coordinates, dict):
+            coords = approach_coordinates.get('location', [])
+        else:
+            coords = approach_coordinates
+        
         # Use same coordinate handling as main location movement
-        return self.move_to_location_coordinates(approach_coordinates)
+        return self.move_to_location_coordinates(coords)
 
     def get_current_position(self) -> list:
         """Get current PF400 joint positions."""
@@ -295,7 +289,7 @@ class SimPF400Node(RestNode):
             # Handle source approach if specified
             if source_approach:
                 self.logger.log("Moving to source approach location")
-                if not self.sim_pf400.move_to_approach_location(source_approach.location):
+                if not self.sim_pf400.move_to_approach_location(source_approach.location if hasattr(source_approach, 'location') else source_approach):
                     return ActionFailed(errors=[Error(message="Failed to move to source approach location")])
 
             # Handle source plate rotation
@@ -317,7 +311,7 @@ class SimPF400Node(RestNode):
             # Handle target approach if specified
             if target_approach:
                 self.logger.log("Moving to target approach location")
-                if not self.sim_pf400.move_to_approach_location(target_approach.location):
+                if not self.sim_pf400.move_to_approach_location(target_approach.location if hasattr(target_approach, 'location') else target_approach):
                     return ActionFailed(errors=[Error(message="Failed to move to target approach location")])
 
             # Handle target plate rotation
@@ -362,7 +356,7 @@ class SimPF400Node(RestNode):
 
                 # Handle approach if specified
                 if source_approach:
-                    if not self.sim_pf400.move_to_approach_location(source_approach.location):
+                    if not self.sim_pf400.move_to_approach_location(source_approach.location if hasattr(source_approach, 'location') else source_approach):
                         return ActionFailed(errors=[Error(message="Failed to move to approach location")])
 
                 # Move to source location
@@ -391,7 +385,7 @@ class SimPF400Node(RestNode):
             if self.resource_client:
                 # Handle approach if specified
                 if target_approach:
-                    if not self.sim_pf400.move_to_approach_location(target_approach.location):
+                    if not self.sim_pf400.move_to_approach_location(target_approach.location if hasattr(target_approach, 'location') else target_approach):
                         return ActionFailed(errors=[Error(message="Failed to move to approach location")])
 
                 # Move to target location
