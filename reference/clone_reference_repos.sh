@@ -1,6 +1,6 @@
-git clone https://github.com/AD-SDL/MADSci.git MADSci_Core
+git clone https://github.com/AD-SDL/MADSci.git
 
-git clone https://github.com/AD-SDL/MADSci_Examples.git MADSci_Examples
+git clone https://github.com/AD-SDL/MADSci_Examples.git
 
 mkdir MADSci_Labs
 cd MADSci_Labs

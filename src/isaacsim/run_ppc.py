@@ -1,10 +1,3 @@
-"""
-run_ppc.py - Pick Place and Collision Detection Demo
-Modern Isaac Sim script with hardcoded scene setup inspired by simple_plate_transfer.usda
-Integrates robot control into simulation loop for collision detection while maintaining
-per-robot ZMQ server architecture
-"""
-
 from isaacsim import SimulationApp
 
 # This MUST be run before importing ANYTHING else
@@ -16,9 +9,9 @@ import numpy as np
 
 from isaacsim.core.api import World
 from isaacsim.core.api.robots import Robot
+from isaacsim.core.utils.prims import create_prim, get_prim_at_path
 from isaacsim.core.utils.stage import add_reference_to_stage
 from isaacsim.storage.native import get_assets_root_path
-from isaacsim.core.utils.prims import create_prim, get_prim_at_path
 from omni.physx import get_physx_simulation_interface
 from omni.physx.bindings._physx import ContactEventType
 from omni.physx.scripts.physicsUtils import PhysicsSchemaTools
@@ -26,8 +19,8 @@ from pxr import PhysxSchema
 
 import utils
 from zmq_ot2_server import ZMQ_OT2_Server
-from zmq_ur5e_server import ZMQ_UR5e_Server
 from zmq_pf400_server import ZMQ_PF400_Server
+from zmq_ur5e_server import ZMQ_UR5e_Server
 
 
 CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve())

@@ -1,15 +1,12 @@
-#! /usr/bin/env python3
-"""Simulated OT2 Node Module implementation using ZMQ backend"""
-
 import traceback
 from pathlib import Path
-from typing import Any, Annotated
+from typing import Annotated, Any
 
+from madsci.common.types.action_types import ActionFailed, ActionResult, ActionSucceeded
 from madsci.node_module.helpers import action
-from madsci.common.types.action_types import ActionResult, ActionSucceeded, ActionFailed
+from ot2_interface.config import OT2_Config
 from ot2_rest_node import OT2Node, OT2NodeConfig
 from sim_ot2_driver import SimOT2_Driver
-from ot2_interface.config import OT2_Config
 
 
 class SimOT2NodeConfig(OT2NodeConfig):
@@ -118,9 +115,9 @@ class SimOT2Node(OT2Node):
                         file_text = file_text.replace("$" + key, str(parameters[key]))
                 with protocol.open(mode="w") as f:
                     f.write(file_text)
-                    
+
                 response_flag, response_msg, run_id = self.execute(protocol, parameters)
-                
+
                 if response_flag == "succeeded":
                     self.logger.log("Protocol executed successfully")
                     return ActionSucceeded(data={"run_id": run_id, "message": response_msg})
@@ -132,7 +129,7 @@ class SimOT2Node(OT2Node):
                     return ActionFailed(data={"run_id": run_id, "message": response_msg})
             else:
                 return ActionFailed(data={"message": "No protocol file provided"})
-                
+
         except Exception as e:
             error_msg = f"Error in run_protocol: {traceback.format_exc()}"
             self.logger.log(error_msg)

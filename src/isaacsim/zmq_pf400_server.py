@@ -1,5 +1,7 @@
 from pathlib import Path
+
 from zmq_robot_server import ZMQ_Robot_Server
+
 
 CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve())
 

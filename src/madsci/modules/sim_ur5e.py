@@ -1,17 +1,13 @@
-"""A UR5e robot module with ZMQ client interface for Isaac Sim integration."""
-
 import argparse
 import json
 import os
 import signal
-import sys
 import time
 from enum import Enum
 from typing import Annotated, Optional, Union
 
 import numpy as np
 import zmq
-from ur_interface.ur_kinematics import forward_kinematics, get_pose_from_joint_angles
 
 from madsci.client.event_client import EventClient
 from madsci.common.types.action_types import ActionFailed, ActionResult, ActionSucceeded
@@ -21,6 +17,7 @@ from madsci.common.types.location_types import LocationArgument
 from madsci.common.types.resource_types.definitions import SlotResourceDefinition
 from madsci.node_module.helpers import action
 from madsci.node_module.rest_node_module import RestNode
+from ur_interface.ur_kinematics import get_pose_from_joint_angles
 
 
 class CoordinateType(Enum):

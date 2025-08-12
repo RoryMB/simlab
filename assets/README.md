@@ -37,7 +37,7 @@ The robots directory contains individual robot definitions. Each robot follows a
 ```
 assets/robots/picker/
 ├── source/                    # Original files
-│   ├── main.blend             # Main file used to export geo and physics USDs
+│   ├── picker_export.blend    # Main file used to export geo and physics USDs
 │   ├── gripper.step
 │   ├── base_assembly.stl
 │   ├── reference_photos/
@@ -87,11 +87,11 @@ Each robot follows a **layered** composition chain that builds from raw geometry
 
 ### Layer 1: Source Directory
 
-The source directory serves as a permanent archive of all original materials used to create the USD representation. This preserves the origin of all data and enables future modifications from the original sources. The main.blend file combines all relevant source material into the final form used to export the geometry and physics USD files in the other layers.
+The source directory serves as a permanent archive of all original materials used to create the USD representation. This preserves the origin of all data and enables future modifications from the original sources. The *_export.blend file combines all relevant source material into the final form used to export the geometry and physics USD files in the other layers.
 
 ```
 source/
-├── main.blend                 # Main Blender file
+├── *_export.blend                 # Main Blender file
 ├── gripper_mechanism.step     # CAD file from manufacturer
 ├── base_platform.stl          # 3D printed parts
 ├── wiring_diagram.pdf         # Documentation

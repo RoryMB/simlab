@@ -1,13 +1,9 @@
-"""
-zmq_ppc.py - ZMQ Pick Place and Collision Detection Client (Orchestrator)
-Orchestrates PF400 robot pick and place operations by sending commands
-to the robot's ZMQ server (like MADSci does)
-"""
-
-import time
-import zmq
-import json
 import argparse
+import json
+import time
+
+import zmq
+
 
 class PF400Orchestrator:
     """ZMQ client for orchestrating PF400 robot operations"""

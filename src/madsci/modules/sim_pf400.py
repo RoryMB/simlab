@@ -1,14 +1,10 @@
-"""A PF400 robot module with ZMQ client interface for Isaac Sim integration."""
-
 import argparse
 import json
 import os
 import signal
-import sys
 import time
-from typing import Annotated, Optional, Union
+from typing import Annotated, Optional
 
-import numpy as np
 import zmq
 
 from madsci.client.event_client import EventClient
@@ -98,37 +94,37 @@ class SimPF400Interface:
         except Exception as e:
             self.logger.log(f"Error moving to joint angles {location_coordinates}: {e}")
             return False
-    
+
     def wait_for_motion_complete(self, max_wait: float = 30.0) -> bool:
         """Wait for robot motion to complete."""
         start_time = time.time()
-        
+
         while time.time() - start_time < max_wait:
             status = self.get_status()
-            
+
             if status.get("collision_detected", False):
                 self.logger.log("Motion stopped due to collision")
                 return False
-            
+
             if status.get("motion_complete", False) or not status.get("is_moving", False):
                 self.logger.log("Motion completed successfully")
                 return True
-                
+
             time.sleep(0.1)
-        
+
         self.logger.log(f"Motion did not complete within {max_wait} seconds")
         return False
 
     def move_to_approach_location(self, approach_coordinates) -> bool:
         """Move to approach location before main operation."""
         self.logger.log(f"Moving to approach location: {approach_coordinates}")
-        
+
         # Extract coordinates from dictionary if needed
         if isinstance(approach_coordinates, dict):
             coords = approach_coordinates.get('location', [])
         else:
             coords = approach_coordinates
-        
+
         # Use same coordinate handling as main location movement
         return self.move_to_location_coordinates(coords)
 
@@ -146,7 +142,7 @@ class SimPF400Interface:
     def home_robot(self) -> bool:
         """Move PF400 to home position."""
         self.logger.log("Homing PF400 robot")
-        
+
         zmq_command = {"action": "home"}
         response = self.send_zmq_command(zmq_command)
 
@@ -161,7 +157,7 @@ class SimPF400Interface:
     def open_gripper(self) -> bool:
         """Open PF400 gripper."""
         self.logger.log("Opening PF400 gripper")
-        
+
         zmq_command = {"action": "gripper_open"}
         response = self.send_zmq_command(zmq_command)
 
@@ -176,7 +172,7 @@ class SimPF400Interface:
     def close_gripper(self) -> bool:
         """Close PF400 gripper."""
         self.logger.log("Closing PF400 gripper")
-        
+
         zmq_command = {"action": "gripper_close"}
         response = self.send_zmq_command(zmq_command)
 
@@ -210,14 +206,14 @@ class SimPF400Interface:
                 "collision_detected": False,
                 "motion_complete": True
             }
-    
+
     def handle_plate_rotation(self, rotation: str) -> bool:
         """Handle plate rotation - wide or narrow orientation."""
         if not rotation or rotation not in ["wide", "narrow"]:
             return True  # Skip rotation if not specified or invalid
-            
+
         self.logger.log(f"Handling plate rotation: {rotation}")
-        
+
         # For simulation, we'll just log the rotation
         # Real PF400 would adjust gripper orientation
         self.logger.log(f"Plate orientation set to: {rotation}")
@@ -304,7 +300,7 @@ class SimPF400Node(RestNode):
             # Close gripper to pick up plate (using physics-based gripping)
             if not self.sim_pf400.close_gripper():
                 return ActionFailed(errors=[Error(message="Failed to close gripper")])
-                
+
             self.resource_client.push(resource=self.gripper.resource_id, child=popped_plate)
             self.logger.log("Picked up plate from source")
 
@@ -326,7 +322,7 @@ class SimPF400Node(RestNode):
             # Open gripper to release plate (using physics-based gripping)
             if not self.sim_pf400.open_gripper():
                 return ActionFailed(errors=[Error(message="Failed to open gripper for release")])
-                
+
             popped_plate, _ = self.resource_client.pop(resource=self.gripper.resource_id)
             self.resource_client.push(resource=target.resource_id, child=popped_plate)
             self.logger.log("Placed plate at target")
@@ -373,7 +369,7 @@ class SimPF400Node(RestNode):
             return ActionSucceeded()
         except Exception as e:
             return ActionFailed(errors=[Error(message=f"Pick plate error: {str(e)}")])
-    
+
     @action
     def place_plate(
         self,
@@ -406,12 +402,12 @@ class SimPF400Node(RestNode):
             return ActionSucceeded()
         except Exception as e:
             return ActionFailed(errors=[Error(message=f"Place plate error: {str(e)}")])
-    
+
     @action
     def remove_lid(
         self,
         source: Annotated[LocationArgument, "Location to pick plate from"],
-        target: Annotated[LocationArgument, "Location to place lid to"], 
+        target: Annotated[LocationArgument, "Location to place lid to"],
         source_plate_rotation: Annotated[Optional[str], "Orientation of plate at source: wide or narrow"] = None,
         target_plate_rotation: Annotated[Optional[str], "Final orientation of plate at target: wide or narrow"] = None,
         lid_height: Annotated[Optional[float], "Height of the lid in steps"] = 7.0,
@@ -420,19 +416,19 @@ class SimPF400Node(RestNode):
     ) -> ActionResult:
         """Remove a lid from a plate."""
         self.logger.log(f"Removing lid with height {lid_height} steps")
-        
+
         # For now, treat lid removal like a transfer operation
         # Real implementation would handle lid-specific gripping and height
         return self.transfer(
             source=source,
-            target=target, 
+            target=target,
             source_plate_rotation=source_plate_rotation,
             target_plate_rotation=target_plate_rotation,
             source_approach=source_approach,
             target_approach=target_approach
         )
-    
-    @action 
+
+    @action
     def replace_lid(
         self,
         source: Annotated[LocationArgument, "Location to pick lid from"],
@@ -445,13 +441,13 @@ class SimPF400Node(RestNode):
     ) -> ActionResult:
         """Replace a lid on a plate."""
         self.logger.log(f"Replacing lid with height {lid_height} steps")
-        
-        # For now, treat lid replacement like a transfer operation  
+
+        # For now, treat lid replacement like a transfer operation
         # Real implementation would handle lid-specific placement and height
         return self.transfer(
             source=source,
             target=target,
-            source_plate_rotation=source_plate_rotation, 
+            source_plate_rotation=source_plate_rotation,
             target_plate_rotation=target_plate_rotation,
             source_approach=source_approach,
             target_approach=target_approach
