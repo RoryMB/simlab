@@ -1,7 +1,7 @@
 """
-Autolab System Orchestrator
+Simlab System Orchestrator
 
-Coordinates the startup and shutdown of the 4-terminal Autolab system:
+Coordinates the startup and shutdown of the 4-terminal Simlab system:
 1. Robot Nodes
 2. Isaac Sim
 3. MADSci
@@ -164,7 +164,7 @@ def setup_signal_handlers(pm: ProcessManager):
     signal.signal(signal.SIGTERM, signal_handler)
 
 async def main():
-    parser = argparse.ArgumentParser(description="Orchestrate Autolab system startup and coordination")
+    parser = argparse.ArgumentParser(description="Orchestrate Simlab system startup and coordination")
 
     parser.add_argument('--isaac-cmd', required=True, help='Command to start Isaac Sim')
     parser.add_argument('--madsci-cmd', required=True, help='Command to start MADSci services')

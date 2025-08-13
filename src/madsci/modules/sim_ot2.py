@@ -1,12 +1,15 @@
+import os
+import subprocess
+import time
 import traceback
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 from madsci.common.types.action_types import ActionFailed, ActionResult, ActionSucceeded
 from madsci.node_module.helpers import action
-from ot2_interface.config import OT2_Config
+from ot2_interface.config import OT2_Config, PathLike
+from ot2_interface.ot2_driver_http import OT2_Driver
 from ot2_rest_node import OT2Node, OT2NodeConfig
-from sim_ot2_driver import SimOT2_Driver
 
 
 class SimOT2NodeConfig(OT2NodeConfig):
@@ -23,6 +26,139 @@ class SimOT2NodeConfig(OT2NodeConfig):
 
     python_executable: str = "python"
     "Python executable to use for running protocols"
+
+
+class SimOT2_Driver(OT2_Driver):
+    """Driver for simulated OT-2 robot that executes protocols locally with ZMQ backend."""
+
+    def __init__(
+        self,
+        config: OT2_Config,
+        zmq_server_url: str = "tcp://localhost:5556",
+        python_executable: str = None,
+        **kwargs
+    ) -> None:
+        """Initialize simulated OT-2 driver.
+
+        Parameters
+        ----------
+        config : OT2_Config
+            OT-2 configuration
+        zmq_server_url : str
+            ZMQ server URL for Isaac Sim communication
+        python_executable : str
+            Path to python executable to use for running protocols
+        """
+        # Store simulation-specific parameters
+        self.zmq_server_url = zmq_server_url
+        self.python_executable = python_executable or "python"
+
+        # Initialize parent class (but skip the HTTP connection test)
+        self.config = config
+        print(f"SimOT2_Driver initialized with ZMQ server: {self.zmq_server_url}")
+
+    def transfer(self, protocol_path: PathLike) -> tuple[str, str]:
+        """Validate protocol file exists locally (replaces HTTP transfer)."""
+        protocol_path = Path(protocol_path)
+
+        if not protocol_path.exists():
+            raise FileNotFoundError(f"Protocol file not found: {protocol_path}")
+
+        # Note: MADSci passes temporary files without .py extension, so we don't check suffix
+        # The file contents are already validated by MADSci
+        print(f"Protocol file received: {protocol_path}")
+
+        # Generate dummy IDs for compatibility with MADSci interface
+        protocol_id = f"sim_protocol_{int(time.time())}"
+        run_id = f"sim_run_{int(time.time())}"
+
+        return protocol_id, run_id
+
+    def execute(self, run_id: str, protocol_path: PathLike = None) -> dict[str, dict[str, str]]:
+        """Execute protocol using hacked opentrons package with ZMQ backend."""
+        if protocol_path is None:
+            raise ValueError("protocol_path must be provided for simulation execution")
+
+        protocol_path = Path(protocol_path)
+
+        print(f"Executing protocol: {protocol_path}")
+        print(f"Using ZMQ server: {self.zmq_server_url}")
+
+        # OpenTrons requires .py extension - copy temp file if needed
+        temp_py_path = None
+        if not protocol_path.suffix == ".py":
+            import shutil
+            import tempfile
+            # Create a temporary .py file
+            temp_py_file = tempfile.NamedTemporaryFile(suffix='.py', delete=False)
+            temp_py_file.close()
+            temp_py_path = Path(temp_py_file.name)
+
+            # Copy the content
+            shutil.copy2(protocol_path, temp_py_path)
+            protocol_path = temp_py_path
+            print(f"Copied to temporary .py file: {protocol_path}")
+
+        # Set up environment variables for hacked opentrons package
+        env = os.environ.copy()
+        env['OPENTRONS_SIMULATION_MODE'] = 'zmq'
+        env['OT2_SIMULATION_SERVER'] = self.zmq_server_url
+
+        try:
+            # Execute the protocol using OpenTrons execute function
+            result = subprocess.run(
+                [self.python_executable, "-m", "opentrons.execute", str(protocol_path)],
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=300  # 5 minute timeout
+            )
+
+            print(f"Protocol execution stdout: {result.stdout}")
+            if result.stderr:
+                print(f"Protocol execution stderr: {result.stderr}")
+
+            if result.returncode == 0:
+                print("Protocol execution succeeded")
+                return {
+                    "data": {
+                        "status": "succeeded",
+                        "stdout": result.stdout,
+                        "stderr": result.stderr
+                    }
+                }
+            else:
+                print(f"Protocol execution failed with return code: {result.returncode}")
+                return {
+                    "data": {
+                        "status": "failed",
+                        "error": f"Process failed with code {result.returncode}",
+                        "stdout": result.stdout,
+                        "stderr": result.stderr
+                    }
+                }
+
+        except subprocess.TimeoutExpired:
+            print("Protocol execution timed out")
+            return {
+                "data": {
+                    "status": "failed",
+                    "error": "Protocol execution timed out after 5 minutes"
+                }
+            }
+        except Exception as e:
+            print(f"Error executing protocol: {e}")
+            return {
+                "data": {
+                    "status": "failed",
+                    "error": str(e)
+                }
+            }
+        finally:
+            # Clean up temporary .py file if created
+            if temp_py_path and temp_py_path.exists():
+                temp_py_path.unlink()
+                print(f"Cleaned up temporary file: {temp_py_path}")
 
 
 class SimOT2Node(OT2Node):
@@ -101,7 +237,7 @@ class SimOT2Node(OT2Node):
     def run_protocol(
         self,
         protocol: Annotated[Path, "Protocol File"],
-        parameters: Annotated[dict[str, Any], "Parameters for insertion into the protocol"] = {},
+        parameters: Annotated[dict[str, any], "Parameters for insertion into the protocol"] = {},
     ) -> ActionResult:
         """
         Run a given protocol on the simulated OT-2

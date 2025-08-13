@@ -1,4 +1,4 @@
-name: autolab
+name: simlab
 
 # * Common configuration
 x-madsci-service: &madsci-service

@@ -1,35 +1,28 @@
 # Reference Material
 
-This directory contains reference codebases and libraries from MADSci, organized as git submodules.
+This directory contains reference codebases and libraries from MADSci.
+These should not be linked to from project code, and are just provided as a reference and guide to base your own code on.
 
-## MADSci Core Framework
-
-### MADSci_Core/
+## MADSci/
 The main MADSci (Modular Autonomous Discovery for Science) framework - a modular, autonomous, and scalable toolkit for scientific discovery and experimentation. Provides:
 - Laboratory instrument automation and integration via the MADSci Node standard
 - Workflow management for flexible scientific workflows
 - Experiment management for closed-loop autonomous experiments
 - Resource, event, and data management systems
 
-### MADSci_Examples/
-Tutorial notebooks and examples demonstrating MADSci core concepts:
-- Node integration examples for device automation
-- Experiment application development guides
-- Hands-on tutorials for building autonomous laboratories
+## MADSci_Examples/
+Tutorial notebooks and examples demonstrating MADSci core concepts
 
-## MADSci Device Modules
+## MADSci_Labs
+Labs using MADSci, with node and workcell files specific to each lab space
 
-The `MADSci_Modules/` directory contains individual device integration modules that implement the MADSci Node standard. Each module provides a standardized REST API interface for laboratory equipment:
+## MADSci_Experiments
+Experiments demonstrating how to use MADSci components like:
+- Experiment "app" python scripts, which guide the full execution of an experiment
+- Workflows, which are submitted to run by the app
+- Protocols that run on the OT-2 liquid handler
 
-## Usage
+## MADSci_Modules
 
-These submodules are used as reference for:
-- Understanding MADSci Node interfaces and protocols
-- Implementing custom integrations with Isaac Sim
-- Building experimental workflows that leverage existing device modules
-- Learning from real-world autonomous laboratory implementations
-
-To update all submodules to their latest versions:
-```bash
-git submodule update --remote --recursive
-```
+The `MADSci_Modules/` directory contains individual device integration modules that implement the MADSci Node standard.
+Each module provides a standardized REST API interface for laboratory equipment.

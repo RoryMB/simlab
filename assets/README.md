@@ -19,11 +19,31 @@ The assets directory is organized into functional categories:
 
 ```
 assets/
+├── materials/     # Shared material library
 ├── scenes/        # Laboratory layouts
-├── architecture/  # Structural elements (walls, floors, ceilings)
 ├── robots/        # Robot models with complete simulation capabilities
+├── architecture/  # Structural elements (walls, floors, ceilings)
 ├── labware/       # Laboratory equipment (plates, tips, reagents)
-└── props/         # Environmental objects
+├── props/         # Environmental objects
+└── scripts/       # Scripts used for automation (converting .blend to .usd)
+
+```
+
+### Materials
+
+The shared material library contains commonly used materials that can be referenced across multiple assets. Individual assets can reference these shared materials while also defining asset-specific custom materials when needed.
+
+```
+assets/materials/
+├── metals/
+│   ├── aluminum_anodized.usd
+│   ├── steel_brushed.usd
+│   └── titanium_matte.usd
+├── plastics/
+│   ├── abs_black.usd
+│   ├── peek_natural.usd
+│   └── nylon_white.usd
+└── .../
 ```
 
 ### Scenes
@@ -67,6 +87,10 @@ Laboratory-specific equipment organized by function (tips, plates, reagents, ins
 ### Props
 
 Environmental objects that add visual detail or functional elements to scenes but aren't primary simulation objects. Follows simpler composition patterns requiring only geometry, materials, and physics.
+
+### Scripts
+
+Automated processing scripts to quickly convert .blend files into .usd files for geometry or collision shapes, verify relative paths point to valid files, etc.
 
 ## Layered Composition Approach
 
@@ -123,13 +147,36 @@ def Xform "Picker"
 
 ### Layer 3: Materials
 
-The materials layer uses **sublayers** to add material assignments to the base geometry. This separation allows materials to be updated independently from geometry.
+The materials layer uses **sublayers** to add material assignments to the base geometry. This layer can reference both shared materials from the global library and asset-specific custom materials. This separation allows materials to be updated independently from geometry.
+
+Asset-specific custom materials:
+
+```
+# materials/picker_custom.usd
+#usda 1.0
+def "Materials"
+{
+    def Material "SpecialGrip"
+    {
+        color3f inputs:diffuse_color = (0.2, 0.2, 0.2)
+        float inputs:metallic = 0.0
+        float inputs:roughness = 0.8
+        # Custom material properties specific to this robot
+    }
+}
+```
+
+Composition of materials over the previous layer:
 
 ```
 # materials/picker_materials.usd
 #usda 1.0
 (
-    sublayers = [@../geometry/picker_geo.usd@]
+    sublayers = [
+        @../geometry/picker_geo.usd@,
+        @./custom_material.usd@,
+        @../../../materials/metals/aluminum_anodized.usd@
+    ]
 )
 
 # Override geometry to add material bindings
