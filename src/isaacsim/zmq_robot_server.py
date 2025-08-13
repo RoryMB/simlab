@@ -24,7 +24,7 @@ CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve()
 class ZMQ_Robot_Server(ABC):
     """Base class for ZMQ robot servers with enhanced end-effector robot functionality"""
 
-    def __init__(self, simulation_app, robot, robot_name: str, port: int, motion_type: str = "teleport"):
+    def __init__(self, simulation_app, robot, robot_name: str, port: int, motion_type: str = "smooth"):
         self.simulation_app = simulation_app
         self.robot = robot
         self.robot_name = robot_name

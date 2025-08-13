@@ -2,8 +2,8 @@ from zmq_robot_server import ZMQ_Robot_Server
 
 class ZMQ_OT2_Server(ZMQ_Robot_Server):
     """Handles ZMQ communication for OT-2 robot with opentrons-specific commands"""
-    def __init__(self, simulation_app, robot, robot_name: str, port: int, motion_type: str = "smooth"):
-        super().__init__(simulation_app, robot, robot_name, port, motion_type)
+    def __init__(self, simulation_app, robot, robot_name: str, port: int):
+        super().__init__(simulation_app, robot, robot_name, port)
 
         # OT-2 joint mapping (joint index -> joint name)
         # Primary movement joints (required for visual robot motion)
@@ -18,7 +18,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
             # "left_tip_ejector_joint",  # 6: Left tip ejector
             # "right_tip_ejector_joint", # 7: Right tip ejector
         ]
-        
+
         # Virtual joints (simulated but not physically controlled)
         self.virtual_joints = {
             "left_plunger_joint": 0.0,
@@ -70,7 +70,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
     def handle_command(self, request):
         """Handle incoming ZMQ command from opentrons package"""
         action = request.get("action", "")
-        
+
         # DEBUG: Log all incoming requests
         print(f"[ZMQ_OT2_SERVER] RECEIVED REQUEST: {request}")
         print(f"[ZMQ_OT2_SERVER] ACTION: {action}")
@@ -127,7 +127,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
     def move_single_joint(self, joint_name: str, target_position: float):
         """Move a single joint to target position (physical or virtual)"""
         print(f"[ZMQ_OT2_SERVER] MOVE_SINGLE_JOINT: {joint_name} -> {target_position}")
-        
+
         if not (self.is_physical_joint(joint_name) or self.is_virtual_joint(joint_name)):
             error_response = self.create_error_response(f"Unknown joint: {joint_name}")
             print(f"[ZMQ_OT2_SERVER] MOVE_SINGLE_JOINT ERROR: {error_response}")
@@ -173,7 +173,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
             self.target_joints = new_positions
             self.is_moving = True
             self.motion_complete = False
-            
+
             print(f"[ZMQ_OT2_SERVER] MOTION QUEUED (motion_type={self.motion_type})")
 
             response = self.create_success_response(
@@ -246,7 +246,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
         """Get current joint positions (physical and virtual)"""
         try:
             joint_positions = {}
-            
+
             # Get physical joint positions
             positions = self.robot.get_joint_positions()
             for i, joint_name in enumerate(self.joint_names):
@@ -285,7 +285,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
                     "joint": joint_name,
                     "target_position": home_pos
                 })
-            
+
             print(f"[ZMQ_OT2_SERVER] HOME_COMMANDS: {home_commands}")
             print("Homing robot (physical and virtual joints)...")
             result = self.move_multiple_joints(home_commands)

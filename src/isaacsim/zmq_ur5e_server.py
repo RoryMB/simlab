@@ -8,8 +8,8 @@ from zmq_robot_server import ZMQ_Robot_Server
 
 class ZMQ_UR5e_Server(ZMQ_Robot_Server):
     """Handles ZMQ communication for UR5e robot"""
-    def __init__(self, simulation_app, robot, robot_name: str, port: int, motion_type: str = "teleport"):
-        super().__init__(simulation_app, robot, robot_name, port, motion_type)
+    def __init__(self, simulation_app, robot, robot_name: str, port: int):
+        super().__init__(simulation_app, robot, robot_name, port)
 
     def handle_command(self, request):
         """Handle incoming ZMQ command from MADSci"""
