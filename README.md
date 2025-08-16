@@ -33,7 +33,7 @@ For detailed environment management, see [environments/README.md](environments/R
 
 ### Running the System
 
-`python orchestrate.py` – designed for agents like Claude Code.
+`python scripts/orchestrate.py` – designed for agents like Claude Code.
 
 See [src/README.md](src/README.md) for manual operation and technical details.
 

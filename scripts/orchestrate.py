@@ -14,10 +14,7 @@ python orchestrate.py \
     --isaac-cmd "source activate-isaacsim.sh && cd src/isaacsim/ && python run.py" \
     --madsci-cmd "cd src/madsci/ && ./run_madsci.sh" \
     --workflow-cmd "source activate-madsci.sh && cd projects/prototyping/ && python run_workflow.py workflow.yaml" \
-    --nodes-ready-keyword "EventType.NODE_START" \
-    --isaac-ready-keyword "Simulation App Startup Complete" \
-    --madsci-ready-keyword "Uvicorn running on http://localhost:8015" \
-    --timeout 30
+    --timeout 120
 
 Adding the --extremely-verbose argument will help reveal startup errors, but will cause incredibly large amounts of output to print. Use sparingly. Usage:
 python orchestrate.py \
@@ -83,7 +80,7 @@ class ProcessManager:
                 break
 
             line_str = line.decode().strip()
-            if extremely_verbose or name in self.ready_flags:
+            if name.startswith("node_") or extremely_verbose or (not self.shutdown_event.is_set() and name in self.ready_flags):
                 logger.info(f"[{name.upper()}] {line_str}")
 
             # Check for ready keyword
@@ -171,9 +168,9 @@ async def main():
     parser.add_argument('--node-cmd', action='append', required=True, help='Command to start a robot node (can be used multiple times)')
     parser.add_argument('--workflow-cmd', required=True, help='Command to submit workflow')
 
-    parser.add_argument('--isaac-ready-keyword', default='Ready', help='Keyword to detect Isaac Sim readiness')
-    parser.add_argument('--madsci-ready-keyword', default='Started', help='Keyword to detect MADSci readiness')
-    parser.add_argument('--nodes-ready-keyword', default='Connected', help='Keyword to detect robot nodes readiness')
+    parser.add_argument('--isaac-ready-keyword', default='Simulation App Startup Complete', help='Keyword to detect Isaac Sim readiness')
+    parser.add_argument('--madsci-ready-keyword', default='Uvicorn running on http://localhost:8015', help='Keyword to detect MADSci readiness')
+    parser.add_argument('--nodes-ready-keyword', default='EventType.NODE_START', help='Keyword to detect robot nodes readiness')
 
     parser.add_argument('--timeout', type=int, default=60, help='How long to wait for each process to initialize')
     parser.add_argument('--extremely-verbose', action='store_true', help='Show all output from all processes')

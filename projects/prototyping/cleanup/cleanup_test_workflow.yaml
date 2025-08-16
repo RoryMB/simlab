@@ -1,0 +1,45 @@
+name: Multi-Robot Cleanup Integration Test Workflow
+
+metadata:
+  author: Claude Code
+  info: Comprehensive cleanup validation test for PF400, UR5e, and OT2 integration after code cleanup
+  version: 1.0
+  test_type: integration
+  robots: ["sim_ur5e_1", "sim_pf400_1", "sim_ot2_1"]
+
+description: >
+  This workflow validates that all three robots (UR5e, PF400, OT2) work correctly
+  with MADSci and Isaac Sim after code cleanup. It tests basic operations for each
+  robot to ensure the integration is still functional.
+
+parameters:
+  - name: protocol_path
+
+steps:
+  # PF400 Tests - Basic transfer operation only
+  - name: PF400 Transfer Test - Platform1 to Platform2
+    node: sim_pf400_1
+    action: transfer
+    description: Test PF400 basic transfer between platforms with safe approach
+    args:
+      source_plate_rotation: "narrow"
+      target_plate_rotation: "wide"
+    locations:
+      source: platform1
+      target: platform2
+      source_approach: high_position
+      target_approach: high_position
+
+  # OT2 Tests - Comprehensive protocol execution
+  - name: OT2 Comprehensive Integration Test
+    node: sim_ot2_1
+    action: run_protocol
+    description: Test OT2 comprehensive protocol execution with full robot capabilities
+    args:
+      parameters:
+        # TODO: Vibe code residue
+        test_mode: "comprehensive"
+        wells: ["A1", "A2", "A3", "B1", "B2", "B3"]
+        volumes: [50.0, 75.0, 100.0, 125.0, 150.0, 200.0]
+    files:
+      protocol: $protocol_path

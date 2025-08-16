@@ -1,9 +1,9 @@
 node_name: sim_ot2_1
 node_id: 01K21DTGF6Q35ZVNZ7XK0P9BW5
-node_description: Simulated OT-2 node for Isaac Sim integration testing
+node_description: A basic node.
 node_type: device
 module_name: sim_ot2
-module_version: 1.0.0
+module_version: 0.0.1
 capabilities:
   get_info: true
   get_state: true
@@ -29,7 +29,7 @@ node_url: null
 actions:
   run_protocol:
     name: run_protocol
-    description: "\n        Run a given protocol on the simulated OT-2\n        "
+    description: run a given opentrons protocol
     args:
       parameters:
         name: parameters
@@ -61,7 +61,7 @@ config:
   zmq_server_url: tcp://localhost:5556
   python_executable: python
 config_schema:
-  description: Configuration for the simulated OT2 node module.
+  description: Configuration for the OT2 node module.
   properties:
     node_definition:
       anyOf:

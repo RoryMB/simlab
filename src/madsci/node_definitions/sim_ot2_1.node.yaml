@@ -3,5 +3,5 @@ node_id: 01K21DTGF6Q35ZVNZ7XK0P9BW5
 node_description: A basic node.
 node_type: device
 module_name: sim_ot2
-module_version: 1.0.0
+module_version: 0.0.1
 capabilities: null

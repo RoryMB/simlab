@@ -17,52 +17,54 @@ capabilities:
   get_resources: false
   get_log: true
   admin_commands:
-  - get_location
+  - cancel
   - lock
+  - pause
   - reset
+  - resume
+  - safety_stop
   - shutdown
   - unlock
 node_url: null
 actions:
   transfer:
     name: transfer
-    description: Transfer a plate from source to target location using enhanced robot
-      control.
+    description: Transfer a plate from one location to another
     args:
       source_plate_rotation:
         name: source_plate_rotation
-        description: 'Orientation of plate at source: wide or narrow'
+        description: Orientation of the plate at the source, wide or narrow
         argument_type: str
         required: false
-        default: null
+        default: ''
       target_plate_rotation:
         name: target_plate_rotation
-        description: 'Final orientation of plate at target: wide or narrow'
+        description: Final orientation of the plate at the target, wide or narrow
         argument_type: str
         required: false
-        default: null
+        default: ''
     locations:
       source:
         name: source
-        description: The source location
+        description: Location to pick a plate from
         argument_type: location
         required: true
         default: null
       target:
         name: target
-        description: the target location
+        description: Location to place a plate to
         argument_type: location
         required: true
         default: null
       source_approach:
         name: source_approach
-        description: Location to approach source from
+        description: Location to approach from
         argument_type: location
         required: false
         default: null
       target_approach:
         name: target_approach
-        description: Location to approach target from
+        description: Location to approach from
         argument_type: location
         required: false
         default: null
@@ -72,12 +74,12 @@ actions:
     asynchronous: true
   pick_plate:
     name: pick_plate
-    description: Pick a plate from a source location.
+    description: Pick a plate from a source location
     args: {}
     locations:
       source:
         name: source
-        description: Location to pick plate from
+        description: Location to pick a plate from
         argument_type: location
         required: true
         default: null
@@ -93,12 +95,12 @@ actions:
     asynchronous: true
   place_plate:
     name: place_plate
-    description: Place a plate to a target location.
+    description: Place a plate in a target location, optionally moving first to target_approach
     args: {}
     locations:
       target:
         name: target
-        description: Location to place plate to
+        description: Location to place a plate to
         argument_type: location
         required: true
         default: null
@@ -114,48 +116,48 @@ actions:
     asynchronous: true
   remove_lid:
     name: remove_lid
-    description: Remove a lid from a plate.
+    description: Remove a lid from a plate
     args:
       source_plate_rotation:
         name: source_plate_rotation
-        description: 'Orientation of plate at source: wide or narrow'
+        description: Orientation of the plate at the source, wide or narrow
         argument_type: str
         required: false
-        default: null
+        default: ''
       target_plate_rotation:
         name: target_plate_rotation
-        description: 'Final orientation of plate at target: wide or narrow'
+        description: Final orientation of the plate at the target, wide or narrow
         argument_type: str
         required: false
-        default: null
+        default: ''
       lid_height:
         name: lid_height
-        description: Height of the lid in steps
+        description: height of the lid, in steps
         argument_type: float
         required: false
         default: 7.0
     locations:
       source:
         name: source
-        description: Location to pick plate from
+        description: Location to pick a plate from
         argument_type: location
         required: true
         default: null
       target:
         name: target
-        description: Location to place lid to
+        description: Location to place a plate to
         argument_type: location
         required: true
         default: null
       source_approach:
         name: source_approach
-        description: Location to approach source from
+        description: Location to approach from
         argument_type: location
         required: false
         default: null
       target_approach:
         name: target_approach
-        description: Location to approach target from
+        description: Location to approach from
         argument_type: location
         required: false
         default: null
@@ -165,78 +167,51 @@ actions:
     asynchronous: true
   replace_lid:
     name: replace_lid
-    description: Replace a lid on a plate.
+    description: Replace a lid on a plate
     args:
       source_plate_rotation:
         name: source_plate_rotation
-        description: 'Orientation of plate at source: wide or narrow'
+        description: Orientation of the plate at the source, wide or narrow
         argument_type: str
         required: false
-        default: null
+        default: ''
       target_plate_rotation:
         name: target_plate_rotation
-        description: 'Final orientation of plate at target: wide or narrow'
+        description: Final orientation of the plate at the target, wide or narrow
         argument_type: str
         required: false
-        default: null
+        default: ''
       lid_height:
         name: lid_height
-        description: Height of the lid in steps
+        description: height of the lid, in steps
         argument_type: float
         required: false
         default: 7.0
     locations:
       source:
         name: source
-        description: Location to pick lid from
+        description: Location to pick a plate from
         argument_type: location
         required: true
         default: null
       target:
         name: target
-        description: Location to place lid on plate
+        description: Location to place a plate to
         argument_type: location
         required: true
         default: null
       source_approach:
         name: source_approach
-        description: Location to approach source from
+        description: Location to approach from
         argument_type: location
         required: false
         default: null
       target_approach:
         name: target_approach
-        description: Location to approach target from
+        description: Location to approach from
         argument_type: location
         required: false
         default: null
-    files: {}
-    results: {}
-    blocking: false
-    asynchronous: true
-  home:
-    name: home
-    description: Move robot to home position
-    args: {}
-    locations: {}
-    files: {}
-    results: {}
-    blocking: false
-    asynchronous: true
-  gripper_open:
-    name: gripper_open
-    description: Open robot gripper
-    args: {}
-    locations: {}
-    files: {}
-    results: {}
-    blocking: false
-    asynchronous: true
-  gripper_close:
-    name: gripper_close
-    description: Close robot gripper
-    args: {}
-    locations: {}
     files: {}
     results: {}
     blocking: false
@@ -249,8 +224,12 @@ config:
   state_update_interval: 2.0
   node_url: http://127.0.0.1:8020/
   uvicorn_kwargs: {}
+  pf400_ip: ''
+  pf400_port: 10100
+  pf400_status_port: 10000
+  zmq_server_url: tcp://localhost:5557
 config_schema:
-  description: Default Configuration for a MADSci Node that communicates over REST.
+  description: Configuration for the pf400 node module.
   properties:
     node_definition:
       anyOf:
@@ -307,5 +286,23 @@ config_schema:
       description: Configuration for the Uvicorn server that runs the REST API.
       title: Uvicorn Configuration
       type: object
-  title: RestNodeConfig
+    pf400_ip:
+      anyOf:
+      - type: string
+      - type: 'null'
+      default: ''
+      title: Pf400 Ip
+    pf400_port:
+      default: 10100
+      title: Pf400 Port
+      type: integer
+    pf400_status_port:
+      default: 10000
+      title: Pf400 Status Port
+      type: integer
+    zmq_server_url:
+      default: tcp://localhost:5557
+      title: Zmq Server Url
+      type: string
+  title: SimPF400NodeConfig
   type: object

@@ -1,6 +1,6 @@
 node_name: sim_ur5e_1
 node_id: 01JYF9NXSJK36NTFASXP14XSZF
-node_description: UR5e robot node for Isaac Sim integration.
+node_description: A basic node.
 node_type: device
 module_name: sim_ur5e
 module_version: 0.0.1
@@ -20,39 +20,70 @@ capabilities:
   - get_location
   - lock
   - reset
+  - safety_stop
   - shutdown
   - unlock
 node_url: null
 actions:
-  transfer:
-    name: transfer
-    description: Transfer a plate from source to target location using ZMQ robot control.
+  getj:
+    name: getj
+    description: Get joint angles
+    args: {}
+    locations: {}
+    files: {}
+    results: {}
+    blocking: false
+    asynchronous: true
+  set_freedrive:
+    name: set_freedrive
+    description: Free robot joints
     args:
-      coordinate_type:
-        name: coordinate_type
-        description: 'Coordinate system: ''joint_angles'' or ''cartesian'''
-        argument_type: str
+      timeout:
+        name: timeout
+        description: how long to do freedrive
+        argument_type: int
+        required: false
+        default: 60
+    locations: {}
+    files: {}
+    results: {}
+    blocking: false
+    asynchronous: true
+  set_movement_params:
+    name: set_movement_params
+    description: Set speed and acceleration parameters
+    args:
+      tcp_pose:
+        name: tcp_pose
+        description: ''
+        argument_type: list
         required: false
         default: null
-      auto_detect_coordinates:
-        name: auto_detect_coordinates
-        description: Automatically detect coordinate system
-        argument_type: bool
+      velocity:
+        name: velocity
+        description: ''
+        argument_type: float
         required: false
-        default: false
-    locations:
-      source:
-        name: source
-        description: The source location
-        argument_type: location
-        required: true
         default: null
-      target:
-        name: target
-        description: the target location
-        argument_type: location
-        required: true
+      acceleration:
+        name: acceleration
+        description: ''
+        argument_type: float
+        required: false
         default: null
+      gripper_speed:
+        name: gripper_speed
+        description: ''
+        argument_type: float
+        required: false
+        default: null
+      gripper_force:
+        name: gripper_force
+        description: ''
+        argument_type: float
+        required: false
+        default: null
+    locations: {}
     files: {}
     results: {}
     blocking: false
@@ -67,42 +98,142 @@ actions:
         argument_type: Union[LocationArgument, list]
         required: true
         default: null
-      coordinate_type:
-        name: coordinate_type
-        description: Coordinate system override
-        argument_type: str
-        required: false
-        default: null
     locations: {}
     files: {}
     results: {}
     blocking: false
     asynchronous: true
-  movel:
-    name: movel
-    description: Move the robot using linear motion
+  toggle_gripper:
+    name: toggle_gripper
+    description: Move the robot gripper
     args:
-      target:
-        name: target
-        description: Cartesian target to move to
+      open:
+        name: open
+        description: Open?
+        argument_type: bool
+        required: false
+        default: false
+      close:
+        name: close
+        description: Close?
+        argument_type: bool
+        required: false
+        default: false
+    locations: {}
+    files: {}
+    results: {}
+    blocking: false
+    asynchronous: true
+  gripper_transfer:
+    name: gripper_transfer
+    description: Execute a transfer between source and target locations using Robotiq
+      grippers
+    args:
+      home:
+        name: home
+        description: Home location
         argument_type: Union[LocationArgument, list]
         required: true
         default: null
-      coordinate_type:
-        name: coordinate_type
-        description: Coordinate system override
+      source:
+        name: source
+        description: Location to transfer sample from
+        argument_type: Union[LocationArgument, list]
+        required: true
+        default: null
+      target:
+        name: target
+        description: Location to transfer sample to
+        argument_type: Union[LocationArgument, list]
+        required: true
+        default: null
+      source_approach_axis:
+        name: source_approach_axis
+        description: Source location approach axis, (X/Y/Z)
         argument_type: str
         required: false
-        default: null
+        default: z
+      target_approach_axis:
+        name: target_approach_axis
+        description: Source location approach axis, (X/Y/Z)
+        argument_type: str
+        required: false
+        default: z
+      source_approach_distance:
+        name: source_approach_distance
+        description: Approach distance in meters
+        argument_type: float
+        required: false
+        default: 0.05
+      target_approach_distance:
+        name: target_approach_distance
+        description: Approach distance in meters
+        argument_type: float
+        required: false
+        default: 0.05
+      gripper_open:
+        name: gripper_open
+        description: Set a max value for the gripper open state
+        argument_type: int
+        required: false
+        default: 0
+      gripper_close:
+        name: gripper_close
+        description: Set a min value for the gripper close state
+        argument_type: int
+        required: false
+        default: 255
+      joint_angle_locations:
+        name: joint_angle_locations
+        description: Use joint angles for all the locations
+        argument_type: bool
+        required: false
+        default: true
     locations: {}
     files: {}
     results: {}
     blocking: false
     asynchronous: true
-  get_pose:
-    name: get_pose
-    description: Get current end-effector pose
-    args: {}
+  gripper_pick:
+    name: gripper_pick
+    description: Use the gripper to pick a piece of labware from the specified source
+    args:
+      home:
+        name: home
+        description: Home location
+        argument_type: Union[LocationArgument, list]
+        required: true
+        default: null
+      source:
+        name: source
+        description: Location to transfer sample from
+        argument_type: Union[LocationArgument, list]
+        required: true
+        default: null
+      source_approach_axis:
+        name: source_approach_axis
+        description: Source location approach axis, (X/Y/Z)
+        argument_type: str
+        required: false
+        default: z
+      source_approach_distance:
+        name: source_approach_distance
+        description: Approach distance in meters
+        argument_type: float
+        required: false
+        default: 0.05
+      gripper_close:
+        name: gripper_close
+        description: Set a min value for the gripper close state
+        argument_type: int
+        required: false
+        default: 255
+      joint_angle_locations:
+        name: joint_angle_locations
+        description: Use joint angles for all the locations
+        argument_type: bool
+        required: false
+        default: true
     locations: {}
     files: {}
     results: {}
@@ -116,8 +247,19 @@ config:
   state_update_interval: 2.0
   node_url: http://127.0.0.1:8018/
   uvicorn_kwargs: {}
+  ur_ip: ''
+  tcp_pose:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  ur_model: UR5e
+  resource_server_url: http://localhost:8013
+  zmq_server_url: tcp://localhost:5555
 config_schema:
-  description: Default Configuration for a MADSci Node that communicates over REST.
+  description: Configuration for the UR node module.
   properties:
     node_definition:
       anyOf:
@@ -174,5 +316,32 @@ config_schema:
       description: Configuration for the Uvicorn server that runs the REST API.
       title: Uvicorn Configuration
       type: object
-  title: RestNodeConfig
+    ur_ip:
+      default: ''
+      title: Ur Ip
+      type: string
+    tcp_pose:
+      default:
+      - 0
+      - 0
+      - 0
+      - 0
+      - 0
+      - 0
+      items: {}
+      title: Tcp Pose
+      type: array
+    ur_model:
+      default: UR5e
+      title: Ur Model
+      type: string
+    resource_server_url:
+      default: http://localhost:8013
+      title: Resource Server Url
+      type: string
+    zmq_server_url:
+      default: tcp://localhost:5555
+      title: Zmq Server Url
+      type: string
+  title: SimUR5eNodeConfig
   type: object
