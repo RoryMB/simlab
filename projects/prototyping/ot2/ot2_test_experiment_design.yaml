@@ -1,3 +1,0 @@
-experiment_name: OT-2 Integration Test
-experiment_description: Comprehensive test for validating OT-2 simulation integration between MADSci, ZMQ, and Isaac Sim
-# No resource conditions needed for basic integration test

@@ -76,6 +76,7 @@ from .motion_utilities import (
     machine_from_deck,
 )
 
+from .backends.simulation_controller import SimulationController
 
 mod_log = logging.getLogger(__name__)
 
@@ -206,14 +207,7 @@ class API(
             checked_config = config
         else:
             checked_config = robot_configs.load_ot2()
-        
-        # Check for simulation mode
-        import os
-        if os.environ.get('OPENTRONS_SIMULATION_MODE') == 'zmq':
-            from .backends.simulation_controller import SimulationController
-            backend = await SimulationController.build(checked_config)
-        else:
-            backend = await Controller.build(checked_config)
+        backend = await SimulationController.build(checked_config)
         backend.set_lights(button=None, rails=False)
 
         async def blink() -> None:

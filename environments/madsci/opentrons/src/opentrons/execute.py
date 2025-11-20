@@ -705,15 +705,7 @@ def _get_global_hardware_controller(robot_type: RobotType) -> ThreadManagedHardw
     # IPython 7 we can avoid this, but for now we can't
     global _THREAD_MANAGED_HW
     if not _THREAD_MANAGED_HW:
-        # Check for simulation mode
-        import os
-        if os.environ.get('OPENTRONS_SIMULATION_MODE') == 'zmq':
-            # Force OT-2 for simulation mode for now
-            _THREAD_MANAGED_HW = ThreadManager(
-                OT2API.build_hardware_controller,
-                feature_flags=HardwareFeatureFlags.build_from_ff(),
-            )
-        elif robot_type == "OT-3 Standard":
+        if robot_type == "OT-3 Standard":
             # Conditional import because this isn't installed on OT-2s.
             from opentrons.hardware_control.ot3api import OT3API
 
