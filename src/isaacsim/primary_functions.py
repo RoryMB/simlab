@@ -4,8 +4,10 @@ import numpy as np
 from isaacsim.core.api.robots import Robot
 from isaacsim.core.utils.stage import add_reference_to_stage
 from isaacsim.storage.native import get_assets_root_path
+from omni.physx import get_physx_simulation_interface
 from omni.physx.bindings._physx import ContactEventType
 from omni.physx.scripts.physicsUtils import PhysicsSchemaTools
+from pxr import PhysxSchema
 
 import utils
 from zmq_ot2_server import ZMQ_OT2_Server
@@ -26,6 +28,9 @@ class CollisionDetector:
 
     def __init__(self, robot_servers):
         self.robot_servers = robot_servers  # Dict of {robot_name: server}
+        self._contact_report_sub = get_physx_simulation_interface().subscribe_contact_report_events(
+            self.on_collision
+        )
 
     def on_collision(self, contact_headers, contact_data):
         """Handle collision events and notify affected robot servers"""
@@ -56,9 +61,10 @@ def create_robot(simulation_app, world, robot_config):
         usd_path=robot_config["asset_path"],
         prim_path=f"/World/{robot_config['name']}",
     )
-    if "position" in robot_config:
-        robot_prim = world.stage.GetPrimAtPath(f"/World/{robot_config['name']}")
 
+    robot_prim = world.stage.GetPrimAtPath(f"/World/{robot_config['name']}")
+
+    if "position" in robot_config:
         position = np.array(robot_config["position"])
         orientation = np.array(robot_config.get("orientation", [1.0, 0.0, 0.0, 0.0]))
 
@@ -80,5 +86,9 @@ def create_robot(simulation_app, world, robot_config):
         zmq_server = ZMQ_UR5e_Server(simulation_app, robot, robot_config["name"], robot_config["port"])
     else:
         raise RuntimeError(f"Robot type {robot_type} not recognized")
+
+    # Enable collision detection
+    contact_report_api = PhysxSchema.PhysxContactReportAPI.Apply(robot_prim)
+    contact_report_api.CreateThresholdAttr().Set(0.0)
 
     return robot, zmq_server

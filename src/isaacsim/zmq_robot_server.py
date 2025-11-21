@@ -322,12 +322,11 @@ class ZMQ_Robot_Server(ABC):
         """Called when collision is detected involving this robot"""
         self.collision_detected = True
         self.collision_actors = f"{actor0} <-> {actor1}"
-        print(f"Robot {self.robot_name} collision detected: {self.collision_actors}")
+        print(f"Robot {self.robot_name} collision detected: {self.collision_actors}   Use 'clear_collision' to resume operation.")
 
         self.halt_motion()
         self.current_action = None
         self.is_moving = False
-        print(f"Robot {self.robot_name} halted due to collision. Use 'clear_collision' to resume operation.")
 
     def update(self):
         """Called every simulation frame to execute robot actions"""
