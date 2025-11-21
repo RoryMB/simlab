@@ -13,6 +13,7 @@ import utils
 from zmq_ot2_server import ZMQ_OT2_Server
 from zmq_ur5e_server import ZMQ_UR5e_Server
 from zmq_pf400_server import ZMQ_PF400_Server
+from zmq_todo_server import ZMQ_Todo_Server
 
 
 CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve())
@@ -84,6 +85,8 @@ def create_robot(simulation_app, world, robot_config):
         zmq_server = ZMQ_PF400_Server(simulation_app, robot, robot_config["name"], robot_config["port"])
     elif robot_type == "ur5e":
         zmq_server = ZMQ_UR5e_Server(simulation_app, robot, robot_config["name"], robot_config["port"])
+    elif robot_type == "todo":
+        zmq_server = ZMQ_Todo_Server(simulation_app, robot, robot_config["name"], robot_config["port"])
     else:
         raise RuntimeError(f"Robot type {robot_type} not recognized")
 

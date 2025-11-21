@@ -185,7 +185,7 @@ async def main():
     asyncio.create_task(pm.monitor_output('isaac', isaac_process, args.isaac_ready_keyword, args.extremely_verbose))
 
     # Let Isaac have an extra moment to stabilize
-    await asyncio.sleep(10)
+    await asyncio.sleep(20)
 
     for i, node_cmd in enumerate(args.node_cmd):
         node_cmd_with_redirect = f"({node_cmd}) 2>&1"

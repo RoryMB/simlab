@@ -115,7 +115,7 @@ The source directory serves as a permanent archive of all original materials use
 
 ```
 source/
-├── *_export.blend                 # Main Blender file
+├── *_export.blend             # Main Blender file
 ├── gripper_mechanism.step     # CAD file from manufacturer
 ├── base_platform.stl          # 3D printed parts
 ├── wiring_diagram.pdf         # Documentation

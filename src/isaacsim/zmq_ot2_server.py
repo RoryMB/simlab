@@ -4,6 +4,10 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
     """Handles ZMQ communication for OT-2 robot with opentrons-specific commands"""
     def __init__(self, simulation_app, robot, robot_name: str, port: int):
         super().__init__(simulation_app, robot, robot_name, port)
+        
+        # OT2-specific motion state (since OT2 manages its own motion)
+        self.is_moving = False
+        self.motion_complete = False
 
         # OT-2 joint mapping (joint index -> joint name)
         # Primary movement joints (required for visual robot motion)
@@ -59,6 +63,13 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
         self.left_tip_attached = False
         self.right_tip_attached = False
 
+        # Light states
+        self.button_light = False
+        self.rail_lights = False
+
+        # Robot state
+        self.is_paused = False
+
     def is_virtual_joint(self, joint_name: str) -> bool:
         """Check if a joint is virtual (simulated but not physically controlled)"""
         return joint_name in self.virtual_joints
@@ -75,16 +86,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
         print(f"[ZMQ_OT2_SERVER] RECEIVED REQUEST: {request}")
         print(f"[ZMQ_OT2_SERVER] ACTION: {action}")
 
-        if action == "move_joint":
-            joint_name = request.get("joint")
-            target_position = request.get("target_position")
-
-            if joint_name and target_position is not None:
-                return self.move_single_joint(joint_name, target_position)
-            else:
-                return {"status": "error", "message": "Missing joint name or target position"}
-
-        elif action == "move_joints":
+        if action == "move_joints":
             joint_commands = request.get("joint_commands", [])
 
             if joint_commands:
@@ -95,98 +97,44 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
         elif action == "get_joints":
             return self.get_joint_positions()
 
-        elif action == "get_status":
-            return self.get_robot_status()
-
         elif action == "home":
             return self.home_robot()
 
-        elif action == "pick_up_tip":
-            mount = request.get("mount", "left")
-            return self.pick_up_tip(mount)
+        elif action == "is_homed":
+            axes = request.get("axes", [])
+            return self.check_homed_status(axes)
 
-        elif action == "drop_tip":
-            mount = request.get("mount", "left")
-            return self.drop_tip(mount)
+        elif action == "probe":
+            axis = request.get("axis")
+            distance = request.get("distance", 0.0)
+            return self.probe_axis(axis, distance)
 
-        elif action == "aspirate":
-            mount = request.get("mount", "left")
-            volume = request.get("volume", 0.0)
-            return self.aspirate(mount, volume)
+        elif action == "get_attached_instruments":
+            return self.get_attached_instruments()
 
-        elif action == "dispense":
-            mount = request.get("mount", "left")
-            volume = request.get("volume", 0.0)
-            return self.dispense(mount, volume)
+        elif action == "set_button_light":
+            state = request.get("state", False)
+            return self.set_button_light(state)
+
+        elif action == "set_rail_lights":
+            state = request.get("state", False)
+            return self.set_rail_lights(state)
+
+        elif action == "get_lights":
+            return self.get_lights()
+
+        elif action == "pause":
+            return self.pause_robot()
+
+        elif action == "resume":
+            return self.resume_robot()
+
+        elif action == "halt":
+            return self.halt_robot()
 
         else:
             error_response = self.create_error_response(f"Unknown action: {action}")
             print(f"[ZMQ_OT2_SERVER] UNKNOWN ACTION RESPONSE: {error_response}")
-            return error_response
-
-    def move_single_joint(self, joint_name: str, target_position: float):
-        """Move a single joint to target position (physical or virtual)"""
-        print(f"[ZMQ_OT2_SERVER] MOVE_SINGLE_JOINT: {joint_name} -> {target_position}")
-
-        if not (self.is_physical_joint(joint_name) or self.is_virtual_joint(joint_name)):
-            error_response = self.create_error_response(f"Unknown joint: {joint_name}")
-            print(f"[ZMQ_OT2_SERVER] MOVE_SINGLE_JOINT ERROR: {error_response}")
-            return error_response
-
-        # Check limits
-        min_pos, max_pos = self.joint_limits[joint_name]
-        print(f"[ZMQ_OT2_SERVER] JOINT_LIMITS: {joint_name} [{min_pos}, {max_pos}]")
-        if target_position < min_pos or target_position > max_pos:
-            error_response = self.create_error_response(f"Target position {target_position} out of bounds for {joint_name} [{min_pos}, {max_pos}]")
-            print(f"[ZMQ_OT2_SERVER] LIMITS ERROR: {error_response}")
-            return error_response
-
-        try:
-            # Handle virtual joints (soft simulation)
-            if self.is_virtual_joint(joint_name):
-                print(f"[ZMQ_OT2_SERVER] VIRTUAL JOINT: {joint_name} -> {target_position}")
-                self.virtual_joints[joint_name] = target_position
-                print(f"Virtual joint {joint_name} moved to {target_position} (soft simulation)")
-                response = self.create_success_response(
-                    f"Virtual joint {joint_name} moved to {target_position}m (soft simulation)",
-                    joint=joint_name,
-                    target_position=target_position,
-                    virtual=True
-                )
-                print(f"[ZMQ_OT2_SERVER] VIRTUAL JOINT RESPONSE: {response}")
-                return response
-
-            # Handle physical joints (Isaac Sim control)
-            print(f"[ZMQ_OT2_SERVER] PHYSICAL JOINT: {joint_name} -> {target_position}")
-            current_positions = self.robot.get_joint_positions()
-            joint_index = self.joint_names.index(joint_name)
-            print(f"[ZMQ_OT2_SERVER] CURRENT POSITIONS: {current_positions}")
-            print(f"[ZMQ_OT2_SERVER] JOINT INDEX: {joint_index}")
-
-            # Update the specific joint
-            new_positions = current_positions.copy()
-            new_positions[joint_index] = target_position
-            print(f"[ZMQ_OT2_SERVER] NEW POSITIONS: {new_positions}")
-
-            # Use base class motion execution system for smooth/teleport motion
-            self.current_action = "move_joints"
-            self.target_joints = new_positions
-            self.is_moving = True
-            self.motion_complete = False
-
-            print(f"[ZMQ_OT2_SERVER] MOTION QUEUED (motion_type={self.motion_type})")
-
-            response = self.create_success_response(
-                f"Physical joint {joint_name} moved to {target_position}m",
-                joint=joint_name,
-                target_position=target_position,
-                virtual=False
-            )
-            print(f"[ZMQ_OT2_SERVER] PHYSICAL JOINT RESPONSE: {response}")
-            return response
-        except Exception as e:
-            error_response = self.create_error_response(f"Failed to move joint: {str(e)}")
-            print(f"[ZMQ_OT2_SERVER] JOINT MOVE EXCEPTION: {error_response}")
             return error_response
 
     def move_multiple_joints(self, joint_commands):
@@ -260,21 +208,6 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
         except Exception as e:
             return {"status": "error", "message": f"Failed to get joint positions: {str(e)}"}
 
-    def get_robot_status(self):
-        """Get robot status information"""
-        return {
-            "status": "success",
-            "robot_status": {
-                "is_moving": False,  # Could track this in future
-                "ready": True,
-                "physical_joint_count": len(self.joint_names),
-                "virtual_joint_count": len(self.virtual_joints),
-                "total_joint_count": len(self.joint_names) + len(self.virtual_joints),
-                "left_tip_attached": self.left_tip_attached,
-                "right_tip_attached": self.right_tip_attached,
-            }
-        }
-
     def home_robot(self):
         """Return all joints (physical and virtual) to home positions"""
         print(f"[ZMQ_OT2_SERVER] HOME_ROBOT: Starting home sequence")
@@ -295,90 +228,214 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
         except Exception as e:
             return {"status": "error", "message": f"Failed to home robot: {str(e)}"}
 
-    def pick_up_tip(self, mount: str):
-        """Simulate tip pickup"""
-        print(f"Simulating tip pickup on {mount} mount")
-
-        if mount == "left":
-            self.left_tip_attached = True
-        elif mount == "right":
-            self.right_tip_attached = True
-        else:
-            return {"status": "error", "message": f"Invalid mount: {mount}"}
-
-        return {
-            "status": "success",
-            "message": f"Tip pickup on {mount} mount",
-            "mount": mount
-        }
-
-    def drop_tip(self, mount: str):
-        """Simulate tip drop using virtual ejector"""
-        print(f"Simulating tip drop on {mount} mount using virtual ejector")
-
+    def check_homed_status(self, axes):
+        """Check if specified axes are homed"""
         try:
-            if mount == "left":
-                # Extend virtual ejector to push tip off (soft simulation)
-                self.move_single_joint("left_tip_ejector_joint", 0.005)
-                # Retract virtual ejector
-                self.move_single_joint("left_tip_ejector_joint", 0.0)
-                self.left_tip_attached = False
-                print("Left tip ejected (soft simulation)")
-            elif mount == "right":
-                self.move_single_joint("right_tip_ejector_joint", 0.005)
-                self.move_single_joint("right_tip_ejector_joint", 0.0)
-                self.right_tip_attached = False
-                print("Right tip ejected (soft simulation)")
-            else:
-                return {"status": "error", "message": f"Invalid mount: {mount}"}
+            if not axes:
+                return {"status": "error", "message": "No axes specified"}
+
+            # Validate that all axes exist
+            for axis in axes:
+                if not (self.is_physical_joint(axis) or self.is_virtual_joint(axis)):
+                    return {"status": "error", "message": f"Unknown axis: {axis}"}
+
+            # Get current positions
+            current_positions = self.get_joint_positions()
+            if current_positions.get("status") != "success":
+                return {"status": "error", "message": "Failed to get current positions"}
+
+            joint_positions = current_positions["joint_positions"]
+
+            # Check each axis against home position (tolerance: 0.001m = 1mm)
+            tolerance = 0.001
+            all_homed = True
+            homed_status = {}
+
+            for axis in axes:
+                current_pos = joint_positions.get(axis, 0.0)
+                home_pos = self.home_positions.get(axis, 0.0)
+                axis_homed = abs(current_pos - home_pos) <= tolerance
+                homed_status[axis] = axis_homed
+                if not axis_homed:
+                    all_homed = False
+
+            print(f"Homed status for {axes}: {homed_status} (tolerance: {tolerance}m)")
+            return {
+                "status": "success",
+                "homed": all_homed,
+                "axes": axes,
+                "individual_status": homed_status
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to check homed status: {str(e)}"}
+
+    def probe_axis(self, axis, distance):
+        """Run a probe on specified axis"""
+        try:
+            if not axis:
+                return {"status": "error", "message": "No axis specified"}
+
+            if not (self.is_physical_joint(axis) or self.is_virtual_joint(axis)):
+                return {"status": "error", "message": f"Unknown axis: {axis}"}
+
+            print(f"Probing axis {axis} for distance {distance}")
+
+            # Get current position
+            current_positions = self.get_joint_positions()
+            if current_positions.get("status") != "success":
+                return {"status": "error", "message": "Failed to get current positions"}
+
+            current_pos = current_positions["joint_positions"].get(axis, 0.0)
+
+            # Calculate target position and check limits
+            target_pos = current_pos + distance
+            min_pos, max_pos = self.joint_limits[axis]
+
+            # Clamp to joint limits (probe stops at limits)
+            actual_target = max(min_pos, min(max_pos, target_pos))
+            actual_distance = actual_target - current_pos
+
+            # Actually move the axis to probe
+            move_command = [{
+                "joint": axis,
+                "target_position": actual_target
+            }]
+
+            move_result = self.move_multiple_joints(move_command)
+            if move_result.get("status") != "success":
+                return {"status": "error", "message": f"Failed to move axis during probe: {move_result.get('message')}"}
+
+            # Get final position after movement
+            final_positions = self.get_joint_positions()
+            if final_positions.get("status") != "success":
+                return {"status": "error", "message": "Failed to get final position after probe"}
+
+            final_pos = final_positions["joint_positions"].get(axis, current_pos)
+
+            print(f"Probe moved {axis} from {current_pos:.4f} to {final_pos:.4f} (distance: {actual_distance:.4f})")
 
             return {
                 "status": "success",
-                "message": f"Tip drop on {mount} mount (virtual ejector)",
-                "mount": mount,
-                "virtual_ejector": True
+                "position": {axis: final_pos},
+                "distance_traveled": actual_distance,
+                "hit_limit": abs(actual_distance) < abs(distance)
             }
         except Exception as e:
-            return {"status": "error", "message": f"Failed to drop tip: {str(e)}"}
+            return {"status": "error", "message": f"Failed to probe axis: {str(e)}"}
 
-    def aspirate(self, mount: str, volume: float):
-        """Simulate liquid aspiration using virtual plunger"""
-        print(f"Simulating aspirate {volume}μL on {mount} mount using virtual plunger")
-
+    def get_attached_instruments(self):
+        """Get attached instruments from simulation"""
         try:
-            # Convert volume to plunger position (simplified linear mapping)
-            plunger_position = min(volume / 1000.0 * 0.019, 0.019)  # Max 19mm
+            # Return default simulation instrument configuration
+            instruments = {
+                "left": {
+                    "model": "p300_single_v2.1",
+                    "tip_attached": self.left_tip_attached,
+                },
+                "right": {
+                    "model": "p300_single_v2.1",
+                    "tip_attached": self.right_tip_attached,
+                }
+            }
 
-            if mount == "left":
-                result = self.move_single_joint("left_plunger_joint", plunger_position)
-                print(f"Virtual left plunger moved to {plunger_position:.4f}m for {volume}μL")
-                return result
-            elif mount == "right":
-                result = self.move_single_joint("right_plunger_joint", plunger_position)
-                print(f"Virtual right plunger moved to {plunger_position:.4f}m for {volume}μL")
-                return result
-            else:
-                return {"status": "error", "message": f"Invalid mount: {mount}"}
-
+            print(f"Attached instruments: {instruments}")
+            return {
+                "status": "success",
+                "instruments": instruments
+            }
         except Exception as e:
-            return {"status": "error", "message": f"Failed to aspirate: {str(e)}"}
+            return {"status": "error", "message": f"Failed to get attached instruments: {str(e)}"}
 
-    def dispense(self, mount: str, volume: float):
-        """Simulate liquid dispensing using virtual plunger"""
-        print(f"Simulating dispense {volume}μL on {mount} mount using virtual plunger")
-
+    def set_button_light(self, state):
+        """Set button light state"""
         try:
-            # Return plunger to home position for full dispense
-            if mount == "left":
-                result = self.move_single_joint("left_plunger_joint", 0.0)
-                print(f"Virtual left plunger returned to home (0.0m) for {volume}μL dispense")
-                return result
-            elif mount == "right":
-                result = self.move_single_joint("right_plunger_joint", 0.0)
-                print(f"Virtual right plunger returned to home (0.0m) for {volume}μL dispense")
-                return result
-            else:
-                return {"status": "error", "message": f"Invalid mount: {mount}"}
-
+            self.button_light = bool(state)
+            print(f"Button light set to: {self.button_light}")
+            return {
+                "status": "success",
+                "button_light": self.button_light
+            }
         except Exception as e:
-            return {"status": "error", "message": f"Failed to dispense: {str(e)}"}
+            return {"status": "error", "message": f"Failed to set button light: {str(e)}"}
+
+    def set_rail_lights(self, state):
+        """Set rail lights state"""
+        try:
+            self.rail_lights = bool(state)
+            print(f"Rail lights set to: {self.rail_lights}")
+            return {
+                "status": "success",
+                "rail_lights": self.rail_lights
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to set rail lights: {str(e)}"}
+
+    def get_lights(self):
+        """Get current light states"""
+        try:
+            lights = {
+                "button": self.button_light,
+                "rails": self.rail_lights
+            }
+            print(f"Current lights: {lights}")
+            return {
+                "status": "success",
+                "lights": lights
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to get lights: {str(e)}"}
+
+    def pause_robot(self):
+        """Pause current robot movement"""
+        try:
+            self.is_paused = True
+            print("Robot movement paused")
+            return {
+                "status": "success",
+                "message": "Robot paused",
+                "paused": True,
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to pause robot: {str(e)}"}
+
+    def resume_robot(self):
+        """Resume paused robot movement"""
+        try:
+            self.is_paused = False
+            print("Robot movement resumed")
+            return {
+                "status": "success",
+                "message": "Robot resumed",
+                "paused": False,
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to resume robot: {str(e)}"}
+
+    def halt_robot(self):
+        """Stop current robot movement immediately"""
+        try:
+            # Immediately stop all motion
+            self.is_moving = False
+            self.motion_complete = True
+            self.is_paused = False
+            self.current_action = None
+            self.target_joints = None
+
+            print("Robot movement halted immediately")
+            return {
+                "status": "success",
+                "message": "Robot halted",
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to halt robot: {str(e)}"}
+    
+    def update(self):
+        """Called every simulation frame to execute robot actions"""
+        if self.is_paused:
+            return
+
+        if self.current_action is None:
+            return
+
+        if self.current_action == "move_joints":
+            self.execute_move_joints()

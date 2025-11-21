@@ -34,30 +34,21 @@ class ZMQ_Robot_Server(ABC):
         self.socket = None
 
         # Cache paths and prims
-        self.robot_prim_path = f"/World/{robot_name}"
         stage = get_current_stage()
+        self.robot_prim_path = f"/World/{robot_name}"
         self.robot_prim = stage.GetPrimAtPath(self.robot_prim_path)
 
         # Enhanced robot functionality
         self.motion_gen_algo = None
         self.motion_gen_solver = None
 
-        # Gripper state
-        self.gripper_open = True
-        self._grab_joint = None
+        # Pause state
+        self.is_paused = False
 
         # Control state
         self.current_action = None
         self.target_joints = None
         self.target_pose = None
-        self.is_moving = False
-        self.collision_detected = False
-        self.motion_complete = False
-        self.collision_actors = None
-
-        # Raycast parameters
-        self.raycast_direction = Gf.Vec3d(0, 0, -1)
-        self.raycast_distance = 0.03
 
     def start_server(self):
         """Start ZMQ server in background thread"""
@@ -128,7 +119,7 @@ class ZMQ_Robot_Server(ABC):
         self.motion_gen_solver = ArticulationKinematicsSolver(
             self.robot,
             self.motion_gen_algo,
-            end_effector_frame
+            end_effector_frame,
         )
         print(f"Motion generation initialized for {self.robot_name}")
 
@@ -167,24 +158,15 @@ class ZMQ_Robot_Server(ABC):
             return hits[0]['prim']
         return None
 
-    def attach_object(self, end_effector_name: str = 'pointer') -> bool:
-        """Attach an object using physics joints (gripping simulation)"""
-        if self._grab_joint:
-            raise RuntimeError(f"Robot {self.robot_name} already holding something - cannot attach another object")
-
+    def attach_object(self, target_prim_path: str, end_effector_name: str) -> str:
+        """Attach a specific object using physics joints"""
         stage = get_current_stage()
         end_effector_prim_path = f"{self.robot_prim_path}/{end_effector_name}"
         end_effector_prim = stage.GetPrimAtPath(end_effector_prim_path)
+        target_prim = stage.GetPrimAtPath(target_prim_path)
 
-        # Get end effector position and do raycast
-        end_effector_pos, end_effector_rot = utils.get_prim_world_pose(end_effector_prim)
-        quat = Gf.Quatd(float(end_effector_rot[0]), float(end_effector_rot[1]), float(end_effector_rot[2]), float(end_effector_rot[3]))
-        rotation = Gf.Rotation(quat)
-        direction = rotation.TransformDir(self.raycast_direction)
-
-        hit_prim = self.raycast(Gf.Vec3d(float(end_effector_pos[0]), float(end_effector_pos[1]), float(end_effector_pos[2])), direction, self.raycast_distance, self.robot_prim_path)
-        if not hit_prim:
-            raise RuntimeError(f"Robot {self.robot_name}: No object detected for gripping within {self.raycast_distance}m")
+        if not target_prim:
+            raise RuntimeError(f"Robot {self.robot_name}: Target prim not found: {target_prim_path}")
 
         # Create physics joint
         joint_path = end_effector_prim.GetPath().AppendChild("grip_joint")
@@ -192,18 +174,17 @@ class ZMQ_Robot_Server(ABC):
 
         # Set the bodies to connect
         joint_prim.CreateBody0Rel().SetTargets([end_effector_prim.GetPath()])
-        joint_prim.CreateBody1Rel().SetTargets([hit_prim.GetPath()])
+        joint_prim.CreateBody1Rel().SetTargets([target_prim.GetPath()])
 
-        self._grab_joint = joint_path.pathString
-        print(f"Robot {self.robot_name} attached object: {hit_prim.GetPath()}")
-        return True
+        print(f"Robot {self.robot_name} attached object: {target_prim_path}")
+        return joint_path.pathString
 
-    def detach_object(self) -> bool:
-        """Detach the currently held object"""
-        if not self._grab_joint:
+    def detach_object(self, joint_path_string: str) -> bool:
+        """Detach object by removing the specified physics joint"""
+        if not joint_path_string:
             return False
 
-        joint_path = Sdf.Path(self._grab_joint)
+        joint_path = Sdf.Path(joint_path_string)
         DeletePrimsCommand([joint_path]).do()
 
         # Wake up the released object
@@ -212,7 +193,6 @@ class ZMQ_Robot_Server(ABC):
         dc.wake_up_rigid_body(dc.get_rigid_body(parent_rb))
 
         print(f"Robot {self.robot_name} detached object")
-        self._grab_joint = None
         return True
 
     def execute_move_joints(self):
@@ -222,8 +202,6 @@ class ZMQ_Robot_Server(ABC):
 
         if self.motion_type == "teleport":
             self.robot.set_joint_positions(self.target_joints)
-            self.motion_complete = True
-            self.is_moving = False
             self.current_action = None
         else:
             action = ArticulationAction(joint_positions=self.target_joints)
@@ -237,8 +215,6 @@ class ZMQ_Robot_Server(ABC):
             max_vel = np.max(np.abs(velocities))
 
             if max_diff < 0.01 and max_vel < 0.008:
-                self.motion_complete = True
-                self.is_moving = False
                 self.current_action = None
                 print(f"Robot {self.robot_name} completed motion")
 
@@ -246,12 +222,10 @@ class ZMQ_Robot_Server(ABC):
         """Execute pose-based movement using motion planning"""
         if self.target_pose is None:
             self.current_action = None
-            self.is_moving = False
             raise RuntimeError(f"Robot {self.robot_name}: Cannot execute goto_pose - missing target pose")
 
         if self.motion_gen_solver is None:
             self.current_action = None
-            self.is_moving = False
             raise RuntimeError(f"Robot {self.robot_name}: Cannot execute goto_pose - motion generation solver not initialized")
 
         target_position, target_orientation = self.target_pose
@@ -264,14 +238,11 @@ class ZMQ_Robot_Server(ABC):
 
         if not success:
             self.current_action = None
-            self.is_moving = False
             raise RuntimeError(f"Robot {self.robot_name}: IK solve failed for target pose {target_position}, {target_orientation}")
 
         self.robot.apply_action(action)
 
         if self.close_to_target(action):
-            self.motion_complete = True
-            self.is_moving = False
             self.current_action = None
             print(f"Robot {self.robot_name} reached target pose with joint angles: {action.joint_positions.tolist() if action.joint_positions is not None else 'None'}")
 
@@ -288,25 +259,6 @@ class ZMQ_Robot_Server(ABC):
 
         return diff < 0.003 and vel < 0.008
 
-    def execute_gripper_open(self, end_effector_name: str = 'pointer'):
-        """Execute gripper opening using physics-based detachment"""
-        success = self.detach_object()
-        self.motion_complete = True
-        self.current_action = None
-        if success:
-            print(f"Robot {self.robot_name} opened gripper (detached object)")
-        else:
-            print(f"Robot {self.robot_name} opened gripper (no object to detach)")
-
-    def execute_gripper_close(self, end_effector_name: str = 'pointer'):
-        """Execute gripper closing using physics-based attachment"""
-        success = self.attach_object(end_effector_name)
-        self.motion_complete = True
-        self.current_action = None
-        if success:
-            print(f"Robot {self.robot_name} closed gripper (attached object)")
-        else:
-            print(f"Robot {self.robot_name} closed gripper (no object detected)")
 
     def halt_motion(self):
         """Immediately halt robot motion"""
@@ -314,7 +266,6 @@ class ZMQ_Robot_Server(ABC):
         action = ArticulationAction(joint_positions=current_joints)
         self.robot.apply_action(action)
 
-        self.is_moving = False
         self.current_action = None
         print(f"Robot {self.robot_name} motion halted")
 
@@ -329,106 +280,5 @@ class ZMQ_Robot_Server(ABC):
         self.is_moving = False
 
     def update(self):
-        """Called every simulation frame to execute robot actions"""
-        if self.collision_detected:
-            if self.is_moving:
-                self.halt_motion()
-            return
-
-        if self.current_action is None:
-            return
-
-        if self.current_action == "move_joints":
-            self.execute_move_joints()
-        elif self.current_action == "goto_pose":
-            self.execute_goto_pose()
-        elif self.current_action == "gripper_open":
-            self.execute_gripper_open()
-        elif self.current_action == "gripper_close":
-            self.execute_gripper_close()
-
-    def handle_core_robot_commands(self, request):
-        """Handle core robot commands that all end-effector robots support"""
-        action = request.get("action", "")
-
-        if self.collision_detected:
-            return self.create_error_response(f"Robot halted due to collision: {self.collision_actors}")
-
-        if action == "move_joints":
-            joint_angles = request.get("joint_angles", [])
-            expected_joints = len(self.robot.get_joint_positions())
-
-            if len(joint_angles) != expected_joints:
-                return self.create_error_response(f"Expected {expected_joints} joint angles, got {len(joint_angles)}")
-
-            self.current_action = "move_joints"
-            self.target_joints = np.array(joint_angles)
-            self.is_moving = True
-            self.motion_complete = False
-
-            return self.create_success_response("command queued", joint_angles=joint_angles)
-
-        elif action == "get_joints":
-            joint_positions = self.robot.get_joint_positions()
-            return self.create_success_response("joints retrieved", joint_angles=joint_positions.tolist())
-
-        elif action == "gripper_open":
-            self.gripper_open = True
-            self.current_action = "gripper_open"
-            self.is_moving = True
-            self.motion_complete = False
-            return self.create_success_response("gripper_open queued", gripper_state="open")
-
-        elif action == "gripper_close":
-            self.gripper_open = False
-            self.current_action = "gripper_close"
-            self.is_moving = True
-            self.motion_complete = False
-            return self.create_success_response("gripper_close queued", gripper_state="closed")
-
-        elif action == "get_status":
-            joint_positions = self.robot.get_joint_positions()
-            return self.create_success_response(
-                "status retrieved",
-                joint_angles=joint_positions.tolist(),
-                gripper_state="open" if self.gripper_open else "closed",
-                is_moving=self.is_moving,
-                collision_detected=self.collision_detected,
-                motion_complete=self.motion_complete,
-            )
-
-        elif action == "goto_pose":
-            position = request.get("position", [])
-            orientation = request.get("orientation", [])
-
-            if len(position) != 3 or len(orientation) != 4:
-                return self.create_error_response("goto_pose requires position [x,y,z] and orientation [w,x,y,z]")
-
-            self.current_action = "goto_pose"
-            self.target_pose = (np.array(position), np.array(orientation))
-            self.is_moving = True
-            self.motion_complete = False
-
-            return self.create_success_response("goto_pose queued", position=position, orientation=orientation)
-
-        elif action == "get_relative_pose":
-            prim_path = request.get("prim_path", "")
-
-            if not prim_path:
-                return self.create_error_response("get_relative_pose requires prim_path parameter")
-
-            stage = get_current_stage()
-            target_prim = stage.GetPrimAtPath(prim_path)
-            position, orientation = utils.get_relative_pose(target_prim, self.robot_prim)
-            return self.create_success_response(
-                "relative pose retrieved",
-                position=position.tolist(),
-                orientation=orientation.tolist()
-            )
-
-        elif action == "clear_collision":
-            self.collision_detected = False
-            self.collision_actors = None
-            return self.create_success_response("collision cleared")
-
-        return None  # Command not handled, let subclass handle it
+        """Called every simulation frame to execute robot actions - must be implemented by subclasses"""
+        pass

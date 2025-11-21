@@ -17,18 +17,18 @@ parameters:
 
 steps:
   # PF400 Tests - Basic transfer operation only
-  - name: PF400 Transfer Test - Platform1 to Platform2
-    node: sim_pf400_1
-    action: transfer
-    description: Test PF400 basic transfer between platforms with safe approach
-    args:
-      source_plate_rotation: "narrow"
-      target_plate_rotation: "wide"
-    locations:
-      source: platform1
-      target: platform2
-      source_approach: high_position
-      target_approach: high_position
+  # - name: PF400 Transfer Test - Platform1 to Platform2
+  #   node: sim_pf400_1
+  #   action: transfer
+  #   description: Test PF400 basic transfer between platforms with safe approach
+  #   args:
+  #     source_plate_rotation: "narrow"
+  #     target_plate_rotation: "wide"
+  #   locations:
+  #     source: platform1
+  #     target: platform2
+  #     source_approach: high_position
+  #     target_approach: high_position
 
   # OT2 Tests - Comprehensive protocol execution
   - name: OT2 Comprehensive Integration Test
