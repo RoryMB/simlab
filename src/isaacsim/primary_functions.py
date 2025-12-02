@@ -55,15 +55,16 @@ class CollisionDetector:
                         server.on_collision(actor0, actor1)
 
 
-def create_robot(simulation_app, world, robot_config):
+def create_robot(simulation_app, world, robot_config, add=True):
     """Create robots and their ZMQ servers"""
     # Create robot in simulation
-    add_reference_to_stage(
-        usd_path=robot_config["asset_path"],
-        prim_path=f"/World/{robot_config['name']}",
-    )
+    if add:
+        add_reference_to_stage(
+            usd_path=robot_config["asset_path"],
+            prim_path=robot_config['prim_path'],
+        )
 
-    robot_prim = world.stage.GetPrimAtPath(f"/World/{robot_config['name']}")
+    robot_prim = world.stage.GetPrimAtPath(robot_config['prim_path'])
 
     if "position" in robot_config:
         position = np.array(robot_config["position"])
@@ -72,7 +73,7 @@ def create_robot(simulation_app, world, robot_config):
         utils.set_prim_world_pose(robot_prim, position=position, orientation=orientation)
 
     robot = world.scene.add(Robot(
-        prim_path=f"/World/{robot_config['name']}",
+        prim_path=robot_config['prim_path'],
         name=robot_config["name"],
     ))
 
@@ -80,13 +81,13 @@ def create_robot(simulation_app, world, robot_config):
     robot_type = robot_config["type"]
 
     if robot_type == "ot2":
-        zmq_server = ZMQ_OT2_Server(simulation_app, robot, robot_config["name"], robot_config["port"])
+        zmq_server = ZMQ_OT2_Server(simulation_app, robot, robot_config["prim_path"], robot_config["name"], robot_config["port"])
     elif robot_type == "pf400":
-        zmq_server = ZMQ_PF400_Server(simulation_app, robot, robot_config["name"], robot_config["port"])
+        zmq_server = ZMQ_PF400_Server(simulation_app, robot, robot_config["prim_path"], robot_config["name"], robot_config["port"])
     elif robot_type == "ur5e":
-        zmq_server = ZMQ_UR5e_Server(simulation_app, robot, robot_config["name"], robot_config["port"])
+        zmq_server = ZMQ_UR5e_Server(simulation_app, robot, robot_config["prim_path"], robot_config["name"], robot_config["port"])
     elif robot_type == "todo":
-        zmq_server = ZMQ_Todo_Server(simulation_app, robot, robot_config["name"], robot_config["port"])
+        zmq_server = ZMQ_Todo_Server(simulation_app, robot, robot_config["prim_path"], robot_config["name"], robot_config["port"])
     else:
         raise RuntimeError(f"Robot type {robot_type} not recognized")
 

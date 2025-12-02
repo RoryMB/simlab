@@ -12,12 +12,12 @@ CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve()
 class ZMQ_PF400_Server(ZMQ_Robot_Server):
     """Handles ZMQ communication for PF400 robot with integrated control"""
 
-    def __init__(self, simulation_app, robot, robot_name: str, port: int):
-        super().__init__(simulation_app, robot, robot_name, port)
-        
+    def __init__(self, simulation_app, robot, robot_prim_path, robot_name: str, port: int):
+        super().__init__(simulation_app, robot, robot_prim_path, robot_name, port)
+
         # PF400-specific gripper state
         self._grab_joint = None
-        
+
         # PF400-specific raycast configuration
         self.raycast_direction = Gf.Vec3d(0, 0, -1)  # Downward for PF400
         self.raycast_distance = 0.03  # 3cm reach
@@ -84,18 +84,18 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
         stage = get_current_stage()
         end_effector_prim_path = f"{self.robot_prim_path}/{end_effector_name}"
         end_effector_prim = stage.GetPrimAtPath(end_effector_prim_path)
-        
+
         # Get end effector position and orientation
         end_effector_pos, end_effector_rot = utils.get_prim_world_pose(end_effector_prim)
-        quat = Gf.Quatd(float(end_effector_rot[0]), float(end_effector_rot[1]), 
+        quat = Gf.Quatd(float(end_effector_rot[0]), float(end_effector_rot[1]),
                         float(end_effector_rot[2]), float(end_effector_rot[3]))
         rotation = Gf.Rotation(quat)
-        
+
         # Transform raycast direction from local to world space
         world_direction = rotation.TransformDir(self.raycast_direction)
-        world_position = Gf.Vec3d(float(end_effector_pos[0]), float(end_effector_pos[1]), 
+        world_position = Gf.Vec3d(float(end_effector_pos[0]), float(end_effector_pos[1]),
                                  float(end_effector_pos[2]))
-        
+
         return world_position, world_direction
 
     def execute_gripper_open(self, end_effector_name: str = 'pointer'):
@@ -104,7 +104,7 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
             print(f"Robot {self.robot_name} opened gripper (no object to detach)")
             self.current_action = None
             return
-            
+
         success = self.detach_object(self._grab_joint)
         if success:
             self._grab_joint = None
@@ -119,10 +119,10 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
             print(f"Robot {self.robot_name} already holding object")
             self.current_action = None
             return
-            
+
         # Get raycast info using helper method
         world_position, world_direction = self._get_end_effector_raycast_info(end_effector_name)
-        
+
         # Perform raycast
         hit_prim = self.raycast(world_position, world_direction, self.raycast_distance, self.robot_prim_path)
         if hit_prim:
@@ -135,7 +135,7 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
         else:
             print(f"Robot {self.robot_name} closed gripper (no object detected)")
         self.current_action = None
-    
+
     def update(self):
         """Called every simulation frame to execute robot actions"""
         if self.is_paused:
@@ -156,9 +156,9 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
     def _initialize_motion_generation(self):
         """Initialize motion generation algorithms for the PF400"""
         # PF400 robot configuration paths
-        robot_config_dir = CUSTOM_ASSETS_ROOT_PATH + "/temp/robots/pf400"
-        robot_description_path = robot_config_dir + "/pf400_descriptor.yaml"
-        urdf_path = robot_config_dir + "/pf400.urdf"
+        robot_config_dir = CUSTOM_ASSETS_ROOT_PATH + "/robots/Brooks/PF400/isaacsim"
+        robot_description_path = robot_config_dir + "/descriptor.yaml"
+        urdf_path = robot_config_dir + "/PF400.urdf"
 
         # Use superclass method
         self.initialize_motion_generation(robot_description_path, urdf_path, 'pointer')

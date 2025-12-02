@@ -3,6 +3,10 @@ from isaacsim import SimulationApp
 # This MUST be run before importing ANYTHING else
 simulation_app = SimulationApp({"headless": False})
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent / "../../../src/isaacsim"))
+
 from isaacsim.core.api import World
 
 from primary_functions import create_robot, CUSTOM_ASSETS_ROOT_PATH
@@ -28,7 +32,7 @@ def main():
             "name": "ot2_1",
             "type": "ot2",
             "port": 5556,
-            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/temp/robots/ot2.usda",
+            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/robots/Opentrons/OT-2/OT-2.usd",
             "position": [0.0, 0.0, 0.0],
             "orientation": [1.0, 0.0, 0.0, 0.0],
         },

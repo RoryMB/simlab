@@ -1,10 +1,13 @@
+from pathlib import Path
 from zmq_robot_server import ZMQ_Robot_Server
+
+CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve())
 
 class ZMQ_OT2_Server(ZMQ_Robot_Server):
     """Handles ZMQ communication for OT-2 robot with opentrons-specific commands"""
-    def __init__(self, simulation_app, robot, robot_name: str, port: int):
-        super().__init__(simulation_app, robot, robot_name, port)
-        
+    def __init__(self, simulation_app, robot, robot_prim_path, robot_name: str, port: int):
+        super().__init__(simulation_app, robot, robot_prim_path, robot_name, port)
+
         # OT2-specific motion state (since OT2 manages its own motion)
         self.is_moving = False
         self.motion_complete = False
@@ -69,6 +72,19 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
 
         # Robot state
         self.is_paused = False
+
+        # Initialize OT2-specific motion generation
+        self._initialize_motion_generation()
+
+    def _initialize_motion_generation(self):
+        """Initialize motion generation algorithms for the PF400"""
+        # PF400 robot configuration paths
+        robot_config_dir = CUSTOM_ASSETS_ROOT_PATH + "/robots/Opentrons/OT-2/isaacsim"
+        robot_description_path = robot_config_dir + "/descriptor.yaml"
+        urdf_path = robot_config_dir + "/OT-2.urdf"
+
+        # Use superclass method
+        # self.initialize_motion_generation(robot_description_path, urdf_path, 'pointer')
 
     def is_virtual_joint(self, joint_name: str) -> bool:
         """Check if a joint is virtual (simulated but not physically controlled)"""
@@ -428,7 +444,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
             }
         except Exception as e:
             return {"status": "error", "message": f"Failed to halt robot: {str(e)}"}
-    
+
     def update(self):
         """Called every simulation frame to execute robot actions"""
         if self.is_paused:

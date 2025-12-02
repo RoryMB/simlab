@@ -9,8 +9,8 @@ CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve()
 class ZMQ_Todo_Server(ZMQ_Robot_Server):
     """Handles ZMQ communication for PF400 robot with integrated control"""
 
-    def __init__(self, simulation_app, robot, robot_name: str, port: int):
-        super().__init__(simulation_app, robot, robot_name, port)
+    def __init__(self, simulation_app, robot, robot_prim_path, robot_name: str, port: int):
+        super().__init__(simulation_app, robot, robot_prim_path, robot_name, port)
 
     def handle_command(self, request):
         """Handle incoming ZMQ command"""

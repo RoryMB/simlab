@@ -24,7 +24,7 @@ CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve()
 class ZMQ_Robot_Server(ABC):
     """Base class for ZMQ robot servers with enhanced end-effector robot functionality"""
 
-    def __init__(self, simulation_app, robot, robot_name: str, port: int, motion_type: str = "smooth"):
+    def __init__(self, simulation_app, robot, robot_prim_path: str, robot_name: str, port: int, motion_type: str = "smooth"):
         self.simulation_app = simulation_app
         self.robot = robot
         self.robot_name = robot_name
@@ -35,7 +35,7 @@ class ZMQ_Robot_Server(ABC):
 
         # Cache paths and prims
         stage = get_current_stage()
-        self.robot_prim_path = f"/World/{robot_name}"
+        self.robot_prim_path = robot_prim_path
         self.robot_prim = stage.GetPrimAtPath(self.robot_prim_path)
 
         # Enhanced robot functionality

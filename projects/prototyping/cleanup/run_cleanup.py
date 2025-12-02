@@ -3,6 +3,10 @@ from isaacsim import SimulationApp
 # This MUST be run before importing ANYTHING else
 simulation_app = SimulationApp({"headless": False})
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent / "../../../src/isaacsim"))
+
 import numpy as np
 
 from isaacsim.core.api import World
@@ -20,7 +24,7 @@ def create_scene_objects(world):
     world.scene.add_default_ground_plane()
 
     # Create microplate at position (0.3, 0.3, 0.3)
-    microplate_asset_path = CUSTOM_ASSETS_ROOT_PATH + "/temp/objects/microplate.usda"
+    microplate_asset_path = CUSTOM_ASSETS_ROOT_PATH + "/labware/microplate/microplate.usd"
     add_reference_to_stage(
         usd_path=microplate_asset_path,
         prim_path="/World/microplate",
@@ -85,11 +89,27 @@ def main():
     # Robot configuration
     robots_config = [
         {
+            "name": "ur5e_1",
+            "type": "ur5e",
+            "port": 5555,
+            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/robots/UniversalRobots/ur5e/ur5e.usd",
+            "position": [2.0, 0.0, 0.0],
+            "orientation": [1.0, 0.0, 0.0, 0.0],
+        },
+        {
             "name": "pf400_1",
             "type": "pf400",
             "port": 5557,
-            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/temp/robots/pf400.usda",
+            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/robots/Brooks/PF400/PF400.usd",
             "position": [0.0, 0.0, 0.0],
+            "orientation": [1.0, 0.0, 0.0, 0.0],
+        },
+        {
+            "name": "ot2_1",
+            "type": "ot2",
+            "port": 5556,
+            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/robots/Opentrons/OT-2/OT-2.usd",
+            "position": [0.0, 2.0, 0.0],
             "orientation": [1.0, 0.0, 0.0, 0.0],
         },
     ]
