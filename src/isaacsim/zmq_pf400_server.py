@@ -48,11 +48,16 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
 
         elif action == "get_status":
             joint_positions = self.robot.get_joint_positions()
+            is_moving = self.current_action is not None
+            motion_complete = self.current_action is None
             status = {
                 "robot_name": self.robot_name,
                 "joint_positions": joint_positions.tolist(),
                 "is_paused": self.is_paused,
-                "has_attached_object": bool(self._grab_joint)
+                "has_attached_object": bool(self._grab_joint),
+                "is_moving": is_moving,
+                "motion_complete": motion_complete,
+                "collision_detected": self.collision_detected
             }
             return self.create_success_response("status retrieved", data=status)
 
@@ -63,7 +68,6 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
         elif action == "gripper_close":
             self.current_action = "gripper_close"
             return self.create_success_response("gripper_close queued")
-
 
         elif action == "goto_pose":
             position = request.get("position", [])
@@ -76,6 +80,27 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
             self.target_pose = (np.array(position), np.array(orientation))
             return self.create_success_response("goto_pose queued", position=position, orientation=orientation)
 
+        elif action == "goto_prim":
+            prim_name = request.get("prim_name", "")
+
+            if not prim_name:
+                return self.create_error_response("goto_prim requires prim_name parameter")
+
+            # Get prim from stage
+            stage = get_current_stage()
+            prim = stage.GetPrimAtPath(prim_name)
+
+            if not prim or not prim.IsValid():
+                return self.create_error_response(f"Prim not found: {prim_name}")
+
+            # Get prim world position and orientation
+            position, orientation = utils.get_xform_world_pose(prim)
+
+            # Queue goto_pose with prim's pose
+            self.current_action = "goto_pose"
+            self.target_pose = (position, orientation)
+            return self.create_success_response("goto_prim queued", prim_name=prim_name, position=position.tolist(), orientation=orientation.tolist())
+
         else:
             return self.create_error_response(f"Unknown action: {action}")
 
@@ -85,8 +110,11 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
         end_effector_prim_path = f"{self.robot_prim_path}/{end_effector_name}"
         end_effector_prim = stage.GetPrimAtPath(end_effector_prim_path)
 
+        if not end_effector_prim or not end_effector_prim.IsValid():
+            raise RuntimeError(f"End effector prim not found at path: {end_effector_prim_path}")
+
         # Get end effector position and orientation
-        end_effector_pos, end_effector_rot = utils.get_prim_world_pose(end_effector_prim)
+        end_effector_pos, end_effector_rot = utils.get_xform_world_pose(end_effector_prim)
         quat = Gf.Quatd(float(end_effector_rot[0]), float(end_effector_rot[1]),
                         float(end_effector_rot[2]), float(end_effector_rot[3]))
         rotation = Gf.Rotation(quat)
@@ -126,6 +154,13 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
         # Perform raycast
         hit_prim = self.raycast(world_position, world_direction, self.raycast_distance, self.robot_prim_path)
         if hit_prim:
+            # [HACK] Check if the hit object is a microplate
+            hit_path = hit_prim.GetPath().pathString
+            if "microplate" not in hit_path:
+                print(f"Robot {self.robot_name} ignored grasp target (not a microplate): {hit_path}")
+                self.current_action = None
+                return
+
             try:
                 joint_path = self.attach_object(hit_prim.GetPath().pathString, end_effector_name)
                 self._grab_joint = joint_path
@@ -134,6 +169,42 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
                 print(f"Robot {self.robot_name} failed to close gripper: {str(e)}")
         else:
             print(f"Robot {self.robot_name} closed gripper (no object detected)")
+        self.current_action = None
+
+    def on_collision(self, actor0, actor1):
+        """Handle collision detection - only care about collisions while moving"""
+
+        # Only care about collisions while moving
+        if self.current_action is None:
+            return
+
+        microplate_path = "/World/microplate"
+        involves_microplate = microplate_path in actor0 or microplate_path in actor1
+        involves_robot = actor0.startswith(self.robot_prim_path) or actor1.startswith(self.robot_prim_path)
+        holding_microplate = self._grab_joint is not None
+
+        # Case 1: Robot hit something that's not the microplate
+        if involves_robot and not involves_microplate:
+            pass  # Care about this
+
+        # Case 2: Robot touching microplate it's holding
+        elif involves_robot and involves_microplate and holding_microplate:
+            return  # Ignore
+
+        # Case 3: Microplate we're holding hit something (not the robot)
+        elif involves_microplate and not involves_robot and holding_microplate:
+            pass  # Care about this
+
+        # Case 4: Any other collision (including microplate when not holding)
+        else:
+            return  # Ignore
+
+        # Handle the collision
+        self.collision_detected = True
+        self.collision_actors = f"{actor0} <-> {actor1}"
+        print(f"Robot {self.robot_name} collision detected: {self.collision_actors}")
+
+        self.halt_motion()
         self.current_action = None
 
     def update(self):
@@ -156,9 +227,9 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
     def _initialize_motion_generation(self):
         """Initialize motion generation algorithms for the PF400"""
         # PF400 robot configuration paths
-        robot_config_dir = CUSTOM_ASSETS_ROOT_PATH + "/robots/Brooks/PF400/isaacsim"
-        robot_description_path = robot_config_dir + "/descriptor.yaml"
-        urdf_path = robot_config_dir + "/PF400.urdf"
+        robot_config_dir = CUSTOM_ASSETS_ROOT_PATH + "/temp/robots/pf400"
+        robot_description_path = robot_config_dir + "/pf400_descriptor.yaml"
+        urdf_path = robot_config_dir + "/pf400.urdf"
 
         # Use superclass method
         self.initialize_motion_generation(robot_description_path, urdf_path, 'pointer')

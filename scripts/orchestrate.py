@@ -215,6 +215,7 @@ async def main():
 
     workflow_cmd_with_redirect = f"({args.workflow_cmd}) 2>&1"
     workflow_process = await pm.start_process('workflow', workflow_cmd_with_redirect)
+    pm.ready_flags.add('workflow')
     asyncio.create_task(pm.monitor_output('workflow', workflow_process, None, args.extremely_verbose))
 
     # Monitor system health and wait for shutdown signal

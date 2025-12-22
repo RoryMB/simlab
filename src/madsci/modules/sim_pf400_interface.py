@@ -186,12 +186,13 @@ class SimPF400:
         response = self.send_zmq_command(zmq_command)
 
         if response.get("status") == "success":
+            data = response.get("data", {})
             return {
-                "joint_angles": response.get("joint_angles", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
-                "gripper_state": response.get("gripper_state", "unknown"),
-                "is_moving": response.get("is_moving", False),
-                "collision_detected": response.get("collision_detected", False),
-                "motion_complete": response.get("motion_complete", True)
+                "joint_angles": data.get("joint_positions", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+                "gripper_state": data.get("gripper_state", "unknown"),
+                "is_moving": data.get("is_moving", False),
+                "collision_detected": data.get("collision_detected", False),
+                "motion_complete": data.get("motion_complete", True)
             }
         else:
             self.logger.log(f"Failed to get status: {response.get('message', 'Unknown error')}")
@@ -215,6 +216,15 @@ class SimPF400:
         self.logger.log(f"Plate orientation set to: {rotation}")
         return True
 
+    def _get_hover_coords(self, coords: list, hover_height: float = 0.1) -> list:
+        """Helper to create coordinates directly above a location."""
+        # Create a copy so we don't modify the original list object
+        hover_coords = list(coords)
+        # Index 1 is the vertical axis
+        # Set it to a safe height (e.g. 0.5 or current + offset)
+        hover_coords[1] = hover_coords[1] + hover_height
+        return hover_coords
+
     def transfer(self, source: LocationArgument, target: LocationArgument,
                  source_approach: Optional[LocationArgument] = None,
                  target_approach: Optional[LocationArgument] = None,
@@ -222,6 +232,8 @@ class SimPF400:
                  target_plate_rotation: str = "") -> None:
         """Transfer a plate from source to target location using ZMQ robot control."""
         self.logger.log(f"Transfer from {source.location} to {target.location}")
+
+        # --- SOURCE SEQUENCE ---
 
         # Handle source approach if specified
         if source_approach:
@@ -233,6 +245,12 @@ class SimPF400:
         if not self.handle_plate_rotation(source_plate_rotation):
             raise RuntimeError("Failed to handle source plate rotation")
 
+        # [HACK] Move ABOVE Source (Approach safely)
+        hover_source = self._get_hover_coords(source.location)
+        self.logger.log("Moving to hover position above source")
+        if not self.move_to_location_coordinates(hover_source):
+            raise RuntimeError("Failed to hover above source")
+
         # Move to source location
         if not self.move_to_location_coordinates(source.location):
             raise RuntimeError("Failed to move to source location")
@@ -240,6 +258,23 @@ class SimPF400:
         # Close gripper to pick up plate
         if not self.close_gripper():
             raise RuntimeError("Failed to close gripper")
+
+        # Update resource manager - plate picked from source
+        if self.resource_client:
+            popped_plate, updated_resource = self.resource_client.pop(
+                resource=source.resource_id
+            )
+            self.resource_client.push(
+                resource=self.gripper_resource_id, child=popped_plate
+            )
+
+        # [HACK] Move ABOVE Source (Retract safely)
+        hover_source = self._get_hover_coords(source.location)
+        self.logger.log("Retracting to hover position above source")
+        if not self.move_to_location_coordinates(hover_source):
+            raise RuntimeError("Failed to retract above source")
+
+        # --- TARGET SEQUENCE ---
 
         # Handle target approach if specified
         if target_approach:
@@ -251,13 +286,33 @@ class SimPF400:
         if not self.handle_plate_rotation(target_plate_rotation):
             raise RuntimeError("Failed to handle target plate rotation")
 
-        # Move to target location
-        if not self.move_to_location_coordinates(target.location):
+        # [HACK] Move ABOVE Target (Approach safely)
+        hover_target = self._get_hover_coords(target.location)
+        self.logger.log("Moving to hover position above target")
+        if not self.move_to_location_coordinates(hover_target):
+            raise RuntimeError("Failed to hover above target")
+
+        # [HACK] Move to slightly above target location
+        hover_target = self._get_hover_coords(target.location, hover_height=0.02)
+        if not self.move_to_location_coordinates(hover_target):
             raise RuntimeError("Failed to move to target location")
 
         # Open gripper to release plate
         if not self.open_gripper():
             raise RuntimeError("Failed to open gripper for release")
+
+        # Update resource manager - plate placed at target
+        if self.resource_client:
+            popped_plate, updated_resource = self.resource_client.pop(
+                resource=self.gripper_resource_id
+            )
+            self.resource_client.push(resource=target.resource_id, child=popped_plate)
+
+        # [HACK] Move ABOVE Target (Retract safely)
+        hover_target = self._get_hover_coords(target.location)
+        self.logger.log("Retracting to hover position above target")
+        if not self.move_to_location_coordinates(hover_target):
+            raise RuntimeError("Failed to retract above target")
 
     def pick_plate(self, source: LocationArgument, source_approach: Optional[LocationArgument] = None) -> bool:
         """Pick a plate from a source location."""
@@ -274,6 +329,15 @@ class SimPF400:
             # Close gripper to pick up plate
             if not self.close_gripper():
                 return False
+
+            # Update resource manager - plate picked from source
+            if self.resource_client:
+                popped_plate, updated_resource = self.resource_client.pop(
+                    resource=source.resource_id
+                )
+                self.resource_client.push(
+                    resource=self.gripper_resource_id, child=popped_plate
+                )
 
             self.logger.log("Picked up plate from source")
             return True
@@ -295,6 +359,13 @@ class SimPF400:
         # Open gripper to release plate
         if not self.open_gripper():
             raise RuntimeError("Failed to open gripper")
+
+        # Update resource manager - plate placed at target
+        if self.resource_client:
+            popped_plate, updated_resource = self.resource_client.pop(
+                resource=self.gripper_resource_id
+            )
+            self.resource_client.push(resource=target.resource_id, child=popped_plate)
 
         self.logger.log("Placed plate at target")
 

@@ -33,11 +33,11 @@ class SimOT2Node(OT2Node):
     config: SimOT2NodeConfig = SimOT2NodeConfig()
     config_model = SimOT2NodeConfig
 
-    def _exception_handler(self, e: Exception, set_node_errored: bool = True):
-        """Overrides the default exception handler to force a shutdown."""
-        super()._exception_handler(e, set_node_errored)
-        self.logger.log_critical("Error detected in simulation fail-fast mode. Forcing node shutdown.")
-        os.kill(os.getpid(), signal.SIGTERM)
+    # def _exception_handler(self, e: Exception, set_node_errored: bool = True):
+    #     """Overrides the default exception handler to force a shutdown."""
+    #     super()._exception_handler(e, set_node_errored)
+    #     self.logger.log_critical("Error detected in simulation fail-fast mode. Forcing node shutdown.")
+    #     os.kill(os.getpid(), signal.SIGTERM)
 
     def connect_robot(self) -> None:
         """Initialize the OT2 interface"""

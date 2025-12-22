@@ -51,8 +51,8 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
         # Home positions
         self.home_positions = {
             # Physical joint homes
-            "pipette_rail_joint": 0.353,      # Y-axis home (back)
-            "pipette_casing_joint": 0.418,    # X-axis home (right)
+            "pipette_rail_joint": 0.0,      # Y-axis home (back)
+            "pipette_casing_joint": 0.0,    # X-axis home (right)
             "pipette_left_joint": 0.0,        # Left Z home (top)
             "pipette_right_joint": 0.0,       # Right Z home (top)
             # Virtual joint homes (soft simulation)
@@ -214,11 +214,12 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
             # Get physical joint positions
             positions = self.robot.get_joint_positions()
             for i, joint_name in enumerate(self.joint_names):
-                joint_positions[joint_name] = positions[i] if i < len(positions) else 0.0
+                val = positions[i] if i < len(positions) else 0.0
+                joint_positions[joint_name] = float(val)
 
             # Add virtual joint positions
             for joint_name, position in self.virtual_joints.items():
-                joint_positions[joint_name] = position
+                joint_positions[joint_name] = float(position)
 
             return {"status": "success", "joint_positions": joint_positions}
         except Exception as e:

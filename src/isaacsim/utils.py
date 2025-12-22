@@ -2,7 +2,7 @@ from typing import Optional
 
 import numpy as np
 import omni.usd
-from pxr import UsdGeom, UsdPhysics
+from pxr import UsdGeom, UsdPhysics, Gf, Usd
 
 from isaacsim.core.api.robots import Robot
 from isaacsim.core.prims import SingleXFormPrim
@@ -18,6 +18,36 @@ from isaacsim.core.utils.transformations import (
 # Coordinate System Utilities
 # =============================================================================
 
+def get_xform_world_pose(prim):
+    """Get world pose of an Xform prim using USD operations"""
+    xformable = UsdGeom.Xformable(prim)
+    time = Usd.TimeCode.Default()
+    world_transform = xformable.ComputeLocalToWorldTransform(time)
+
+    # Convert Gf.Matrix4d to numpy array
+    transform_np = np.array(world_transform).T  # Transpose for correct layout
+
+    # Extract position and orientation
+    position, orientation = pose_from_tf_matrix(transform_np)
+    return position, orientation
+
+
+def set_xform_world_pose(prim, position, orientation):
+    """Set world pose of an Xform prim using USD operations"""
+    # Convert pose to transform matrix
+    transform_matrix = tf_matrix_from_pose(position, orientation)
+
+    # Convert to Gf.Matrix4d
+    gf_matrix = Gf.Matrix4d(*transform_matrix.T.flatten().tolist())
+
+    # Set the transform
+    xformable = UsdGeom.Xformable(prim)
+    xformable.ClearXformOpOrder()
+    xform_op = xformable.AddTransformOp()
+    xform_op.Set(gf_matrix)
+
+
+# Don't use this anymore
 def get_prim_world_pose(prim) -> tuple[np.ndarray, np.ndarray]:
     """Get world pose of a prim.
 
@@ -34,6 +64,7 @@ def get_prim_world_pose(prim) -> tuple[np.ndarray, np.ndarray]:
     return prim_wrapper.get_world_pose()
 
 
+# Don't use this anymore
 def set_prim_world_pose(
     prim,
     position: Optional[np.ndarray] = None,

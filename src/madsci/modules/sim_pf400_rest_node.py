@@ -69,11 +69,11 @@ class SimPF400Node(PF400Node):
                 "zmq_server_url": self.config.zmq_server_url,
             }
 
-    def _exception_handler(self, e: Exception, set_node_errored: bool = True):
-        """Overrides the default exception handler to force a shutdown."""
-        super()._exception_handler(e, set_node_errored)
-        self.logger.log_critical("Error detected in simulation fail-fast mode. Forcing node shutdown.")
-        os.kill(os.getpid(), signal.SIGTERM)
+    # def _exception_handler(self, e: Exception, set_node_errored: bool = True):
+    #     """Overrides the default exception handler to force a shutdown."""
+    #     super()._exception_handler(e, set_node_errored)
+    #     self.logger.log_critical("Error detected in simulation fail-fast mode. Forcing node shutdown.")
+    #     os.kill(os.getpid(), signal.SIGTERM)
 
     @action(name="transfer", description="Transfer a plate from one location to another")
     def transfer(

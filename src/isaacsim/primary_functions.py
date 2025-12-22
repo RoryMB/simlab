@@ -2,18 +2,22 @@ from pathlib import Path
 import numpy as np
 
 from isaacsim.core.api.robots import Robot
-from isaacsim.core.utils.stage import add_reference_to_stage
+from isaacsim.core.utils.stage import add_reference_to_stage, get_current_stage
 from isaacsim.storage.native import get_assets_root_path
 from omni.physx import get_physx_simulation_interface
 from omni.physx.bindings._physx import ContactEventType
 from omni.physx.scripts.physicsUtils import PhysicsSchemaTools
-from pxr import PhysxSchema
+from pxr import PhysxSchema, UsdPhysics
 
 import utils
 from zmq_ot2_server import ZMQ_OT2_Server
 from zmq_ur5e_server import ZMQ_UR5e_Server
 from zmq_pf400_server import ZMQ_PF400_Server
 from zmq_todo_server import ZMQ_Todo_Server
+from zmq_sealer_server import ZMQ_Sealer_Server
+from zmq_peeler_server import ZMQ_Peeler_Server
+from zmq_thermocycler_server import ZMQ_Thermocycler_Server
+from zmq_hidex_server import ZMQ_Hidex_Server
 
 
 CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve())
@@ -34,7 +38,7 @@ class CollisionDetector:
         )
 
     def on_collision(self, contact_headers, contact_data):
-        """Handle collision events and notify affected robot servers"""
+        """Handle collision events and notify all robot servers"""
 
         for contact_header in contact_headers:
             if contact_header.type != ContactEventType.CONTACT_FOUND:
@@ -45,14 +49,10 @@ class CollisionDetector:
 
             print(f"Collision detected: {actor0} <-> {actor1}")
 
-            # Check which robot servers are affected by this collision
+            # Notify all robot servers - they decide what to care about
             for robot_name, server in self.robot_servers.items():
-                robot_prim_path = f"/World/{robot_name}"
-
-                if actor0.startswith(robot_prim_path) or actor1.startswith(robot_prim_path):
-                    print(f"Notifying {robot_name} server of collision")
-                    if hasattr(server, 'on_collision'):
-                        server.on_collision(actor0, actor1)
+                if hasattr(server, 'on_collision'):
+                    server.on_collision(actor0, actor1)
 
 
 def create_robot(simulation_app, world, robot_config, add=True):
@@ -88,11 +88,29 @@ def create_robot(simulation_app, world, robot_config, add=True):
         zmq_server = ZMQ_UR5e_Server(simulation_app, robot, robot_config["prim_path"], robot_config["name"], robot_config["port"])
     elif robot_type == "todo":
         zmq_server = ZMQ_Todo_Server(simulation_app, robot, robot_config["prim_path"], robot_config["name"], robot_config["port"])
+    elif robot_type == "sealer":
+        zmq_server = ZMQ_Sealer_Server(simulation_app, robot, robot_config["prim_path"], robot_config["name"], robot_config["port"])
+    elif robot_type == "peeler":
+        zmq_server = ZMQ_Peeler_Server(simulation_app, robot, robot_config["prim_path"], robot_config["name"], robot_config["port"])
+    elif robot_type == "thermocycler":
+        zmq_server = ZMQ_Thermocycler_Server(simulation_app, robot, robot_config["prim_path"], robot_config["name"], robot_config["port"])
+    elif robot_type == "hidex":
+        zmq_server = ZMQ_Hidex_Server(simulation_app, robot, robot_config["prim_path"], robot_config["name"], robot_config["port"])
     else:
         raise RuntimeError(f"Robot type {robot_type} not recognized")
 
     # Enable collision detection
     contact_report_api = PhysxSchema.PhysxContactReportAPI.Apply(robot_prim)
     contact_report_api.CreateThresholdAttr().Set(0.0)
+
+    # Set contact offset for robot to 0 for precise collision detection
+    # This needs to be applied to all collision shapes in the robot hierarchy
+    stage = get_current_stage()
+    for prim in stage.Traverse():
+        prim_path = str(prim.GetPath())
+        if prim_path.startswith(robot_prim.GetPath().pathString):
+            if prim.HasAPI(UsdPhysics.CollisionAPI):
+                physx_collision = PhysxSchema.PhysxCollisionAPI.Apply(prim)
+                physx_collision.CreateContactOffsetAttr().Set(0.0001)
 
     return robot, zmq_server

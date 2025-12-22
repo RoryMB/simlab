@@ -1,0 +1,7 @@
+node_name: sim_sealer_1
+node_id: 01KCTCZGQ8QB50DN3KPN60A4A3
+node_description: A basic node.
+node_type: device
+module_name: sim_sealer
+module_version: 0.0.1
+capabilities: null

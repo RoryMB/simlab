@@ -1,0 +1,7 @@
+node_name: sim_peeler_1
+node_id: 01KCTCZGH0Z2QSASSCN4PD19MW
+node_description: A basic node.
+node_type: device
+module_name: sim_peeler
+module_version: 0.0.1
+capabilities: null

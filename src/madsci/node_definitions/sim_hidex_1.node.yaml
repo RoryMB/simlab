@@ -1,0 +1,7 @@
+node_name: sim_hidex_1
+node_id: 01KCTCZGM7SPFCMKVTZ0ZJW86P
+node_description: A basic node.
+node_type: device
+module_name: sim_hidex
+module_version: 0.0.1
+capabilities: null

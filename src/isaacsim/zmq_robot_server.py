@@ -45,6 +45,10 @@ class ZMQ_Robot_Server(ABC):
         # Pause state
         self.is_paused = False
 
+        # Collision state
+        self.collision_detected = False
+        self.collision_actors = None
+
         # Control state
         self.current_action = None
         self.target_joints = None
@@ -80,6 +84,8 @@ class ZMQ_Robot_Server(ABC):
                 continue
             except Exception as e:
                 print(f"ZMQ server error for {self.robot_name}: {e}")
+                import traceback
+                traceback.print_exc()
                 error_response = {"status": "error", "message": str(e)}
                 try:
                     self.socket.send_string(json.dumps(error_response))
@@ -125,7 +131,7 @@ class ZMQ_Robot_Server(ABC):
 
     def set_robot_base_pose(self):
         """Update robot base pose for motion planning"""
-        robot_pos, robot_rot = utils.get_prim_world_pose(self.robot_prim)
+        robot_pos, robot_rot = utils.get_xform_world_pose(self.robot_prim)
         self.motion_gen_algo.set_robot_base_pose(robot_pos, robot_rot)
 
     def raycast(self, src: Gf.Vec3d, direction: Gf.Vec3d, distance: float, filter_prim_path: str):
@@ -176,6 +182,26 @@ class ZMQ_Robot_Server(ABC):
         joint_prim.CreateBody0Rel().SetTargets([end_effector_prim.GetPath()])
         joint_prim.CreateBody1Rel().SetTargets([target_prim.GetPath()])
 
+        # Calculate the pose of the Gripper (Body0) relative to the Target (Body1)
+        # We want the joint frames to match so the bodies don't move when locked.
+        # By setting LocalPose0 to identity, the Joint Frame matches the Gripper Frame.
+        # We then set LocalPose1 to be the Gripper's position in the Target's coordinate space.
+
+        # Get Gripper pose relative to Target (Target -> Gripper)
+        rel_pos, rel_rot = utils.get_relative_pose(end_effector_prim, target_prim)
+
+        # Body 0 (Gripper) - Identity (No offset)
+        joint_prim.CreateLocalPos0Attr().Set(Gf.Vec3f(0, 0, 0))
+        joint_prim.CreateLocalRot0Attr().Set(Gf.Quatf(1, 0, 0, 0))
+
+        # Body 1 (Target) - Offset to match Gripper
+        # POSITION: Set to (0,0,0) to force the Target to snap to the Gripper's position.
+        joint_prim.CreateLocalPos1Attr().Set(Gf.Vec3f(0, 0, 0))
+        # This prevents the object from snapping its position to match the gripper.
+        # joint_prim.CreateLocalPos1Attr().Set(Gf.Vec3f(float(rel_pos[0]), float(rel_pos[1]), float(rel_pos[2])))
+        # This prevents the object from snapping its rotation to match the gripper.
+        joint_prim.CreateLocalRot1Attr().Set(Gf.Quatf(float(rel_rot[0]), float(rel_rot[1]), float(rel_rot[2]), float(rel_rot[3])))
+
         print(f"Robot {self.robot_name} attached object: {target_prim_path}")
         return joint_path.pathString
 
@@ -191,6 +217,8 @@ class ZMQ_Robot_Server(ABC):
         dc = _dynamic_control.acquire_dynamic_control_interface()
         parent_rb = joint_path.GetParentPath().pathString
         dc.wake_up_rigid_body(dc.get_rigid_body(parent_rb))
+
+        # TODO: Add a tiny velocity? Objects don't always fall when dropped.
 
         print(f"Robot {self.robot_name} detached object")
         return True
@@ -268,16 +296,6 @@ class ZMQ_Robot_Server(ABC):
 
         self.current_action = None
         print(f"Robot {self.robot_name} motion halted")
-
-    def on_collision(self, actor0, actor1):
-        """Called when collision is detected involving this robot"""
-        self.collision_detected = True
-        self.collision_actors = f"{actor0} <-> {actor1}"
-        print(f"Robot {self.robot_name} collision detected: {self.collision_actors}   Use 'clear_collision' to resume operation.")
-
-        self.halt_motion()
-        self.current_action = None
-        self.is_moving = False
 
     def update(self):
         """Called every simulation frame to execute robot actions - must be implemented by subclasses"""

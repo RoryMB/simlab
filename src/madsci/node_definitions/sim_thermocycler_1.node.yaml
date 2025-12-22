@@ -1,0 +1,7 @@
+node_name: sim_thermocycler_1
+node_id: 01KCTCZGH4H8M228X98GMEHT22
+node_description: A basic node.
+node_type: device
+module_name: sim_thermocycler
+module_version: 0.0.1
+capabilities: null
