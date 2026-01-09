@@ -1,0 +1,211 @@
+name: Location Manager
+description: A location manager
+manager_id: 01KD2B9DA9KH145B6KHTJ9TTX4
+manager_type: location_manager
+locations:
+- location_name: bio_biometra3_nest
+  location_id: 01KD2CZ4Z76Q73MPFX42Y1MX5A
+  description: Thermocycler Nest
+  representations:
+    pf400:
+    - -0.14252401888370514
+    - 0.1632107889652252
+    - -0.10332811623811722
+    - -1.1150076389312744
+    - 2.7891077995300293
+    - 0
+    - 0
+  resource_template_name: plate_nest
+  resource_template_overrides: {}
+  allow_transfers: true
+- location_name: exchange_deck_high_narrow
+  location_id: 01KD2CZ4Z76Q73MPFX42Y1MX5F
+  description: Exchange deck narrow position
+  representations:
+    pf400:
+    - 0.4321829080581665
+    - 0.13769488036632538
+    - 0.7130301594734192
+    - -1.075421690940857
+    - 0.36238372325897217
+    - 0
+    - 0
+  resource_template_name: plate_nest
+  resource_template_overrides: {}
+  allow_transfers: true
+- location_name: exchange_deck_high_wide
+  location_id: 01KD2CZ4Z76Q73MPFX42Y1MX5E
+  description: Exchange deck wide position
+  representations:
+    pf400:
+    - 0.6705737709999084
+    - 0.13769488036632538
+    - 1.1280133724212646
+    - -0.6996639370918274
+    - 1.1419706344604492
+    - 0
+    - 0
+  resource_template_name: plate_nest
+  resource_template_overrides: {}
+  allow_transfers: true
+- location_name: hidex_geraldine_high_nest
+  location_id: 01KD2CZ4Z76Q73MPFX42Y1MX5C
+  description: Hidex Reader Nest
+  representations:
+    pf400:
+    - -0.7823303937911987
+    - 0.07264269143342972
+    - -0.7316455841064453
+    - -1.0245424509048462
+    - 3.327012777328491
+    - 0
+    - 0
+  resource_template_name: plate_nest
+  resource_template_overrides: {}
+  allow_transfers: true
+- location_name: ot2bioalpha_deck1_wide
+  location_id: 01KD2CZ4Z76Q73MPFX42Y1MX54
+  description: OT-2 Deck 1 Wide
+  representations:
+    pf400:
+    - 0.38454803824424744
+    - 0.14513998210430146
+    - 0.1898307353258133
+    - 1.4468275308609009
+    - -3.2075114250183105
+    - 0.0
+    - 0
+  resource_template_name: plate_nest
+  resource_template_overrides: {}
+  allow_transfers: true
+- location_name: peeler_nest
+  location_id: 01KD2CZ4Z76Q73MPFX42Y1MX58
+  description: Peeler Nest
+  representations:
+    pf400:
+    - -0.7275359630584717
+    - 0.13156265020370483
+    - 0.2995404601097107
+    - 1.450539469718933
+    - -3.32090425491333
+    - 0
+    - 0
+  resource_template_name: plate_nest
+  resource_template_overrides: {}
+  allow_transfers: true
+- location_name: safe_path_biometra3
+  location_id: 01KD2CZ4Z76Q73MPFX42Y1MX5B
+  description: Safe path for thermocycler
+  representations:
+    pf400:
+    - -0.14252401888370514
+    - 0.45315250754356384
+    - -0.10332823544740677
+    - -1.1150076389312744
+    - 2.7891077995300293
+    - 0.0
+    - 0
+  resource_template_name: plate_nest
+  resource_template_overrides: {}
+  allow_transfers: true
+- location_name: safe_path_exchange
+  location_id: 01KD2CZ4Z76Q73MPFX42Y1MX5G
+  description: Safe path for exchange deck
+  representations:
+    pf400:
+    - 0.4321829080581665
+    - 0.4368929922580719
+    - 0.7130301594734192
+    - -1.075421690940857
+    - 0.36238375306129456
+    - 0
+    - 0
+  resource_template_name: plate_nest
+  resource_template_overrides: {}
+  allow_transfers: true
+- location_name: safe_path_hidex
+  location_id: 01KD2CZ4Z76Q73MPFX42Y1MX5D
+  description: Safe path for Hidex
+  representations:
+    pf400:
+    - -0.5422155261039734
+    - 0.2716383635997772
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+  resource_template_name: plate_nest
+  resource_template_overrides: {}
+  allow_transfers: true
+- location_name: safe_path_ot2bioalpha
+  location_id: 01KD2CZ4Z76Q73MPFX42Y1MX55
+  description: Safe path for OT-2 approach
+  representations:
+    pf400:
+    - 0.5400072336196899
+    - 0.3368925869464874
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+  resource_template_name: plate_nest
+  resource_template_overrides: {}
+  allow_transfers: true
+- location_name: safe_path_peeler
+  location_id: 01KD2CZ4Z76Q73MPFX42Y1MX59
+  description: Safe path for peeler
+  representations:
+    pf400:
+    - -0.7274733781814575
+    - 0.4308168292045593
+    - 0.29955071210861206
+    - 1.4504271745681763
+    - -3.321009874343872
+    - 0
+    - 0
+  resource_template_name: plate_nest
+  resource_template_overrides: {}
+  allow_transfers: true
+- location_name: safe_path_sealer
+  location_id: 01KD2CZ4Z76Q73MPFX42Y1MX57
+  description: Safe path for sealer
+  representations:
+    pf400:
+    - -0.40040111541748047
+    - 0.4108368158340454
+    - 0.4006734788417816
+    - 1.4502149820327759
+    - -3.4218459129333496
+    - 0
+    - 0
+  resource_template_name: plate_nest
+  resource_template_overrides: {}
+  allow_transfers: true
+- location_name: sealer_nest
+  location_id: 01KD2CZ4Z76Q73MPFX42Y1MX56
+  description: Sealer Nest
+  representations:
+    pf400:
+    - -0.40044429898262024
+    - 0.11158271878957748
+    - 0.400662362575531
+    - 1.4502944946289062
+    - -3.4217817783355713
+    - 0
+    - 0
+  resource_template_name: plate_nest
+  resource_template_overrides: {}
+  allow_transfers: true
+transfer_capabilities:
+  transfer_templates:
+  - node_name: pf400
+    action: transfer
+    source_argument_name: source
+    target_argument_name: target
+    cost_weight: 1.0
+    additional_args: {}
+    additional_location_args: {}
+  override_transfer_templates: null
+  capacity_cost_config: null

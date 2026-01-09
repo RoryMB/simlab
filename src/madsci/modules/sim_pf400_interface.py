@@ -204,18 +204,6 @@ class SimPF400:
                 "motion_complete": True
             }
 
-    def handle_plate_rotation(self, rotation: str) -> bool:
-        """Handle plate rotation - wide or narrow orientation."""
-        if not rotation or rotation not in ["wide", "narrow"]:
-            return True  # Skip rotation if not specified or invalid
-
-        self.logger.log(f"Handling plate rotation: {rotation}")
-
-        # For simulation, we'll just log the rotation
-        # Real PF400 would adjust gripper orientation
-        self.logger.log(f"Plate orientation set to: {rotation}")
-        return True
-
     def _get_hover_coords(self, coords: list, hover_height: float = 0.1) -> list:
         """Helper to create coordinates directly above a location."""
         # Create a copy so we don't modify the original list object
@@ -225,25 +213,20 @@ class SimPF400:
         hover_coords[1] = hover_coords[1] + hover_height
         return hover_coords
 
-    def transfer(self, source: LocationArgument, target: LocationArgument,
-                 source_approach: Optional[LocationArgument] = None,
-                 target_approach: Optional[LocationArgument] = None,
-                 source_plate_rotation: str = "",
-                 target_plate_rotation: str = "") -> None:
-        """Transfer a plate from source to target location using ZMQ robot control."""
-        self.logger.log(f"Transfer from {source.location} to {target.location}")
-
-        # --- SOURCE SEQUENCE ---
-
+    def pick_plate(
+        self,
+        source: LocationArgument,
+        source_approach: LocationArgument = None,
+        grab_offset: Optional[float] = None,
+        approach_height_offset: Optional[float] = None,
+        grip_width: Optional[int] = None,
+    ) -> bool:
+        """Pick a plate from a source location."""
         # Handle source approach if specified
         if source_approach:
             self.logger.log("Moving to source approach location")
             if not self.move_to_approach_location(source_approach.location if hasattr(source_approach, 'location') else source_approach):
                 raise RuntimeError("Failed to move to source approach location")
-
-        # Handle source plate rotation
-        if not self.handle_plate_rotation(source_plate_rotation):
-            raise RuntimeError("Failed to handle source plate rotation")
 
         # [HACK] Move ABOVE Source (Approach safely)
         hover_source = self._get_hover_coords(source.location)
@@ -261,12 +244,8 @@ class SimPF400:
 
         # Update resource manager - plate picked from source
         if self.resource_client:
-            popped_plate, updated_resource = self.resource_client.pop(
-                resource=source.resource_id
-            )
-            self.resource_client.push(
-                resource=self.gripper_resource_id, child=popped_plate
-            )
+            popped_plate, updated_resource = self.resource_client.pop(resource=source.resource_id)
+            self.resource_client.push(resource=self.gripper_resource_id, child=popped_plate)
 
         # [HACK] Move ABOVE Source (Retract safely)
         hover_source = self._get_hover_coords(source.location)
@@ -274,17 +253,23 @@ class SimPF400:
         if not self.move_to_location_coordinates(hover_source):
             raise RuntimeError("Failed to retract above source")
 
-        # --- TARGET SEQUENCE ---
+        self.logger.log("Picked up plate from source")
+        return True
 
+    def place_plate(
+        self,
+        target: LocationArgument,
+        target_approach: LocationArgument = None,
+        grab_offset: Optional[float] = None,
+        approach_height_offset: Optional[float] = None,
+        open_width: Optional[int] = None,
+    ) -> bool:
+        """Place a plate to a target location."""
         # Handle target approach if specified
         if target_approach:
             self.logger.log("Moving to target approach location")
             if not self.move_to_approach_location(target_approach.location if hasattr(target_approach, 'location') else target_approach):
                 raise RuntimeError("Failed to move to target approach location")
-
-        # Handle target plate rotation
-        if not self.handle_plate_rotation(target_plate_rotation):
-            raise RuntimeError("Failed to handle target plate rotation")
 
         # [HACK] Move ABOVE Target (Approach safely)
         hover_target = self._get_hover_coords(target.location)
@@ -303,9 +288,7 @@ class SimPF400:
 
         # Update resource manager - plate placed at target
         if self.resource_client:
-            popped_plate, updated_resource = self.resource_client.pop(
-                resource=self.gripper_resource_id
-            )
+            popped_plate, updated_resource = self.resource_client.pop(resource=self.gripper_resource_id)
             self.resource_client.push(resource=target.resource_id, child=popped_plate)
 
         # [HACK] Move ABOVE Target (Retract safely)
@@ -314,67 +297,47 @@ class SimPF400:
         if not self.move_to_location_coordinates(hover_target):
             raise RuntimeError("Failed to retract above target")
 
-    def pick_plate(self, source: LocationArgument, source_approach: Optional[LocationArgument] = None) -> bool:
-        """Pick a plate from a source location."""
-        try:
-            # Handle approach if specified
-            if source_approach:
-                if not self.move_to_approach_location(source_approach.location if hasattr(source_approach, 'location') else source_approach):
-                    return False
-
-            # Move to source location
-            if not self.move_to_location_coordinates(source.location):
-                return False
-
-            # Close gripper to pick up plate
-            if not self.close_gripper():
-                return False
-
-            # Update resource manager - plate picked from source
-            if self.resource_client:
-                popped_plate, updated_resource = self.resource_client.pop(
-                    resource=source.resource_id
-                )
-                self.resource_client.push(
-                    resource=self.gripper_resource_id, child=popped_plate
-                )
-
-            self.logger.log("Picked up plate from source")
-            return True
-        except Exception as e:
-            self.logger.log(f"Pick plate error: {str(e)}")
-            return False
-
-    def place_plate(self, target: LocationArgument, target_approach: Optional[LocationArgument] = None) -> None:
-        """Place a plate to a target location."""
-        # Handle approach if specified
-        if target_approach:
-            if not self.move_to_approach_location(target_approach.location if hasattr(target_approach, 'location') else target_approach):
-                raise RuntimeError("Failed to move to approach location")
-
-        # Move to target location
-        if not self.move_to_location_coordinates(target.location):
-            raise RuntimeError("Failed to move to target location")
-
-        # Open gripper to release plate
-        if not self.open_gripper():
-            raise RuntimeError("Failed to open gripper")
-
-        # Update resource manager - plate placed at target
-        if self.resource_client:
-            popped_plate, updated_resource = self.resource_client.pop(
-                resource=self.gripper_resource_id
-            )
-            self.resource_client.push(resource=target.resource_id, child=popped_plate)
-
         self.logger.log("Placed plate at target")
+        return True
 
-    def remove_lid(self, source: LocationArgument, target: LocationArgument,
-                   lid_height: float = 7.0,
-                   source_approach: Optional[LocationArgument] = None,
-                   target_approach: Optional[LocationArgument] = None,
-                   source_plate_rotation: str = "",
-                   target_plate_rotation: str = "") -> None:
+    def transfer(
+        self,
+        source: LocationArgument,
+        target: LocationArgument,
+        source_approach: Optional[LocationArgument] = None,
+        target_approach: Optional[LocationArgument] = None,
+        source_plate_rotation: str = "",
+        target_plate_rotation: str = "",
+        rotation_deck: Optional[LocationArgument] = None,
+        grab_offset: Optional[float] = None,
+        source_approach_height_offset: Optional[float] = None,
+        target_approach_height_offset: Optional[float] = None,
+    ) -> bool:
+        """Transfer a plate from source to target location using ZMQ robot control."""
+        self.logger.log(f"Transfer from {source.location} to {target.location}")
+
+        self.pick_plate(
+            source=source,
+            source_approach=source_approach,
+        )
+
+        self.place_plate(
+            target=target,
+            target_approach=target_approach,
+        )
+
+        return True
+
+    def remove_lid(
+        self,
+        source: LocationArgument,
+        target: LocationArgument,
+        lid_height: float = 7.0,
+        source_approach: Optional[LocationArgument] = None,
+        target_approach: Optional[LocationArgument] = None,
+        source_plate_rotation: str = "",
+        target_plate_rotation: str = "",
+    ) -> None:
         """Remove a lid from a plate."""
         self.logger.log(f"Removing lid with height {lid_height} steps")
 
@@ -389,12 +352,16 @@ class SimPF400:
             target_plate_rotation=target_plate_rotation
         )
 
-    def replace_lid(self, source: LocationArgument, target: LocationArgument,
-                    lid_height: float = 7.0,
-                    source_approach: Optional[LocationArgument] = None,
-                    target_approach: Optional[LocationArgument] = None,
-                    source_plate_rotation: str = "",
-                    target_plate_rotation: str = "") -> None:
+    def replace_lid(
+        self,
+        source: LocationArgument,
+        target: LocationArgument,
+        lid_height: float = 7.0,
+        source_approach: Optional[LocationArgument] = None,
+        target_approach: Optional[LocationArgument] = None,
+        source_plate_rotation: str = "",
+        target_plate_rotation: str = "",
+    ) -> None:
         """Replace a lid on a plate."""
         self.logger.log(f"Replacing lid with height {lid_height} steps")
 

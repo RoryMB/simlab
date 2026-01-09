@@ -17,7 +17,7 @@ If you wish to personally manage each environment, the steps of `setup.sh` are e
 # In `environments/isaacsim` or `environments/madsci`
 
 # Create the virtual environment (only once)
-# NOTE: isaacsim requires Python 3.10: `uv venv -p python@3.10`
+# NOTE: isaacsim requires a specific version of Python: `uv venv -p python@3.11`
 uv venv
 
 # Activate the newly created environment
@@ -31,6 +31,12 @@ source .venv/bin/activate
 
 # Deactivate the environment
 deactivate
+```
+
+Isaac Sim requires accepting the EULA and a lengthy startup on first run after installing/updating the isaacsim packages.
+```bash
+./activate-isaacsim.sh
+isaacsim
 ```
 
 ## Usage

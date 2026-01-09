@@ -3,21 +3,23 @@ import time
 from pathlib import Path
 from madsci.client.workcell_client import WorkcellClient
 from madsci.client.resource_client import ResourceClient
+from madsci.client.location_client import LocationClient
 from madsci.common.types.resource_types import Asset
 from madsci.common.types.workflow_types import WorkflowDefinition
 from madsci.common.exceptions import WorkflowFailedError
 
 # --- Configuration ---
-WORKCELL_URL = "http://localhost:8015"
-RESOURCE_URL = "http://localhost:8013"
+RESOURCE_SERVER_URL = "http://localhost:8013"
+WORKCELL_SERVER_URL = "http://localhost:8015"
+LOCATION_SERVER_URL = "http://localhost:8016"
 # Default to your PCR workflow if no argument is provided
 WORKFLOW_PATH = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("workflow.yaml")
 
-def setup_pcr_initial_state(rc: ResourceClient, wc: WorkcellClient):
+def setup_pcr_initial_state(rc: ResourceClient, wc: WorkcellClient, lc: LocationClient):
     """Ensures the lab is in the correct state to run the PCR workflow."""
     print("--- Setting up PCR Workflow state ---")
 
-    locations = wc.get_locations()
+    locations = lc.get_locations()
 
     # 1. Identify the starting location based on the workflow (OT-2 Deck)
     start_loc_name = "ot2bioalpha_deck1_wide"
@@ -78,17 +80,14 @@ def setup_pcr_initial_state(rc: ResourceClient, wc: WorkcellClient):
 def main():
     """Main function to set up test state and submit the workflow."""
     print("Initializing MADSci clients for PCR Workflow...")
-    wc_client = WorkcellClient(workcell_server_url=WORKCELL_URL)
-    rc_client = ResourceClient(url=RESOURCE_URL)
+    rc_client = ResourceClient(resource_server_url=RESOURCE_SERVER_URL)
+    wc_client = WorkcellClient(workcell_server_url=WORKCELL_SERVER_URL)
+    lc_client = LocationClient(location_server_url=LOCATION_SERVER_URL)
 
     print("Waiting for services to be ready...")
     time.sleep(5)
 
-    try:
-        setup_pcr_initial_state(rc_client, wc_client)
-    except Exception as e:
-        print(f"\n❌ Setup Failed: {e}")
-        sys.exit(1)
+    setup_pcr_initial_state(rc_client, wc_client, lc_client)
 
     # Load the workflow definition
     print(f"\nLoading workflow definition from: {WORKFLOW_PATH}")
@@ -102,13 +101,30 @@ def main():
     for i, step in enumerate(workflow_definition.steps, 1):
         print(f"  {i}. {step.name} ({step.action})")
 
+    # Link the narrow and wide exchange deck locations to share the same resource
+    print("\nLinking exchange deck locations to share resources...")
+    wide_location = lc_client.get_location_by_name("exchange_deck_high_wide")
+    narrow_location = lc_client.get_location_by_name("exchange_deck_high_narrow")
+
+    if wide_location.resource_id:
+        print(f"Linking Narrow Location ({narrow_location.location_id}) to Resource ({wide_location.resource_id})...")
+        lc_client.attach_resource(
+            location_id=narrow_location.location_id,
+            resource_id=wide_location.resource_id
+        )
+        print("Exchange deck locations linked successfully")
+    else:
+        print("No resource currently at wide location, skipping link")
+
     # Submit the workflow to the workcell manager
     print("\nSubmitting PCR workflow...")
 
     try:
         workflow_run = wc_client.submit_workflow(
-            workflow=workflow_definition,
+            workflow_definition=workflow_definition,
+            file_inputs={"ot2_protocol_script": Path("ot2.py")},
             await_completion=True,
+            prompt_on_error=False,
         )
     except WorkflowFailedError as e:
         print(f"\n❌ Workflow Failed: {e}")

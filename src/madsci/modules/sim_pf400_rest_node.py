@@ -4,6 +4,7 @@ from typing import Annotated, Optional
 
 from madsci.common.types.action_types import ActionFailed, ActionResult, ActionSucceeded
 from madsci.common.types.auth_types import OwnershipInfo
+from madsci.common.types.resource_types import Slot
 from madsci.common.types.location_types import LocationArgument
 from madsci.common.types.resource_types.definitions import SlotResourceDefinition
 from madsci.node_module.helpers import action
@@ -32,25 +33,42 @@ class SimPF400Node(PF400Node):
     def startup_handler(self) -> None:
         """Called to (re)initialize the node. Should be used to open connections to devices or initialize any other resources."""
 
-        if self.resource_client:
-            self.resource_owner = OwnershipInfo(node_id=self.node_definition.node_id)
-            self.gripper_resource = self.resource_client.init_resource(
-                SlotResourceDefinition(
-                    resource_name="pf400_gripper",
-                )
-            )
-        else:
-            self.resource_client = None
-            self.gripper_resource = None
+        gripper_slot = Slot(
+            resource_name="pf400_gripper",
+            resource_class="PF400Gripper",
+            capacity=1,
+            attributes={
+                "gripper_type": "finger",
+                "payload_kg": 0.5,
+                "payload_lb": 1.1,
+                "max_grip_force_newton": 23.0,
+                "grip_width_range": [80.0, 140.0],
+                "description": "PF400 robot gripper slot",
+            },
+        )
+
+        self.resource_client.init_template(
+            resource=gripper_slot,
+            template_name="pf400_gripper",
+            description="Template for PF400 robot gripper slot. Used to track what the robot is currently holding.",
+            required_overrides=["resource_name"],
+            tags=["pf400", "gripper", "slot"],
+            created_by=self.node_definition.node_id,
+            version="1.0.0",
+        )
+
+        self.gripper_resource = self.resource_client.create_resource_from_template(
+            template_name="pf400_gripper",
+            resource_name=f"{self.node_definition.node_name}.gripper",
+            add_to_database=True,
+        )
 
         if self.config.pf400_ip is None:
             raise ValueError("PF400 IP address is not set in the configuration.")
         self.pf400_interface = SimPF400(
             zmq_server_url=self.config.zmq_server_url,
             resource_client=self.resource_client,
-            gripper_resource_id=self.gripper_resource.resource_id
-            if self.gripper_resource
-            else None,
+            gripper_resource_id=self.gripper_resource.resource_id,
         )
         self.pf400_interface.initialize_robot()
 

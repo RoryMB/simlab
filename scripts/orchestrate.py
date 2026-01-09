@@ -72,6 +72,7 @@ class ProcessManager:
         process: asyncio.subprocess.Process,
         ready_keyword: str,
         extremely_verbose: bool,
+        quiet: bool,
     ):
         """Monitor process output for ready keyword and general logging"""
         while True:
@@ -81,11 +82,12 @@ class ProcessManager:
 
             line_str = line.decode().strip()
             if name.startswith("node_") or extremely_verbose or (not self.shutdown_event.is_set() and name in self.ready_flags):
-                logger.info(f"[{name.upper()}] {line_str}")
+            # if extremely_verbose or (not self.shutdown_event.is_set() and name in self.ready_flags):
+                if not quiet: logger.info(f"[{name.upper()}] {line_str}")
 
             # Check for ready keyword
             if ready_keyword and ready_keyword in line_str and name not in self.ready_flags:
-                logger.info(f"{name} is ready!")
+                if not quiet: logger.info(f"{name} is ready!")
                 self.ready_flags.add(name)
 
     async def wait_for_ready(self, name: str, timeout: int = 120):
@@ -170,7 +172,7 @@ async def main():
 
     parser.add_argument('--isaac-ready-keyword', default='Simulation App Startup Complete', help='Keyword to detect Isaac Sim readiness')
     parser.add_argument('--madsci-ready-keyword', default='Uvicorn running on http://localhost:8015', help='Keyword to detect MADSci readiness')
-    parser.add_argument('--nodes-ready-keyword', default='EventType.NODE_START', help='Keyword to detect robot nodes readiness')
+    parser.add_argument('--nodes-ready-keyword', default='node_start', help='Keyword to detect robot nodes readiness')
 
     parser.add_argument('--timeout', type=int, default=60, help='How long to wait for each process to initialize')
     parser.add_argument('--extremely-verbose', action='store_true', help='Show all output from all processes')
@@ -182,7 +184,7 @@ async def main():
 
     isaac_cmd_with_redirect = f"({args.isaac_cmd}) 2>&1"
     isaac_process = await pm.start_process('isaac', isaac_cmd_with_redirect)
-    asyncio.create_task(pm.monitor_output('isaac', isaac_process, args.isaac_ready_keyword, args.extremely_verbose))
+    asyncio.create_task(pm.monitor_output('isaac', isaac_process, args.isaac_ready_keyword, args.extremely_verbose, False))
 
     # Let Isaac have an extra moment to stabilize
     await asyncio.sleep(20)
@@ -190,11 +192,11 @@ async def main():
     for i, node_cmd in enumerate(args.node_cmd):
         node_cmd_with_redirect = f"({node_cmd}) 2>&1"
         node_process = await pm.start_process(f'node_{i}', node_cmd_with_redirect)
-        asyncio.create_task(pm.monitor_output(f'node_{i}', node_process, args.nodes_ready_keyword, args.extremely_verbose))
+        asyncio.create_task(pm.monitor_output(f'node_{i}', node_process, args.nodes_ready_keyword, args.extremely_verbose, False))
 
     madsci_cmd_with_redirect = f"({args.madsci_cmd}) 2>&1"
     madsci_process = await pm.start_process('madsci', madsci_cmd_with_redirect)
-    asyncio.create_task(pm.monitor_output('madsci', madsci_process, args.madsci_ready_keyword, args.extremely_verbose))
+    asyncio.create_task(pm.monitor_output('madsci', madsci_process, args.madsci_ready_keyword, args.extremely_verbose, False))
 
     # Wait for Isaac, all nodes, and MADSci to be ready
     try:
@@ -216,7 +218,7 @@ async def main():
     workflow_cmd_with_redirect = f"({args.workflow_cmd}) 2>&1"
     workflow_process = await pm.start_process('workflow', workflow_cmd_with_redirect)
     pm.ready_flags.add('workflow')
-    asyncio.create_task(pm.monitor_output('workflow', workflow_process, None, args.extremely_verbose))
+    asyncio.create_task(pm.monitor_output('workflow', workflow_process, None, args.extremely_verbose, False))
 
     # Monitor system health and wait for shutdown signal
     while not pm.shutdown_event.is_set():

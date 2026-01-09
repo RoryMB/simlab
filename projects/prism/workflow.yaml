@@ -3,12 +3,16 @@ metadata:
   author: PRISM
   info: Automated PCR workflow with OT-2 liquid handling, sealing, thermocycling, peeling, and Hidex assay
   version: '1.0'
+parameters:
+- key: ot2_protocol_script
+  parameter_type: file_input
+  description: OT-2 protocol script for liquid handling
 steps:
 - name: Execute OT-2 liquid handling protocol
   node: ot2
   action: run_protocol
   files:
-    protocol: /home/rmbutler/simlab/projects/prism/ot2.py
+    protocol: ot2_protocol_script
 - name: Transfer plate from OT-2 (wide) to exchange (wide)
   node: pf400
   action: transfer

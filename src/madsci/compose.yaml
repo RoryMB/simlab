@@ -2,7 +2,7 @@ name: simlab
 
 # * Common configuration
 x-madsci-service: &madsci-service
-  image: ghcr.io/ad-sdl/madsci:dev_ryan
+  image: ghcr.io/ad-sdl/madsci:v0.6.0
   environment:
     - USER_ID=${USER_ID:-1000}
     - GROUP_ID=${GROUP_ID:-1000}
@@ -51,7 +51,7 @@ services:
   lab_manager:
     <<: *madsci-service
     container_name: lab_manager
-    image: ghcr.io/ad-sdl/madsci_dashboard:dev_ryan
+    image: ghcr.io/ad-sdl/madsci_dashboard:v0.6.0
     command: python -m madsci.squid.lab_server
     depends_on:
       - event_manager
@@ -72,6 +72,15 @@ services:
       - postgres
       - event_manager
 
+  location_manager:
+    <<: *madsci-service
+    container_name: location_manager
+    command: python -m madsci.location_manager.location_server
+    depends_on:
+      - redis
+      - event_manager
+      - resource_manager
+
   data_manager:
     <<: *madsci-service
     container_name: data_manager
@@ -85,8 +94,9 @@ services:
     container_name: workcell_manager
     command: python -m madsci.workcell_manager.workcell_server --cold_start_delay 0 --node_update_interval 3 --scheduler_update_interval 3
     depends_on:
-      - redis
       - mongodb
-      - resource_manager
-      - event_manager
+      - redis
       - postgres
+      - event_manager
+      - resource_manager
+      - location_manager
