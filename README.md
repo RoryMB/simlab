@@ -22,12 +22,18 @@ This PhD research project integrates Isaac Sim (NVIDIA's 3D simulation software)
 
 ### Environment Setup
 
-This project uses two separate UV-managed virtual environments. Initial setup:
+This project uses three separate UV-managed virtual environments. Initial setup:
 
 ```bash
 cd environments/isaacsim && ./setup.sh && cd ../..
 cd environments/madsci && ./setup.sh && cd ../..
+cd environments/usd && ./setup.sh && cd ../..
 ```
+
+**Environments:**
+- **isaacsim**: Isaac Sim 5.1.0 with physics simulation and rendering
+- **madsci**: MADSci laboratory orchestration framework with custom modules
+- **usd**: USD (Universal Scene Description) command-line tools for asset inspection and debugging
 
 For detailed environment management, see [environments/README.md](environments/README.md).
 
@@ -68,7 +74,8 @@ For detailed technical specifications, see [src/README.md](src/README.md).
 simlab/
 ├── environments/     # UV-managed virtual environments
 │   ├── isaacsim/         # Isaac Sim environment setup scripts
-│   └── madsci/           # MADSci custom packages and environment setup scripts
+│   ├── madsci/           # MADSci custom packages and environment setup scripts
+│   └── usd/              # USD tools built from source for asset inspection
 ├── assets/           # 3D simulation assets
 │   ├── scenes/           # Laboratory layouts
 │   ├── architecture/     # Structural elements (walls, floors, ceilings)
