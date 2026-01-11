@@ -9,7 +9,7 @@ from zmq_robot_server import ZMQ_Robot_Server
 import utils
 
 
-CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve())
+CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../../assets").resolve())
 
 class ZMQ_Hidex_Server(ZMQ_Robot_Server):
     """Handles ZMQ communication for Hidex plate reader device"""

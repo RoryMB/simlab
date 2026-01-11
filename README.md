@@ -92,14 +92,15 @@ deactivate
 
 `python tools/orchestrate.py` – designed for agents like Claude Code.
 
-See [src/README.md](src/README.md) for manual operation and technical details.
+See [core/README.md](core/README.md) for manual operation and technical details.
 
 ## Architecture Overview
 
 ### Core Components
 
-- **Isaac Sim Integration** (`src/isaacsim/`): 3D simulation environment with ZMQ communication interface to MADSci
-- **MADSci Integration** (`src/madsci/`): Laboratory orchestration with custom robot nodes and ZMQ communication to Isaac Sim
+- **Isaac Sim Integration** (`core/common/`): Shared utilities, simulation scripts, and ZMQ communication interface
+- **MADSci Integration** (`core/madsci/`): Laboratory orchestration configuration and services
+- **Robot Modules** (`core/robots/`): Per-robot directories containing both Isaac Sim ZMQ servers and MADSci node files
 
 ### Communication Pattern
 
@@ -116,7 +117,7 @@ The system uses ZMQ REQ-REP pattern for Isaac Sim ↔ MADSci communication:
 4. MADSci coordinates robot nodes to execute workflow steps
 5. Robot nodes communicate with Isaac Sim via ZMQ for physical simulation
 
-For detailed technical specifications, see [src/README.md](src/README.md).
+For detailed technical specifications, see [core/README.md](core/README.md).
 
 ## Project Structure
 
@@ -126,8 +127,18 @@ simlab/
 ├── .venv-madsci/     # MADSci environment (Python 3.12, robotics modules)
 ├── forks/            # Third-party library forks with custom modifications
 │   └── opentrons/        # Opentrons library fork (patched for numpy 2.0 compatibility)
-├── tools/            # Build tools and utilities
-│   └── usd/              # USD command-line tools built from source
+├── core/             # Core implementation
+│   ├── common/           # Shared utilities (run.py, utils.py, primary_functions.py)
+│   ├── madsci/           # MADSci infrastructure (compose.yaml, run_madsci.sh, config/)
+│   └── robots/           # Per-robot directories
+│       ├── ur5e/             # UR5e arm (zmq_ur5e_server.py, sim_ur5e_*.py, run_node_ur5e.sh)
+│       ├── ot2/              # Opentrons OT-2 liquid handler
+│       ├── pf400/            # Brooks PF400 plate handler
+│       ├── hidex/            # Hidex plate reader
+│       ├── sealer/           # Plate sealer
+│       ├── peeler/           # Plate peeler
+│       ├── thermocycler/     # Thermocycler
+│       └── todo/             # Todo robot (placeholder)
 ├── assets/           # 3D simulation assets
 │   ├── scenes/           # Laboratory layouts
 │   ├── architecture/     # Structural elements (walls, floors, ceilings)
@@ -135,9 +146,8 @@ simlab/
 │   ├── labware/          # Experimental apparatus (tips, plates, reagents)
 │   ├── props/            # Environmental objects
 │   └── tools/            # Asset processing tools (.blend to .usd conversion)
-├── src/              # Core implementation source
-│   ├── isaacsim/         # Isaac Sim robot control and core simulation scripts
-│   └── madsci/           # MADSci robot nodes and config files
+├── tools/            # User tools and utilities for the command line
+│   └── usd/              # USD command-line tools built from source
 ├── projects/         # Self-contained experimental projects
 │   ├── prototyping/      # Development and testing workflows
 │   └── [custom]          # Any custom workflows

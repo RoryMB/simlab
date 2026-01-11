@@ -7,7 +7,7 @@ from pxr import Gf
 from zmq_robot_server import ZMQ_Robot_Server
 
 
-CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve())
+CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../../assets").resolve())
 
 class ZMQ_PF400_Server(ZMQ_Robot_Server):
     """Handles ZMQ communication for PF400 robot with integrated control"""

@@ -1,7 +1,7 @@
 from pathlib import Path
 from zmq_robot_server import ZMQ_Robot_Server
 
-CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve())
+CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../../assets").resolve())
 
 class ZMQ_OT2_Server(ZMQ_Robot_Server):
     """Handles ZMQ communication for OT-2 robot with opentrons-specific commands"""

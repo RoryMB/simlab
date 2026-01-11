@@ -3,9 +3,6 @@ from isaacsim import SimulationApp
 # This MUST be run before importing ANYTHING else
 simulation_app = SimulationApp({"headless": False})
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent / "../../src/isaacsim"))
 
 import numpy as np
 

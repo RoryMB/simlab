@@ -92,10 +92,10 @@ Claude Code can use the following orchestration script to run all terminals comm
 # Any number of node commands can be given.
 # Only one Isaac Sim command, one MADSci command, and one workflow command can be given.
 python tools/orchestrate.py \
-    --node-cmd "source activate-madsci.sh && cd src/madsci/ && ./run_node_ur5e.sh" \
-    --node-cmd "source activate-madsci.sh && cd src/madsci/ && ./run_node_ot2.sh" \
-    --isaac-cmd "source activate-isaacsim.sh && cd src/isaacsim/ && python run.py" \
-    --madsci-cmd "cd src/madsci/ && ./run_madsci.sh" \
+    --node-cmd "source activate-madsci.sh && cd core/robots/ur5e/ && ./run_node_ur5e.sh" \
+    --node-cmd "source activate-madsci.sh && cd core/robots/ot2/ && ./run_node_ot2.sh" \
+    --isaac-cmd "source activate-isaacsim.sh && cd core/common/ && python run.py" \
+    --madsci-cmd "cd core/madsci/ && ./run_madsci.sh" \
     --workflow-cmd "source activate-madsci.sh && cd projects/prototyping/ && python run_workflow.py workflow.yaml" \
 ```
 
@@ -121,7 +121,7 @@ Humans should run Isaac Sim scripts like this:
 
 ```bash
 . activate-isaacsim.sh
-cd src/isaacsim/
+cd core/common/
 python run.py
 ```
 
@@ -144,20 +144,20 @@ This pattern works for any Isaac Sim script - just replace the script path.
 ### Terminal 2: Start MADSci Services (Human only)
 ```bash
 # This terminal just handles docker containers, and thus does not need an environment.
-cd src/madsci/
+cd core/madsci/
 ./run_madsci.sh
 ```
 
 ### Terminal 3: Start Robot Node (Human only)
 ```bash
 . activate-madsci.sh
-cd src/madsci/
-./run_node_X.sh
+cd core/robots/ur5e/  # or ot2/, pf400/, etc.
+./run_node_ur5e.sh    # or run_node_ot2.sh, run_node_pf400.sh, etc.
 ```
 
 ### Terminal 4: Submit Workflow (Human or AI)
 ```bash
 . activate-madsci.sh
-cd src/
-python run_workflow.py
+cd projects/prototyping/
+python run_workflow.py workflow.yaml
 ```

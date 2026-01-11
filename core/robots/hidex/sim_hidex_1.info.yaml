@@ -1,8 +1,8 @@
-node_name: sim_peeler_1
-node_id: 01KCTCZGH0Z2QSASSCN4PD19MW
+node_name: sim_hidex_1
+node_id: 01KCTCZGM7SPFCMKVTZ0ZJW86P
 node_description: A basic node.
 node_type: device
-module_name: sim_peeler
+module_name: sim_hidex
 module_version: 0.0.1
 capabilities:
   get_info: true
@@ -24,9 +24,9 @@ capabilities:
   - unlock
 node_url: null
 actions:
-  peel:
-    name: peel
-    description: Peel a plate seal
+  open:
+    name: open
+    description: Open Hidex drawer
     args: {}
     locations: {}
     files: {}
@@ -37,13 +37,45 @@ actions:
     accepts_var_kwargs: false
     var_args_schema: null
     var_kwargs_schema: null
+  close:
+    name: close
+    description: Close Hidex drawer
+    args: {}
+    locations: {}
+    files: {}
+    results: {}
+    blocking: true
+    asynchronous: true
+    accepts_var_args: false
+    accepts_var_kwargs: false
+    var_args_schema: null
+    var_kwargs_schema: null
+  run_assay:
+    name: run_assay
+    description: Run a plate reader assay
+    args:
+      assay_name:
+        name: assay_name
+        description: Name of the assay to run
+        argument_type: str
+        required: true
+        default: null
+    locations: {}
+    files: {}
+    results: {}
+    blocking: true
+    asynchronous: true
+    accepts_var_args: false
+    accepts_var_kwargs: false
+    var_args_schema: null
+    var_kwargs_schema: null
 config:
-  node_definition: node_definitions/sim_peeler_1.node.yaml
+  node_definition: ./sim_hidex_1.node.yaml
   node_info_path: null
   update_node_files: true
   status_update_interval: 2.0
   state_update_interval: 2.0
-  node_url: http://127.0.0.1:8022/
+  node_url: http://127.0.0.1:8024/
   uvicorn_kwargs:
     limit_concurrency: 10
   enable_rate_limiting: true
@@ -52,9 +84,9 @@ config:
   rate_limit_short_requests: 50
   rate_limit_short_window: 1
   rate_limit_cleanup_interval: 300
-  zmq_server_url: tcp://localhost:5559
+  zmq_server_url: tcp://localhost:5561
 config_schema:
-  description: Configuration for the peeler node module.
+  description: Configuration for the Hidex node module.
   properties:
     node_definition:
       anyOf:
@@ -159,8 +191,8 @@ config_schema:
       title: Rate Limit Cleanup Interval
       type: integer
     zmq_server_url:
-      default: tcp://localhost:5559
+      default: tcp://localhost:5561
       title: Zmq Server Url
       type: string
-  title: SimPeelerNodeConfig
+  title: SimHidexNodeConfig
   type: object

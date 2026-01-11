@@ -1,8 +1,8 @@
-node_name: sim_sealer_1
-node_id: 01KCTCZGQ8QB50DN3KPN60A4A3
+node_name: sim_peeler_1
+node_id: 01KCTCZGH0Z2QSASSCN4PD19MW
 node_description: A basic node.
 node_type: device
-module_name: sim_sealer
+module_name: sim_peeler
 module_version: 0.0.1
 capabilities:
   get_info: true
@@ -24,9 +24,9 @@ capabilities:
   - unlock
 node_url: null
 actions:
-  seal:
-    name: seal
-    description: Seal a plate
+  peel:
+    name: peel
+    description: Peel a plate seal
     args: {}
     locations: {}
     files: {}
@@ -38,12 +38,12 @@ actions:
     var_args_schema: null
     var_kwargs_schema: null
 config:
-  node_definition: node_definitions/sim_sealer_1.node.yaml
+  node_definition: ./sim_peeler_1.node.yaml
   node_info_path: null
   update_node_files: true
   status_update_interval: 2.0
   state_update_interval: 2.0
-  node_url: http://127.0.0.1:8021/
+  node_url: http://127.0.0.1:8022/
   uvicorn_kwargs:
     limit_concurrency: 10
   enable_rate_limiting: true
@@ -52,9 +52,9 @@ config:
   rate_limit_short_requests: 50
   rate_limit_short_window: 1
   rate_limit_cleanup_interval: 300
-  zmq_server_url: tcp://localhost:5558
+  zmq_server_url: tcp://localhost:5559
 config_schema:
-  description: Configuration for the sealer node module.
+  description: Configuration for the peeler node module.
   properties:
     node_definition:
       anyOf:
@@ -159,8 +159,8 @@ config_schema:
       title: Rate Limit Cleanup Interval
       type: integer
     zmq_server_url:
-      default: tcp://localhost:5558
+      default: tcp://localhost:5559
       title: Zmq Server Url
       type: string
-  title: SimSealerNodeConfig
+  title: SimPeelerNodeConfig
   type: object

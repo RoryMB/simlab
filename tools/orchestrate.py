@@ -9,10 +9,10 @@ Coordinates the startup and shutdown of the 4-terminal Simlab system:
 
 Usage:
 python orchestrate.py \
-    --node-cmd "source activate-madsci.sh && cd src/madsci/ && ./run_node_ur5e.sh" \
-    --node-cmd "source activate-madsci.sh && cd src/madsci/ && ./run_node_ot2.sh" \
-    --isaac-cmd "source activate-isaacsim.sh && cd src/isaacsim/ && python run.py" \
-    --madsci-cmd "cd src/madsci/ && ./run_madsci.sh" \
+    --node-cmd "source activate-madsci.sh && cd core/robots/ur5e/ && ./run_node_ur5e.sh" \
+    --node-cmd "source activate-madsci.sh && cd core/robots/ot2/ && ./run_node_ot2.sh" \
+    --isaac-cmd "source activate-isaacsim.sh && cd core/common/ && python run.py" \
+    --madsci-cmd "cd core/madsci/ && ./run_madsci.sh" \
     --workflow-cmd "source activate-madsci.sh && cd projects/prototyping/ && python run_workflow.py workflow.yaml" \
     --timeout 120
 

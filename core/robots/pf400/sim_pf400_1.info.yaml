@@ -238,7 +238,7 @@ actions:
     var_args_schema: null
     var_kwargs_schema: null
 config:
-  node_definition: node_definitions/sim_pf400_1.node.yaml
+  node_definition: ./sim_pf400_1.node.yaml
   node_info_path: null
   update_node_files: true
   status_update_interval: 2.0

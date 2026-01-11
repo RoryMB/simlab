@@ -8,15 +8,15 @@ from zmq_robot_server import ZMQ_Robot_Server
 import utils
 
 
-CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve())
+CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../../assets").resolve())
 
-class ZMQ_Peeler_Server(ZMQ_Robot_Server):
-    """Handles ZMQ communication for Peeler device"""
+class ZMQ_Sealer_Server(ZMQ_Robot_Server):
+    """Handles ZMQ communication for Sealer device"""
 
     def __init__(self, simulation_app, robot, robot_prim_path, robot_name: str, port: int):
         super().__init__(simulation_app, robot, robot_prim_path, robot_name, port)
 
-        # Peeler raycast configuration
+        # Sealer raycast configuration
         self.raycast_direction = Gf.Vec3d(0, 0, 1)  # Upward
         self.raycast_distance = 0.03  # 3cm reach
 
@@ -24,13 +24,13 @@ class ZMQ_Peeler_Server(ZMQ_Robot_Server):
         """Handle incoming ZMQ command"""
         action = request.get("action", "")
 
-        if action == "peel":
-            return self.execute_peel()
+        if action == "seal":
+            return self.execute_seal()
         else:
             return self.create_error_response(f"Unknown action: {action}")
 
-    def execute_peel(self):
-        """Execute peel operation - check for plate presence"""
+    def execute_seal(self):
+        """Execute seal operation - check for plate presence"""
         # Get raycast info
         world_position, world_direction = self._get_end_effector_raycast_info('pointer')
 
@@ -38,11 +38,11 @@ class ZMQ_Peeler_Server(ZMQ_Robot_Server):
         hit_prim = self.raycast(world_position, world_direction, self.raycast_distance, self.robot_prim_path)
 
         if hit_prim:
-            print(f"Robot {self.robot_name} peel operation (plate detected)")
-            return self.create_success_response("peel operation completed", plate_detected=True)
+            print(f"Robot {self.robot_name} seal operation (plate detected)")
+            return self.create_success_response("seal operation completed", plate_detected=True)
         else:
-            print(f"Robot {self.robot_name} peel operation failed (no plate detected)")
-            return self.create_error_response("No plate detected at peeler location")
+            print(f"Robot {self.robot_name} seal operation failed (no plate detected)")
+            return self.create_error_response("No plate detected at sealer location")
 
     def _get_end_effector_raycast_info(self, end_effector_name: str):
         """Transform end effector prim into world position and raycast direction"""
@@ -67,5 +67,5 @@ class ZMQ_Peeler_Server(ZMQ_Robot_Server):
         return world_position, world_direction
 
     def update(self):
-        """Called every simulation frame - no continuous actions needed for peeler"""
+        """Called every simulation frame - no continuous actions needed for sealer"""
         pass
