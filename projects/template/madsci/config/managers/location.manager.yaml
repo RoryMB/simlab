@@ -1,0 +1,48 @@
+# Location Manager Configuration
+# ------------------------------
+# This file defines physical locations in your lab and how each robot
+# reaches them (via joint positions or coordinates).
+#
+# Customize this file for your project:
+# - Define locations relevant to your lab layout
+# - Each location has "representations" mapping robot names to joint positions
+# - Locations are referenced by name in workflow.yaml files
+#
+# The transfer_capabilities section defines which robots can transfer
+# items between locations.
+
+name: Location Manager
+description: A location manager
+manager_id: 01KD2B9DA9KH145B6KHTJ9TTX4
+manager_type: location_manager
+
+locations:
+  # Example location definition:
+  # - location_name: exchange_deck
+  #   location_id: 01EXAMPLE000000000000001
+  #   description: Exchange deck for plate transfers
+  #   representations:
+  #     pf400:
+  #       - 0.123  # Joint 1 position (radians)
+  #       - 0.456  # Joint 2 position
+  #       - 0.789  # Joint 3 position
+  #       - 0.0    # Joint 4 position
+  #       - 0.0    # Joint 5 position
+  #       - 0.0    # Gripper position
+  #       - 0.0    # Additional axis
+  #   resource_template_name: plate_nest
+  #   resource_template_overrides: {}
+  #   allow_transfers: true
+
+transfer_capabilities:
+  transfer_templates:
+    # Example transfer capability:
+    # - node_name: pf400
+    #   action: transfer
+    #   source_argument_name: source
+    #   target_argument_name: target
+    #   cost_weight: 1.0
+    #   additional_args: {}
+    #   additional_location_args: {}
+  override_transfer_templates: null
+  capacity_cost_config: null

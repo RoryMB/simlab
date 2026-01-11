@@ -1,0 +1,23 @@
+# Workcell Configuration
+# ----------------------
+# This file defines which robot nodes are available in this project's workcell.
+# Each node entry maps a logical name to the node's REST API URL.
+#
+# Customize this file for your project:
+# - Add/remove nodes based on which robots your project uses
+# - Node names should match what you use in workflow.yaml files
+# - URLs point to the robot node REST servers (run_node_*.sh scripts)
+
+name: Workcell
+manager_type: workcell_manager
+manager_id: 01JK7069DXAKAMWE0PDX6EY1PC
+description: A MADSci workcell.
+
+nodes:
+  # Example nodes - uncomment and modify as needed:
+  # ot2: http://127.0.0.1:8019/
+  # pf400: http://127.0.0.1:8020/
+  # sealer: http://127.0.0.1:8021/
+  # peeler: http://127.0.0.1:8022/
+  # thermocycler: http://127.0.0.1:8023/
+  # hidex: http://127.0.0.1:8024/

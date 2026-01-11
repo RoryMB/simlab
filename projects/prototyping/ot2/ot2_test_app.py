@@ -125,7 +125,7 @@ class OT2TestApplication:
             print("   - Look for 'ot2_1 ZMQ server listening on port 5556' message")
             print("")
             print("2. MADSCI SETUP:")
-            print("   - Check MADSci services: cd core/madsci && ./run_madsci.sh")
+            print("   - Check MADSci services: cd projects/<project>/madsci && ./run_madsci.sh")
             print("   - Verify OT-2 node: cd core/robots/ot2 && ./run_node_ot2.sh")
             print("   - Check node status at http://127.0.0.1:8019/status")
             print("   - Verify workcell at http://localhost:8015")

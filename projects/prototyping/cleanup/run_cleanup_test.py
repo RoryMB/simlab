@@ -224,7 +224,7 @@ def main():
         print("     * PF400 on port 5557")
         print("")
         print("2. MADSCI SERVICES:")
-        print("   - Check MADSci services: cd core/madsci && ./run_madsci.sh")
+        print("   - Check MADSci services: cd projects/<project>/madsci && ./run_madsci.sh")
         print("   - Verify all robot nodes are running:")
         print("     * UR5e node: cd core/robots/ur5e && ./run_node_ur5e.sh (http://127.0.0.1:8018/)")
         print("     * PF400 node: cd core/robots/pf400 && ./run_node_pf400.sh (http://127.0.0.1:8020/)")

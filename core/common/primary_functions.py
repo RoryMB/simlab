@@ -13,7 +13,6 @@ import utils
 from zmq_ot2_server import ZMQ_OT2_Server
 from zmq_ur5e_server import ZMQ_UR5e_Server
 from zmq_pf400_server import ZMQ_PF400_Server
-from zmq_todo_server import ZMQ_Todo_Server
 from zmq_sealer_server import ZMQ_Sealer_Server
 from zmq_peeler_server import ZMQ_Peeler_Server
 from zmq_thermocycler_server import ZMQ_Thermocycler_Server
@@ -86,8 +85,6 @@ def create_robot(simulation_app, world, robot_config, add=True):
         zmq_server = ZMQ_PF400_Server(simulation_app, robot, robot_config["prim_path"], robot_config["name"], robot_config["port"])
     elif robot_type == "ur5e":
         zmq_server = ZMQ_UR5e_Server(simulation_app, robot, robot_config["prim_path"], robot_config["name"], robot_config["port"])
-    elif robot_type == "todo":
-        zmq_server = ZMQ_Todo_Server(simulation_app, robot, robot_config["prim_path"], robot_config["name"], robot_config["port"])
     elif robot_type == "sealer":
         zmq_server = ZMQ_Sealer_Server(simulation_app, robot, robot_config["prim_path"], robot_config["name"], robot_config["port"])
     elif robot_type == "peeler":

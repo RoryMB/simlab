@@ -91,12 +91,13 @@ Claude Code can use the following orchestration script to run all terminals comm
 # An example of running 2 nodes, the run.py Isaac Sim script, and the run_madsci.sh MADSci script.
 # Any number of node commands can be given.
 # Only one Isaac Sim command, one MADSci command, and one workflow command can be given.
+# Note: Node commands must source the project's .env first (provides MADSci server URLs).
 python tools/orchestrate.py \
-    --node-cmd "source activate-madsci.sh && cd core/robots/ur5e/ && ./run_node_ur5e.sh" \
-    --node-cmd "source activate-madsci.sh && cd core/robots/ot2/ && ./run_node_ot2.sh" \
+    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd core/robots/ur5e/ && ./run_node_ur5e.sh" \
+    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd core/robots/ot2/ && ./run_node_ot2.sh" \
     --isaac-cmd "source activate-isaacsim.sh && cd core/common/ && python run.py" \
-    --madsci-cmd "cd core/madsci/ && ./run_madsci.sh" \
-    --workflow-cmd "source activate-madsci.sh && cd projects/prototyping/ && python run_workflow.py workflow.yaml" \
+    --madsci-cmd "cd projects/my-project/madsci/ && ./run_madsci.sh" \
+    --workflow-cmd "source activate-madsci.sh && cd projects/my-project/ && python run_workflow.py workflow.yaml" \
 ```
 
 **Important: Ready Keyword Behavior**
@@ -143,13 +144,15 @@ This pattern works for any Isaac Sim script - just replace the script path.
 
 ### Terminal 2: Start MADSci Services (Human only)
 ```bash
-# This terminal just handles docker containers, and thus does not need an environment.
-cd core/madsci/
+# MADSci config is per-project. No virtual environment needed (docker handles it).
+cd projects/my-project/madsci/
 ./run_madsci.sh
 ```
 
 ### Terminal 3: Start Robot Node (Human only)
 ```bash
+# Source the project's MADSci .env first (provides server URLs), then activate venv and run node
+set -a; source projects/my-project/madsci/config/.env; set +a
 . activate-madsci.sh
 cd core/robots/ur5e/  # or ot2/, pf400/, etc.
 ./run_node_ur5e.sh    # or run_node_ot2.sh, run_node_pf400.sh, etc.

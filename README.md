@@ -92,14 +92,14 @@ deactivate
 
 `python tools/orchestrate.py` – designed for agents like Claude Code.
 
-See [core/README.md](core/README.md) for manual operation and technical details.
+See [CLAUDE.md](CLAUDE.md) for manual operation and technical details.
 
 ## Architecture Overview
 
 ### Core Components
 
 - **Isaac Sim Integration** (`core/common/`): Shared utilities, simulation scripts, and ZMQ communication interface
-- **MADSci Integration** (`core/madsci/`): Laboratory orchestration configuration and services
+- **MADSci Integration** (`projects/<project>/madsci/`): Per-project laboratory orchestration configuration and services
 - **Robot Modules** (`core/robots/`): Per-robot directories containing both Isaac Sim ZMQ servers and MADSci node files
 
 ### Communication Pattern
@@ -117,7 +117,7 @@ The system uses ZMQ REQ-REP pattern for Isaac Sim ↔ MADSci communication:
 4. MADSci coordinates robot nodes to execute workflow steps
 5. Robot nodes communicate with Isaac Sim via ZMQ for physical simulation
 
-For detailed technical specifications, see [core/README.md](core/README.md).
+For detailed technical specifications, see [CLAUDE.md](CLAUDE.md).
 
 ## Project Structure
 
@@ -129,7 +129,6 @@ simlab/
 │   └── opentrons/        # Opentrons library fork (patched for numpy 2.0 compatibility)
 ├── core/             # Core implementation
 │   ├── common/           # Shared utilities (run.py, utils.py, primary_functions.py)
-│   ├── madsci/           # MADSci infrastructure (compose.yaml, run_madsci.sh, config/)
 │   └── robots/           # Per-robot directories
 │       ├── ur5e/             # UR5e arm (zmq_ur5e_server.py, sim_ur5e_*.py, run_node_ur5e.sh)
 │       ├── ot2/              # Opentrons OT-2 liquid handler
@@ -137,8 +136,7 @@ simlab/
 │       ├── hidex/            # Hidex plate reader
 │       ├── sealer/           # Plate sealer
 │       ├── peeler/           # Plate peeler
-│       ├── thermocycler/     # Thermocycler
-│       └── todo/             # Todo robot (placeholder)
+│       └── thermocycler/     # Thermocycler
 ├── assets/           # 3D simulation assets
 │   ├── scenes/           # Laboratory layouts
 │   ├── architecture/     # Structural elements (walls, floors, ceilings)
@@ -149,8 +147,9 @@ simlab/
 ├── tools/            # User tools and utilities for the command line
 │   └── usd/              # USD command-line tools built from source
 ├── projects/         # Self-contained experimental projects
+│   ├── template/         # Template for new projects (includes madsci/ setup)
 │   ├── prototyping/      # Development and testing workflows
-│   └── [custom]          # Any custom workflows
+│   └── [custom]/         # Custom projects, each with optional madsci/ subdirectory
 ├── requirements-isaacsim.in  # Isaac Sim dependencies
 ├── requirements-madsci.in    # MADSci dependencies
 └── activate-{isaacsim,madsci}.sh  # Environment activation scripts
