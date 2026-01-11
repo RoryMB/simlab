@@ -4,6 +4,7 @@
 /reference/MADSci_Experiments
 /reference/MADSci_Modules
 .madsci/
+/specs/
 
 # UV virtual environments
 /environments/isaacsim/.venv/

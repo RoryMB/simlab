@@ -31,7 +31,6 @@ deactivate
 
 ### USD Environment
 The USD environment provides command-line utilities for inspecting and manipulating USD files:
-- `usdcat` - Print USD file contents (ASCII representation)
 - `usdtree` - Display USD scene hierarchy as a tree
 - `usddiff` - Compare two USD files and show differences
 - `usdchecker` - Validate USD files for errors and compliance
@@ -40,9 +39,9 @@ These tools are useful for debugging robot asset files and understanding USD sce
 
 **CRITICAL: Never Read USD Files Directly**
 
-USD files (.usd, .usda, .usdc) are often very large (1MB - 100MB+) and should NEVER be read using the Read tool.
-Always use the USD command-line tools instead.
-Attempting to read USD files directly will fail due to size limits and waste context.
+USD files (.usd, .usda, .usdc) are often very large (1MB - 100MB+) and should NEVER be read using the Read tool or usdcat.
+Always use the USD command-line tools instead, and avoid using usdcat.
+Attempting to read USD files directly with Read or usdcat will fail due to size limits and/or waste context.
 
 **Usage Example:**
 ```bash

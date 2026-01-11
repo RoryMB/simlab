@@ -101,6 +101,21 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
             self.target_pose = (position, orientation)
             return self.create_success_response("goto_prim queued", prim_name=prim_name, position=position.tolist(), orientation=orientation.tolist())
 
+        elif action == "get_ee_pose":
+            # Get end effector (pointer) world position and orientation
+            stage = get_current_stage()
+            end_effector_prim_path = f"{self.robot_prim_path}/pointer"
+            end_effector_prim = stage.GetPrimAtPath(end_effector_prim_path)
+
+            if not end_effector_prim or not end_effector_prim.IsValid():
+                return self.create_error_response(f"End effector not found at: {end_effector_prim_path}")
+
+            position, orientation = utils.get_xform_world_pose(end_effector_prim)
+            return self.create_success_response("ee_pose retrieved", data={
+                "position": position.tolist(),
+                "orientation": orientation.tolist(),
+            })
+
         else:
             return self.create_error_response(f"Unknown action: {action}")
 
@@ -227,9 +242,9 @@ class ZMQ_PF400_Server(ZMQ_Robot_Server):
     def _initialize_motion_generation(self):
         """Initialize motion generation algorithms for the PF400"""
         # PF400 robot configuration paths
-        robot_config_dir = CUSTOM_ASSETS_ROOT_PATH + "/temp/robots/pf400"
-        robot_description_path = robot_config_dir + "/pf400_descriptor.yaml"
-        urdf_path = robot_config_dir + "/pf400.urdf"
+        robot_config_dir = CUSTOM_ASSETS_ROOT_PATH + "/robots/Brooks/PF400/isaacsim"
+        robot_description_path = robot_config_dir + "/descriptor.yaml"
+        urdf_path = robot_config_dir + "/PF400.urdf"
 
         # Use superclass method
         self.initialize_motion_generation(robot_description_path, urdf_path, 'pointer')
