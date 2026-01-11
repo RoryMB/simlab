@@ -56,6 +56,8 @@ source activate-isaacsim.sh
 source activate-madsci.sh
 ```
 
+Note: The activation scripts validate that the virtual environment exists before activating. If the venv is missing, you'll see an error message directing you to run the setup script first.
+
 ### Upgrading Dependencies
 
 **To upgrade Isaac Sim version:**

@@ -14,7 +14,7 @@ class SimOT2NodeConfig(OT2NodeConfig):
     """Configuration for the OT2 node module."""
 
     resource_server_url: str = "http://localhost:8013"
-    "Temporary hack to fix ot2_rest_node.py:49"
+    "Temporary hack"
 
     ot2_ip: str = ""
     "Not used in simulation; setting a default value"

@@ -185,8 +185,26 @@ def fix_references(root_dir, do_commit=False):
                                 else:
                                     print(f"    {colors.FAIL}  -> FAILED to commit change.{colors.ENDC}")
                     if made_change_this_file:
-                        total_files_changed += 1
-                        layer.Save()
+                        # Validate that all references now resolve before saving
+                        validation_passed = True
+                        for old, new in changes_to_apply.items():
+                            if new == "NOT FOUND IN INDEX":
+                                continue
+                            resolver = Ar.GetResolver()
+                            context = Ar.DefaultResolverContext([os.path.dirname(filepath)])
+                            with Ar.ResolverContextBinder(context):
+                                resolved = resolver.Resolve(new.replace('@', ''))
+                                resolved_str = resolved.GetPathString() if resolved else ""
+                            if not resolved_str or not os.path.exists(resolved_str):
+                                print(f"    {colors.FAIL}  -> Validation FAILED: '{new}' does not resolve{colors.ENDC}")
+                                validation_passed = False
+
+                        if validation_passed:
+                            total_files_changed += 1
+                            layer.Save()
+                            print(f"    {colors.OKGREEN}  -> File saved successfully{colors.ENDC}")
+                        else:
+                            print(f"    {colors.FAIL}  -> File NOT saved due to validation failure{colors.ENDC}")
                     print("-" * 80)
 
             except Exception:

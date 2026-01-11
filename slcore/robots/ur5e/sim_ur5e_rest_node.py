@@ -20,7 +20,7 @@ class SimUR5eNodeConfig(URNodeConfig):
     """Configuration for the UR node module."""
 
     resource_server_url: str = "http://localhost:8013"
-    "Temporary hack to fix ot2_rest_node.py:49"
+    "Temporary hack"
 
     ur_ip: str = ""
     "Not used in simulation; setting a default value"

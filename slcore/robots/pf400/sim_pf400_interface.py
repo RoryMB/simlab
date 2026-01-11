@@ -92,10 +92,10 @@ class SimPF400(ZMQClientInterface):
         response = self.send_zmq_command(zmq_command)
 
         if response.get("status") == "success":
-            return response.get("joint_angles", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+            return response.get("joint_angles", [0.0] * 7)
         else:
             self.logger.log(f"Failed to get position: {response.get('message', 'Unknown error')}")
-            return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            return [0.0] * 7
 
     def home_robot(self) -> bool:
         """Move PF400 to home position."""
