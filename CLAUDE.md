@@ -4,33 +4,54 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Environment Setup
 
-This project uses **multiple separate virtual environments** managed by [uv](https://github.com/astral-sh/uv) (Astral's fast Python package installer and resolver):
+This project uses **two separate virtual environments** managed by [uv](https://github.com/astral-sh/uv) (Astral's fast Python package installer and resolver):
+
+- **Isaac Sim environment** (Python 3.11): Isaac Sim simulation + USD command-line tools
+- **MADSci environment** (Python 3.12): Laboratory orchestration + robotics modules
 
 ### Environment Activation
 ```bash
-# For Isaac Sim work
+# For Isaac Sim work (includes USD tools)
 source activate-isaacsim.sh
 
 # For MADSci work
 source activate-madsci.sh
+```
 
-# For USD command-line tools
-source activate-usd.sh
+### Initial Setup
+
+**Automated setup scripts** (recommended):
+```bash
+./setup-isaacsim.sh  # Creates Isaac Sim environment + builds USD tools
+./setup-madsci.sh    # Creates MADSci environment
 ```
 
 ### Managing Dependencies
-To change dependencies, edit the appropriate `requirements.in` file, then:
+
+**Isaac Sim environment:**
 ```bash
-source activate-{isaacsim,madsci,usd}.sh
-cd environments/{isaacsim,madsci,usd}
-./compile.sh    # Recompile lockfile
-./sync.sh       # Update virtual environment
-cd ../..
+# Edit requirements-isaacsim.in at project root
+source activate-isaacsim.sh
+uv pip compile requirements-isaacsim.in --extra-index-url https://pypi.nvidia.com -o requirements-isaacsim.txt
+uv pip sync requirements-isaacsim.txt
 deactivate
 ```
 
-### USD Environment
-The USD environment provides command-line utilities for inspecting and manipulating USD files:
+**MADSci environment:**
+```bash
+# Edit requirements-madsci.in at project root
+source activate-madsci.sh
+uv pip compile requirements-madsci.in --override overrides.txt -o requirements-madsci.txt
+uv pip sync requirements-madsci.txt
+deactivate
+```
+
+**Upgrading versions:**
+Add `--upgrade` flag to recompile with latest compatible versions, or `--upgrade-package PACKAGE_NAME` to upgrade specific packages.
+
+### USD Command-Line Tools
+
+The Isaac Sim environment includes USD utilities for inspecting and manipulating USD files:
 - `usdtree` - Display USD scene hierarchy as a tree
 - `usddiff` - Compare two USD files and show differences
 - `usdchecker` - Validate USD files for errors and compliance
@@ -45,8 +66,8 @@ Attempting to read USD files directly with Read or usdcat will fail due to size 
 
 **Usage Example:**
 ```bash
-# Activate the USD environment
-source activate-usd.sh
+# Activate the Isaac Sim environment (includes USD tools)
+source activate-isaacsim.sh
 
 # Display the hierarchy of a USD file
 usdtree assets/robots/Brooks/PF400/PF400.usd

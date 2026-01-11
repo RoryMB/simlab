@@ -1,0 +1,10 @@
+# Isaac Sim dependencies
+isaacsim[all,extscache]==5.1.0
+requests
+
+# USD dependencies
+usd-core
+cmake>=3.24
+
+# Shared
+zmq

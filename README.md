@@ -22,20 +22,71 @@ This PhD research project integrates Isaac Sim (NVIDIA's 3D simulation software)
 
 ### Environment Setup
 
-This project uses three separate UV-managed virtual environments. Initial setup:
+This project uses two separate UV-managed virtual environments.
 
+**Automated setup** (recommended for first-time setup):
 ```bash
-cd environments/isaacsim && ./setup.sh && cd ../..
-cd environments/madsci && ./setup.sh && cd ../..
-cd environments/usd && ./setup.sh && cd ../..
+./setup-isaacsim.sh  # Creates Isaac Sim environment + builds USD tools (30-50 min)
+./setup-madsci.sh    # Creates MADSci environment
 ```
 
-**Environments:**
-- **isaacsim**: Isaac Sim 5.1.0 with physics simulation and rendering
-- **madsci**: MADSci laboratory orchestration framework with custom modules
-- **usd**: USD (Universal Scene Description) command-line tools for asset inspection and debugging
+**Manual setup** (if you prefer step-by-step control):
 
-For detailed environment management, see [environments/README.md](environments/README.md).
+Isaac Sim environment (Python 3.11):
+```bash
+uv venv .venv-isaacsim -p python@3.11
+source .venv-isaacsim/bin/activate
+uv pip compile requirements-isaacsim.in --extra-index-url https://pypi.nvidia.com -o requirements-isaacsim.txt
+uv pip sync requirements-isaacsim.txt
+deactivate
+```
+
+MADSci environment (Python 3.12):
+```bash
+uv venv .venv-madsci -p python@3.12
+source .venv-madsci/bin/activate
+uv pip compile requirements-madsci.in --override overrides.txt -o requirements-madsci.txt
+uv pip sync requirements-madsci.txt
+deactivate
+```
+
+**Activate environments:**
+```bash
+source activate-isaacsim.sh  # Isaac Sim + USD tools
+source activate-madsci.sh    # MADSci + robotics modules
+```
+
+**Note:** USD command-line tools (usdtree, usddiff, usdchecker) are included in the Isaac Sim environment.
+
+### Upgrading Dependencies
+
+**To upgrade Isaac Sim version:**
+1. Edit `requirements-isaacsim.in` and update `isaacsim[all,extscache]==X.X.X`
+2. Run:
+   ```bash
+   source activate-isaacsim.sh
+   uv pip compile requirements-isaacsim.in --extra-index-url https://pypi.nvidia.com -o requirements-isaacsim.txt --upgrade
+   uv pip sync requirements-isaacsim.txt
+   deactivate
+   ```
+
+**To upgrade MADSci version:**
+1. Edit `requirements-madsci.in` and update `madsci-*==X.X.X` versions
+2. Run:
+   ```bash
+   source activate-madsci.sh
+   uv pip compile requirements-madsci.in --override overrides.txt -o requirements-madsci.txt --upgrade
+   uv pip sync requirements-madsci.txt
+   deactivate
+   ```
+
+**To upgrade individual packages:**
+```bash
+source activate-{isaacsim,madsci}.sh
+uv pip compile requirements-{isaacsim,madsci}.in --upgrade-package PACKAGE_NAME -o requirements-{isaacsim,madsci}.txt
+uv pip sync requirements-{isaacsim,madsci}.txt
+deactivate
+```
 
 ### Running the System
 
@@ -71,22 +122,28 @@ For detailed technical specifications, see [src/README.md](src/README.md).
 
 ```
 simlab/
-├── environments/     # UV-managed virtual environments
-│   ├── isaacsim/         # Isaac Sim environment setup scripts
-│   ├── madsci/           # MADSci custom packages and environment setup scripts
-│   └── usd/              # USD tools built from source for asset inspection
+├── .venv-isaacsim/   # Isaac Sim environment (Python 3.11, includes USD tools)
+├── .venv-madsci/     # MADSci environment (Python 3.12, robotics modules)
+├── forks/            # Third-party library forks with custom modifications
+│   └── opentrons/        # Opentrons library fork (patched for numpy 2.0 compatibility)
+├── tools/            # Build tools and utilities
+│   └── usd/              # USD command-line tools built from source
 ├── assets/           # 3D simulation assets
 │   ├── scenes/           # Laboratory layouts
 │   ├── architecture/     # Structural elements (walls, floors, ceilings)
 │   ├── robots/           # Robot models
 │   ├── labware/          # Experimental apparatus (tips, plates, reagents)
-│   └── props/            # Any objects for visual/physical flavor
+│   ├── props/            # Environmental objects
+│   └── tools/            # Asset processing tools (.blend to .usd conversion)
 ├── src/              # Core implementation source
 │   ├── isaacsim/         # Isaac Sim robot control and core simulation scripts
 │   └── madsci/           # MADSci robot nodes and config files
-└── projects/         # Self-contained experimental projects
-    ├── prototyping/      # Development and testing workflows
-    └── [custom]          # Any custom workflows
+├── projects/         # Self-contained experimental projects
+│   ├── prototyping/      # Development and testing workflows
+│   └── [custom]          # Any custom workflows
+├── requirements-isaacsim.in  # Isaac Sim dependencies
+├── requirements-madsci.in    # MADSci dependencies
+└── activate-{isaacsim,madsci}.sh  # Environment activation scripts
 ```
 
 ## Contributing & Collaboration

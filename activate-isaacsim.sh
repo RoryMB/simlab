@@ -1,3 +1,9 @@
 #!/bin/bash
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/environments/isaacsim/.venv/bin/activate"
+
+# Activate Isaac Sim environment (Python 3.11, includes USD tools)
+source "$SCRIPT_DIR/.venv-isaacsim/bin/activate"
+
+# Add USD tools to PATH and PYTHONPATH
+export PATH="$SCRIPT_DIR/tools/usd/usd-install/bin:$PATH"
+export PYTHONPATH="$SCRIPT_DIR/tools/usd/usd-install/lib/python:$PYTHONPATH"
