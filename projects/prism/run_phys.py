@@ -11,8 +11,8 @@ from isaacsim.core.utils.stage import add_reference_to_stage
 from isaacsim.core.utils.prims import create_prim
 from pxr import PhysxSchema
 
-import utils
-from primary_functions import create_robot, CollisionDetector, CUSTOM_ASSETS_ROOT_PATH
+from slcore.common import utils
+from slcore.common.primary_functions import create_robot, CollisionDetector, CUSTOM_ASSETS_ROOT_PATH
 
 
 def create_scene_objects(world):
@@ -28,8 +28,8 @@ def create_scene_objects(world):
         prim_path="/World/microplate",
     )
     microplate_prim = world.stage.GetPrimAtPath("/World/microplate")
-    # utils.set_prim_world_pose(microplate_prim, position=np.array([0.64, 0.5, 0.3]))
-    utils.set_prim_world_pose(microplate_prim, position=np.array([0.80263, -0.37815, 0.27746]))
+    # utils.set_xform_world_pose(microplate_prim, np.array([0.64, 0.5, 0.3]), np.array([1.0, 0.0, 0.0, 0.0]))
+    utils.set_xform_world_pose(microplate_prim, np.array([0.80263, -0.37815, 0.27746]), np.array([1.0, 0.0, 0.0, 0.0]))
 
     # Enable collision detection for microplate
     contact_report_api = PhysxSchema.PhysxContactReportAPI.Apply(microplate_prim)

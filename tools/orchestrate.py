@@ -9,8 +9,8 @@ Coordinates the startup and shutdown of the 4-terminal Simlab system:
 
 Usage:
 python orchestrate.py \
-    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd core/robots/ur5e/ && ./run_node_ur5e.sh" \
-    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd core/robots/ot2/ && ./run_node_ot2.sh" \
+    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd slcore/robots/ur5e/ && ./run_node_ur5e.sh" \
+    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd slcore/robots/ot2/ && ./run_node_ot2.sh" \
     --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run.py" \
     --madsci-cmd "cd projects/my-project/madsci/ && ./run_madsci.sh" \
     --workflow-cmd "source activate-madsci.sh && cd projects/my-project && python run_workflow.py workflow.yaml" \

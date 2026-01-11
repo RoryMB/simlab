@@ -77,8 +77,6 @@ usdtree assets/robots/Brooks/PF400/PF400.usd
 
 A traditional run requires 4 terminals running simultaneously.
 
-**Important:** `export DISPLAY=:0` is required before any command that uses Isaac Sim to enable Isaac Sim's graphical interface.
-
 ### Claude Code Run Instructions
 
 When running individual Isaac Sim / MADSci scripts:
@@ -93,9 +91,9 @@ Claude Code can use the following orchestration script to run all terminals comm
 # Only one Isaac Sim command, one MADSci command, and one workflow command can be given.
 # Note: Node commands must source the project's .env first (provides MADSci server URLs).
 python tools/orchestrate.py \
-    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd core/robots/ur5e/ && ./run_node_ur5e.sh" \
-    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd core/robots/ot2/ && ./run_node_ot2.sh" \
-    --isaac-cmd "source activate-isaacsim.sh && cd core/common/ && python run.py" \
+    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd slcore/robots/ur5e/ && ./run_node_ur5e.sh" \
+    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd slcore/robots/ot2/ && ./run_node_ot2.sh" \
+    --isaac-cmd "source activate-isaacsim.sh && cd slcore/common/ && python run.py" \
     --madsci-cmd "cd projects/my-project/madsci/ && ./run_madsci.sh" \
     --workflow-cmd "source activate-madsci.sh && cd projects/my-project/ && python run_workflow.py workflow.yaml" \
 ```
@@ -122,7 +120,7 @@ Humans should run Isaac Sim scripts like this:
 
 ```bash
 . activate-isaacsim.sh
-cd core/common/
+cd slcore/common/
 python run.py
 ```
 
@@ -154,7 +152,7 @@ cd projects/my-project/madsci/
 # Source the project's MADSci .env first (provides server URLs), then activate venv and run node
 set -a; source projects/my-project/madsci/config/.env; set +a
 . activate-madsci.sh
-cd core/robots/ur5e/  # or ot2/, pf400/, etc.
+cd slcore/robots/ur5e/  # or ot2/, pf400/, etc.
 ./run_node_ur5e.sh    # or run_node_ot2.sh, run_node_pf400.sh, etc.
 ```
 

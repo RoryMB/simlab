@@ -26,13 +26,13 @@ This project uses two separate UV-managed virtual environments.
 
 **Automated setup** (recommended for first-time setup):
 ```bash
-./setup-isaacsim.sh  # Creates Isaac Sim environment + builds USD tools (30-50 min)
+./setup-isaacsim.sh  # Creates Isaac Sim environment + builds USD tools
 ./setup-madsci.sh    # Creates MADSci environment
 ```
 
 **Manual setup** (if you prefer step-by-step control):
 
-Isaac Sim environment (Python 3.11):
+Isaac Sim environment:
 ```bash
 uv venv .venv-isaacsim -p python@3.11
 source .venv-isaacsim/bin/activate
@@ -41,7 +41,7 @@ uv pip sync requirements-isaacsim.txt
 deactivate
 ```
 
-MADSci environment (Python 3.12):
+MADSci environment:
 ```bash
 uv venv .venv-madsci -p python@3.12
 source .venv-madsci/bin/activate
@@ -52,11 +52,9 @@ deactivate
 
 **Activate environments:**
 ```bash
-source activate-isaacsim.sh  # Isaac Sim + USD tools
-source activate-madsci.sh    # MADSci + robotics modules
+source activate-isaacsim.sh
+source activate-madsci.sh
 ```
-
-**Note:** USD command-line tools (usdtree, usddiff, usdchecker) are included in the Isaac Sim environment.
 
 ### Upgrading Dependencies
 
@@ -80,27 +78,17 @@ source activate-madsci.sh    # MADSci + robotics modules
    deactivate
    ```
 
-**To upgrade individual packages:**
-```bash
-source activate-{isaacsim,madsci}.sh
-uv pip compile requirements-{isaacsim,madsci}.in --upgrade-package PACKAGE_NAME -o requirements-{isaacsim,madsci}.txt
-uv pip sync requirements-{isaacsim,madsci}.txt
-deactivate
-```
-
 ### Running the System
 
 `python tools/orchestrate.py` – designed for agents like Claude Code.
-
-See [CLAUDE.md](CLAUDE.md) for manual operation and technical details.
 
 ## Architecture Overview
 
 ### Core Components
 
-- **Isaac Sim Integration** (`core/common/`): Shared utilities, simulation scripts, and ZMQ communication interface
+- **Isaac Sim Integration** (`slcore/common/`): Shared utilities, simulation scripts, and ZMQ communication interface
 - **MADSci Integration** (`projects/<project>/madsci/`): Per-project laboratory orchestration configuration and services
-- **Robot Modules** (`core/robots/`): Per-robot directories containing both Isaac Sim ZMQ servers and MADSci node files
+- **Robot Modules** (`slcore/robots/`): Per-robot directories containing both Isaac Sim ZMQ servers and MADSci node files
 
 ### Communication Pattern
 
@@ -117,20 +105,17 @@ The system uses ZMQ REQ-REP pattern for Isaac Sim ↔ MADSci communication:
 4. MADSci coordinates robot nodes to execute workflow steps
 5. Robot nodes communicate with Isaac Sim via ZMQ for physical simulation
 
-For detailed technical specifications, see [CLAUDE.md](CLAUDE.md).
-
 ## Project Structure
 
 ```
 simlab/
-├── .venv-isaacsim/   # Isaac Sim environment (Python 3.11, includes USD tools)
-├── .venv-madsci/     # MADSci environment (Python 3.12, robotics modules)
-├── forks/            # Third-party library forks with custom modifications
-│   └── opentrons/        # Opentrons library fork (patched for numpy 2.0 compatibility)
-├── core/             # Core implementation
-│   ├── common/           # Shared utilities (run.py, utils.py, primary_functions.py)
+├── .venv-isaacsim/   # Isaac Sim environment (includes USD tools)
+├── .venv-madsci/     # MADSci environment
+├── slcore/           # Python package (import as: from slcore.robots.common import ...)
+│   ├── common/           # Shared utilities (utils.py, primary_functions.py)
 │   └── robots/           # Per-robot directories
-│       ├── ur5e/             # UR5e arm (zmq_ur5e_server.py, sim_ur5e_*.py, run_node_ur5e.sh)
+│       ├── common/           # Shared robot utilities (ZMQ base classes, config)
+│       ├── ur5e/             # UR5e arm
 │       ├── ot2/              # Opentrons OT-2 liquid handler
 │       ├── pf400/            # Brooks PF400 plate handler
 │       ├── hidex/            # Hidex plate reader
@@ -144,11 +129,12 @@ simlab/
 │   ├── labware/          # Experimental apparatus (tips, plates, reagents)
 │   ├── props/            # Environmental objects
 │   └── tools/            # Asset processing tools (.blend to .usd conversion)
+├── forks/            # Third-party library forks with custom modifications
+│   └── opentrons/        # Opentrons library fork
 ├── tools/            # User tools and utilities for the command line
 │   └── usd/              # USD command-line tools built from source
 ├── projects/         # Self-contained experimental projects
-│   ├── template/         # Template for new projects (includes madsci/ setup)
-│   ├── prototyping/      # Development and testing workflows
+│   ├── _template/        # Template for new projects (includes madsci/ setup)
 │   └── [custom]/         # Custom projects, each with optional madsci/ subdirectory
 ├── requirements-isaacsim.in  # Isaac Sim dependencies
 ├── requirements-madsci.in    # MADSci dependencies
