@@ -41,7 +41,7 @@ echo ""
 echo "Step 2/3: Compiling dependencies..."
 source .venv-madsci/bin/activate
 uv pip compile requirements-madsci.in \
-    --override overrides.txt \
+    --override overrides-madsci.txt \
     -o requirements-madsci.txt
 
 # Step 3: Install dependencies

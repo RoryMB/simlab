@@ -45,7 +45,7 @@ MADSci environment (Python 3.12):
 ```bash
 uv venv .venv-madsci -p python@3.12
 source .venv-madsci/bin/activate
-uv pip compile requirements-madsci.in --override overrides.txt -o requirements-madsci.txt
+uv pip compile requirements-madsci.in --override overrides-madsci.txt -o requirements-madsci.txt
 uv pip sync requirements-madsci.txt
 deactivate
 ```
@@ -75,7 +75,7 @@ source activate-madsci.sh    # MADSci + robotics modules
 2. Run:
    ```bash
    source activate-madsci.sh
-   uv pip compile requirements-madsci.in --override overrides.txt -o requirements-madsci.txt --upgrade
+   uv pip compile requirements-madsci.in --override overrides-madsci.txt -o requirements-madsci.txt --upgrade
    uv pip sync requirements-madsci.txt
    deactivate
    ```

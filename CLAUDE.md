@@ -41,7 +41,7 @@ deactivate
 ```bash
 # Edit requirements-madsci.in at project root
 source activate-madsci.sh
-uv pip compile requirements-madsci.in --override overrides.txt -o requirements-madsci.txt
+uv pip compile requirements-madsci.in --override overrides-madsci.txt -o requirements-madsci.txt
 uv pip sync requirements-madsci.txt
 deactivate
 ```
