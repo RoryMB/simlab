@@ -3,22 +3,29 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from isaacsim.storage.native import get_assets_root_path
+
 
 # Project paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
-ASSETS_ROOT = PROJECT_ROOT / "assets"
+CUSTOM_ASSETS_ROOT_PATH = PROJECT_ROOT / "assets"
+NVIDIA_ASSETS_ROOT_PATH = get_assets_root_path()
+# if NVIDIA_ASSETS_ROOT_PATH is None:
+#     print("Error: Could not find Isaac Sim assets folder")
+#     simulation_app.close()
+#     sys.exit()
 
 
-def get_asset_path(relative_path: str) -> str:
-    """Get absolute path to an asset file.
+def get_custom_asset_path(relative_path: str) -> str:
+    """Get absolute path to a custom asset file.
 
     Args:
-        relative_path: Path relative to the assets directory
+        relative_path: Path relative to the custom assets directory
 
     Returns:
         Absolute path as a string
     """
-    return str(ASSETS_ROOT / relative_path)
+    return str(CUSTOM_ASSETS_ROOT_PATH / relative_path)
 
 
 @dataclass

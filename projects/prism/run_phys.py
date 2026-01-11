@@ -22,7 +22,7 @@ def create_scene_objects(world):
     world.scene.add_default_ground_plane()
 
     # Create microplate at position (0.3, 0.3, 0.3)
-    microplate_asset_path = CUSTOM_ASSETS_ROOT_PATH + "/labware/microplate/microplate.usd"
+    microplate_asset_path = str(CUSTOM_ASSETS_ROOT_PATH / "labware/microplate/microplate.usd")
     add_reference_to_stage(
         usd_path=microplate_asset_path,
         prim_path="/World/microplate",
@@ -160,7 +160,7 @@ def main():
             "name": "ot2_0",
             "type": "ot2",
             "port": 5556,
-            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/robots/Opentrons/OT-2/OT-2.usd",
+            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Opentrons/OT-2/OT-2.usd"),
             "position": [0.67, -0.55, 0.2],
             "orientation": [1.0, 0.0, 0.0, 0.0],
         },
@@ -169,7 +169,7 @@ def main():
             "name": "pf400_0",
             "type": "pf400",
             "port": 5557,
-            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/robots/Brooks/PF400/PF400.usd",
+            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Brooks/PF400/PF400.usd"),
             "position": [0.0, 0.0, 0.0],
             "orientation": [1.0, 0.0, 0.0, 0.0],
         },
@@ -179,7 +179,7 @@ def main():
             "name": "sealer_0",
             "type": "sealer",
             "port": 5558,
-            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/robots/Azenta/a4SSealer/a4SSealer.usda",
+            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Azenta/a4SSealer/a4SSealer.usda"),
             "position": [0.06, -0.675, 0.125],
             "orientation": [1.0, 0.0, 0.0, 0.0],
         },
@@ -188,7 +188,7 @@ def main():
             "name": "peeler_0",
             "type": "peeler",
             "port": 5559,
-            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/robots/Azenta/XPeel/XPeel.usda",
+            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Azenta/XPeel/XPeel.usda"),
             "position": [-0.4, -0.625, 0.125],
             "orientation": [1.0, 0.0, 0.0, 0.0],
         },
@@ -197,7 +197,7 @@ def main():
             "name": "thermocycler_0",
             "type": "thermocycler",
             "port": 5560,
-            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/robots/AnalytikJena/Biometra/Biometra.usda",
+            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/AnalytikJena/Biometra/Biometra.usda"),
             "position": [0.16, 0.4, 0.125],
             "orientation": [0.0, 0.0, 0.0, 1.0],
         },
@@ -206,7 +206,7 @@ def main():
             "name": "hidex_0",
             "type": "hidex",
             "port": 5561,
-            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/robots/Hidex/SenseMicroplateReader/SenseMicroplateReader.usda",
+            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Hidex/SenseMicroplateReader/SenseMicroplateReader.usda"),
             "position": [-0.4, 0.55, 0.125],
             "orientation": [0.0, 0.0, 0.0, 1.0],
         },

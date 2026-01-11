@@ -3,14 +3,13 @@ import numpy as np
 
 from isaacsim.core.api.robots import Robot
 from isaacsim.core.utils.stage import add_reference_to_stage, get_current_stage
-from isaacsim.storage.native import get_assets_root_path
 from omni.physx import get_physx_simulation_interface
 from omni.physx.bindings._physx import ContactEventType
 from omni.physx.scripts.physicsUtils import PhysicsSchemaTools
 from pxr import PhysxSchema, UsdPhysics
 
 from slcore.common import utils
-from slcore.robots.common.config import ASSETS_ROOT, PhysicsConfig, DEFAULT_PHYSICS_CONFIG
+from slcore.robots.common.config import CUSTOM_ASSETS_ROOT_PATH, PhysicsConfig, DEFAULT_PHYSICS_CONFIG
 from slcore.robots.common.validation import validate_prim_exists
 from slcore.robots.ot2.zmq_ot2_server import ZMQ_OT2_Server
 from slcore.robots.ur5e.zmq_ur5e_server import ZMQ_UR5e_Server
@@ -20,9 +19,6 @@ from slcore.robots.peeler.zmq_peeler_server import ZMQ_Peeler_Server
 from slcore.robots.thermocycler.zmq_thermocycler_server import ZMQ_Thermocycler_Server
 from slcore.robots.hidex.zmq_hidex_server import ZMQ_Hidex_Server
 
-
-CUSTOM_ASSETS_ROOT_PATH = str(ASSETS_ROOT)
-NVIDIA_ASSETS_ROOT_PATH = get_assets_root_path()
 
 # Robot server registry for factory pattern
 ROBOT_SERVER_REGISTRY = {
@@ -57,12 +53,6 @@ def create_zmq_server(robot_type: str, simulation_app, robot, robot_prim_path: s
     if server_class is None:
         raise ValueError(f"Unknown robot type: {robot_type}. Available types: {list(ROBOT_SERVER_REGISTRY.keys())}")
     return server_class(simulation_app, robot, robot_prim_path, robot_name, port)
-
-
-# if NVIDIA_ASSETS_ROOT_PATH is None:
-#     print("Error: Could not find Isaac Sim assets folder")
-#     simulation_app.close()
-#     sys.exit()
 
 
 class CollisionDetector:

@@ -20,7 +20,7 @@ def create_scene_objects(world):
     world.scene.add_default_ground_plane()
 
     # Create microplate at position (0.3, 0.3, 0.3)
-    microplate_asset_path = CUSTOM_ASSETS_ROOT_PATH + "/labware/microplate/microplate.usd"
+    microplate_asset_path = str(CUSTOM_ASSETS_ROOT_PATH / "labware/microplate/microplate.usd")
     add_reference_to_stage(
         usd_path=microplate_asset_path,
         prim_path="/World/microplate",
@@ -96,7 +96,7 @@ def main():
             "name": "pf400_1",
             "type": "pf400",
             "port": 5557,
-            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/robots/Brooks/PF400/PF400.usd",
+            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Brooks/PF400/PF400.usd"),
             "position": [0.0, 0.0, 0.0],
             "orientation": [1.0, 0.0, 0.0, 0.0],
         },
@@ -104,7 +104,7 @@ def main():
             "name": "ot2_1",
             "type": "ot2",
             "port": 5556,
-            "asset_path": CUSTOM_ASSETS_ROOT_PATH + "/robots/Opentrons/OT-2/OT-2.usd",
+            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Opentrons/OT-2/OT-2.usd"),
             "position": [0.0, 2.0, 0.0],
             "orientation": [1.0, 0.0, 0.0, 0.0],
         },

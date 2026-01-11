@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import numpy as np
 from isaacsim.core.utils.types import ArticulationAction
 from pxr import Gf
@@ -7,10 +5,7 @@ from pxr import Gf
 from slcore.robots.common.zmq_robot_server import ZMQ_Robot_Server
 from slcore.robots.common.zmq_server_mixins import RaycastMixin
 
-
-CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../../assets").resolve())
-
-class ZMQ_Hidex_Server(ZMQ_Robot_Server, RaycastMixin):
+class ZMQ_Hidex_Server(RaycastMixin, ZMQ_Robot_Server):
     """Handles ZMQ communication for Hidex plate reader device"""
 
     def __init__(self, simulation_app, robot, robot_prim_path, robot_name: str, port: int):
@@ -27,7 +22,7 @@ class ZMQ_Hidex_Server(ZMQ_Robot_Server, RaycastMixin):
         # Track attached plate joint
         self._attached_plate = None
 
-    def handle_command(self, request):
+    def handle_command(self, request: dict) -> dict:
         """Handle incoming ZMQ command"""
         action = request.get("action", "")
 

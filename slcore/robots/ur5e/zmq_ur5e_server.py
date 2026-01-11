@@ -11,7 +11,7 @@ class ZMQ_UR5e_Server(ZMQ_Robot_Server):
     def __init__(self, simulation_app, robot, robot_prim_path, robot_name: str, port: int):
         super().__init__(simulation_app, robot, robot_prim_path, robot_name, port)
 
-    def handle_command(self, request):
+    def handle_command(self, request: dict) -> dict:
         """Handle incoming ZMQ command from MADSci"""
         action = request.get("action", "")
 

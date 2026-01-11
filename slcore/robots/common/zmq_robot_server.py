@@ -1,7 +1,6 @@
 import json
 import threading
 from abc import ABC, abstractmethod
-from pathlib import Path
 
 import numpy as np
 import zmq
@@ -17,9 +16,6 @@ from omni.usd.commands.usd_commands import DeletePrimsCommand
 from pxr import Gf, Sdf, UsdPhysics
 
 from slcore.common import utils
-
-
-CUSTOM_ASSETS_ROOT_PATH = str((Path(__file__).parent / "../../assets").resolve())
 
 class ZMQ_Robot_Server(ABC):
     """Base class for ZMQ robot servers with enhanced end-effector robot functionality"""
@@ -104,17 +100,17 @@ class ZMQ_Robot_Server(ABC):
             self.context.term()
 
     @abstractmethod
-    def handle_command(self, request):
+    def handle_command(self, request: dict) -> dict:
         """Handle incoming ZMQ command from MADSci - must be implemented by subclasses"""
         pass
 
-    def create_success_response(self, message: str = "success", **kwargs):
+    def create_success_response(self, message: str = "success", **kwargs) -> dict:
         """Helper to create standardized success response"""
         response = {"status": "success", "message": message}
         response.update(kwargs)
         return response
 
-    def create_error_response(self, message: str):
+    def create_error_response(self, message: str) -> dict:
         """Helper to create standardized error response"""
         return {"status": "error", "message": message}
 

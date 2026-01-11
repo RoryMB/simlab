@@ -4,7 +4,7 @@ from pxr import Gf
 
 from slcore.common import utils
 from slcore.robots.common.zmq_robot_server import ZMQ_Robot_Server
-from slcore.robots.common.config import ASSETS_ROOT, DEFAULT_PHYSICS_CONFIG
+from slcore.robots.common.config import CUSTOM_ASSETS_ROOT_PATH, DEFAULT_PHYSICS_CONFIG
 from slcore.robots.common.zmq_server_mixins import RaycastMixin
 
 
@@ -24,7 +24,7 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
         # Initialize PF400-specific motion generation
         self._initialize_motion_generation()
 
-    def handle_command(self, request):
+    def handle_command(self, request: dict) -> dict:
         """Handle incoming ZMQ command"""
         action = request.get("action", "")
 
@@ -221,7 +221,7 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
     def _initialize_motion_generation(self):
         """Initialize motion generation algorithms for the PF400"""
         # PF400 robot configuration paths
-        robot_config_dir = str(ASSETS_ROOT / "robots/Brooks/PF400/isaacsim")
+        robot_config_dir = str(CUSTOM_ASSETS_ROOT_PATH / "robots/Brooks/PF400/isaacsim")
         robot_description_path = robot_config_dir + "/descriptor.yaml"
         urdf_path = robot_config_dir + "/PF400.urdf"
 

@@ -1,0 +1,87 @@
+# Workflow Template
+#
+# This file defines a MADSci workflow - a sequence of robot actions.
+# Customize this template for your specific experiment.
+#
+# Documentation:
+# - name: Human-readable workflow name
+# - metadata: Optional info about the workflow (author, version, description)
+# - parameters: Input parameters that can be passed when running the workflow
+# - steps: Ordered list of actions to execute
+#
+# Each step contains:
+# - name: Human-readable description of the step
+# - node: Which robot/device to use (e.g., ot2, pf400, sealer, peeler, thermocycler, hidex)
+# - action: The action to perform (specific to each device)
+# - args: Arguments for the action (optional)
+# - locations: Source/target locations for transfer actions (PF400 only)
+# - files: File inputs for the action (optional)
+
+name: Example Workflow
+metadata:
+  author: Your Name
+  info: Brief description of what this workflow does
+  version: '1.0'
+
+# Define input parameters that can be provided at runtime
+parameters:
+- key: ot2_protocol_script
+  parameter_type: file_input
+  description: OT-2 protocol script for liquid handling
+
+steps:
+# Example: Run an OT-2 liquid handling protocol
+- name: Execute OT-2 liquid handling protocol
+  node: ot2
+  action: run_protocol
+  files:
+    protocol: ot2_protocol_script
+
+# Example: Transfer a plate between locations using PF400
+- name: Transfer plate from OT-2 to sealer
+  node: pf400
+  action: transfer
+  args:
+    source_plate_rotation: wide    # 'wide' or 'narrow'
+    target_plate_rotation: narrow
+  locations:
+    source: ot2bioalpha_deck1_wide
+    source_approach: safe_path_ot2bioalpha
+    target: sealer_nest
+    target_approach: safe_path_sealer
+
+# Example: Seal a plate
+- name: Seal the plate
+  node: sealer
+  action: seal
+  args: {}
+
+# Example: Open/close thermocycler and run program
+- name: Open thermocycler lid
+  node: thermocycler
+  action: open
+  args: {}
+
+- name: Run thermocycling program
+  node: thermocycler
+  action: run_program
+  args:
+    program_number: 1
+
+# Example: Peel a plate seal
+- name: Peel the plate seal
+  node: peeler
+  action: peel
+  args: {}
+
+# Example: Run a Hidex assay
+- name: Open Hidex drawer
+  node: hidex
+  action: open
+  args: {}
+
+- name: Run plate reader assay
+  node: hidex
+  action: run_assay
+  args:
+    assay_name: Your_Assay_Name

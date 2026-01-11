@@ -17,7 +17,7 @@ class ZMQ_Sealer_Server(RaycastMixin, ZMQ_Robot_Server):
         self.raycast_direction = Gf.Vec3d(0, 0, 1)  # Upward
         self.raycast_distance = DEFAULT_PHYSICS_CONFIG.raycast_distance
 
-    def handle_command(self, request):
+    def handle_command(self, request: dict) -> dict:
         """Handle incoming ZMQ command"""
         action = request.get("action", "")
 

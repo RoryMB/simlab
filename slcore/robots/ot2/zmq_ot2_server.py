@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Tuple
 
 from slcore.robots.common.zmq_robot_server import ZMQ_Robot_Server
-from slcore.robots.common.config import ASSETS_ROOT
+from slcore.robots.common.config import CUSTOM_ASSETS_ROOT_PATH
 
 
 @dataclass
@@ -106,7 +106,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
     def _initialize_motion_generation(self):
         """Initialize motion generation algorithms for the OT-2"""
         # OT-2 robot configuration paths
-        robot_config_dir = str(ASSETS_ROOT / "robots/Opentrons/OT-2/isaacsim")
+        robot_config_dir = str(CUSTOM_ASSETS_ROOT_PATH / "robots/Opentrons/OT-2/isaacsim")
         robot_description_path = robot_config_dir + "/descriptor.yaml"
         urdf_path = robot_config_dir + "/OT-2.urdf"
 
@@ -121,7 +121,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
         """Check if a joint is physical (controlled in Isaac Sim)"""
         return self.model.is_physical_joint(joint_name)
 
-    def handle_command(self, request):
+    def handle_command(self, request: dict) -> dict:
         """Handle incoming ZMQ command from opentrons package"""
         action = request.get("action", "")
 

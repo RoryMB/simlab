@@ -98,21 +98,18 @@ python tools/orchestrate.py \
     --workflow-cmd "source activate-madsci.sh && cd projects/my-project/ && python run_workflow.py workflow.yaml" \
 ```
 
-**Important: Ready Keyword Behavior**
+**Logging Behavior**
 
-The orchestration script discards all output from each process until its ready keyword appears. This means:
-- The ready keywords themselves will NEVER appear in the log output
-- Only output AFTER the keywords will be visible in normal mode
-- If a process never prints its keyword, its output will be completely hidden
-- Use `--extremely-verbose` to see all output including pre-keyword startup messages
+All process output is written to log files in `/tmp/simlab/<timestamp>/`:
+- `isaac_startup.log`, `isaac_runtime.log` - Isaac Sim output before/after ready
+- `node_N_startup.log`, `node_N_runtime.log` - Per robot node output
+- `madsci_startup.log`, `madsci_runtime.log` - MADSci output
+- `workflow.log` - Workflow output
 
-Adding the --extremely-verbose argument will help reveal startup errors by also printing everything before the ready keywords, but this causes incredibly large amounts of output to print. Use sparingly.
-
-```bash
-python tools/orchestrate.py \
-    --extremely-verbose \
-    ...
-```
+Console shows only:
+- Process start/ready messages
+- Error lines (detected via keywords: error, exception, traceback, failed)
+- End summary with outcome, errors, workflow tail, and log file paths
 
 ### Terminal 1: Start Isaac Sim (Human or AI)
 

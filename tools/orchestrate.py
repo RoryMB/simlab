@@ -7,6 +7,9 @@ Coordinates the startup and shutdown of the 4-terminal Simlab system:
 3. MADSci
 4. Workflow submission
 
+All process output is logged to /tmp/simlab/<timestamp>/ with separate files
+for startup and runtime phases. Console shows only status messages and errors.
+
 Usage:
 python orchestrate.py \
     --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd slcore/robots/ur5e/ && ./run_node_ur5e.sh" \
@@ -15,21 +18,18 @@ python orchestrate.py \
     --madsci-cmd "cd projects/my-project/madsci/ && ./run_madsci.sh" \
     --workflow-cmd "source activate-madsci.sh && cd projects/my-project && python run_workflow.py workflow.yaml" \
     --timeout 120
-
-Adding the --extremely-verbose argument will help reveal startup errors, but will cause incredibly large amounts of output to print. Use sparingly. Usage:
-python orchestrate.py \
-    --extremely-verbose \
-    ...
 """
 
 import argparse
 import asyncio
 import logging
 import os
+import re
 import signal
 import sys
 from asyncio.subprocess import PIPE
-from typing import Optional
+from datetime import datetime
+from typing import IO, Optional
 
 
 logging.basicConfig(
@@ -39,28 +39,98 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Case-insensitive error detection pattern
+ERROR_PATTERN = re.compile(r'\b(error|exception|traceback|failed)\b', re.IGNORECASE)
+
+
+class LogManager:
+    """Manages log files for all processes, splitting by startup/runtime phase."""
+
+    def __init__(self, run_dir: str):
+        self.run_dir = run_dir
+        self.log_files: dict[str, IO] = {}
+        self.current_phase: dict[str, str] = {}  # 'startup' or 'runtime'
+        self.detected_errors: list[tuple[str, str]] = []  # (process_name, error_line)
+
+    def _get_log_file(self, process_name: str) -> IO:
+        """Get or create log file handle for current phase."""
+        if process_name == 'workflow':
+            filename = 'workflow.log'
+        else:
+            phase = self.current_phase.get(process_name, 'startup')
+            filename = f'{process_name}_{phase}.log'
+
+        filepath = os.path.join(self.run_dir, filename)
+
+        if filepath not in self.log_files:
+            self.log_files[filepath] = open(filepath, 'a')
+
+        return self.log_files[filepath]
+
+    def write_line(self, process_name: str, line: str):
+        """Write line to appropriate log file."""
+        if process_name not in self.current_phase and process_name != 'workflow':
+            self.current_phase[process_name] = 'startup'
+
+        log_file = self._get_log_file(process_name)
+        log_file.write(line + '\n')
+        log_file.flush()
+
+    def switch_to_runtime(self, process_name: str):
+        """Switch from startup to runtime phase."""
+        if process_name == 'workflow':
+            return
+
+        old_phase = self.current_phase.get(process_name, 'startup')
+        old_filename = f'{process_name}_{old_phase}.log'
+        old_filepath = os.path.join(self.run_dir, old_filename)
+
+        if old_filepath in self.log_files:
+            self.log_files[old_filepath].close()
+            del self.log_files[old_filepath]
+
+        self.current_phase[process_name] = 'runtime'
+
+    def check_for_error(self, process_name: str, line: str) -> bool:
+        """Check for error keywords and store if found."""
+        if ERROR_PATTERN.search(line):
+            self.detected_errors.append((process_name, line))
+            return True
+        return False
+
+    def close_all(self):
+        """Close all open log file handles."""
+        for f in self.log_files.values():
+            try:
+                f.close()
+            except Exception:
+                pass
+        self.log_files.clear()
+
+
 class ProcessManager:
-    def __init__(self):
+    def __init__(self, log_manager: LogManager):
         self.processes: dict[str, asyncio.subprocess.Process] = {}
         self.shutdown_event = asyncio.Event()
         self.ready_flags: set[str] = set()
+        self.log_manager = log_manager
+        self.exit_codes: dict[str, int] = {}
 
     async def start_process(self, name: str, command: str) -> Optional[asyncio.subprocess.Process]:
-        """Start a subprocess with shell execution"""
+        """Start a subprocess with shell execution."""
         logger.info(f"Starting {name}: {command}")
 
-        # Set environment variables for unbuffered output
         env = os.environ.copy()
-        env['PYTHONUNBUFFERED'] = '1'  # Force unbuffered Python output
-        env['PYTHONIOENCODING'] = 'utf-8'  # Ensure UTF-8 encoding
+        env['PYTHONUNBUFFERED'] = '1'
+        env['PYTHONIOENCODING'] = 'utf-8'
 
         process = await asyncio.create_subprocess_shell(
             command,
             stdout=PIPE,
             stderr=PIPE,
-            preexec_fn=os.setsid,  # Create new process group for clean shutdown
-            executable='/bin/bash',  # Use bash to support 'source' command
-            env=env,  # Pass environment with unbuffered settings
+            preexec_fn=os.setsid,
+            executable='/bin/bash',
+            env=env,
         )
 
         self.processes[name] = process
@@ -70,28 +140,31 @@ class ProcessManager:
         self,
         name: str,
         process: asyncio.subprocess.Process,
-        ready_keyword: str,
-        extremely_verbose: bool,
-        quiet: bool,
+        ready_keyword: Optional[str],
     ):
-        """Monitor process output for ready keyword and general logging"""
+        """Monitor process output, log to files, and detect errors."""
         while True:
             line = await process.stdout.readline()
             if not line:
                 break
 
             line_str = line.decode().strip()
-            if name.startswith("node_") or extremely_verbose or (not self.shutdown_event.is_set() and name in self.ready_flags):
-            # if extremely_verbose or (not self.shutdown_event.is_set() and name in self.ready_flags):
-                if not quiet: logger.info(f"[{name.upper()}] {line_str}")
+
+            # Write all output to log file
+            self.log_manager.write_line(name, line_str)
+
+            # Check for errors and print to console if found
+            if self.log_manager.check_for_error(name, line_str):
+                logger.info(f"[{name.upper()}] {line_str}")
 
             # Check for ready keyword
             if ready_keyword and ready_keyword in line_str and name not in self.ready_flags:
-                if not quiet: logger.info(f"{name} is ready!")
+                logger.info(f"{name} is ready!")
                 self.ready_flags.add(name)
+                self.log_manager.switch_to_runtime(name)
 
     async def wait_for_ready(self, name: str, timeout: int = 120):
-        """Wait for a service to be ready with timeout"""
+        """Wait for a service to be ready with timeout."""
         start_time = asyncio.get_event_loop().time()
 
         while name not in self.ready_flags and not self.shutdown_event.is_set():
@@ -102,7 +175,7 @@ class ProcessManager:
             await asyncio.sleep(0.1)
 
     async def shutdown_process(self, name: str):
-        """Gracefully shutdown a process"""
+        """Gracefully shutdown a process."""
         if name not in self.processes:
             return
 
@@ -113,11 +186,8 @@ class ProcessManager:
 
         logger.info(f"Shutting down {name}...")
 
-        # Send SIGINT (Ctrl-C) to process group
         try:
             os.killpg(os.getpgid(process.pid), signal.SIGINT)
-
-            # Wait for graceful shutdown
             await asyncio.wait_for(process.wait(), timeout=10)
             logger.info(f"{name} shutdown gracefully")
 
@@ -127,40 +197,96 @@ class ProcessManager:
                 os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                 await process.wait()
             except ProcessLookupError:
-                pass  # Process already dead
+                pass
 
     async def shutdown_all(self):
-        """Shutdown all processes in reverse order"""
+        """Shutdown all processes in reverse order."""
         self.shutdown_event.set()
 
-        # Shutdown workflow first
         await self.shutdown_process('workflow')
 
-        # Shutdown all node processes
         node_names = [name for name in self.processes.keys() if name.startswith('node_')]
         for name in node_names:
             await self.shutdown_process(name)
 
-        # Shutdown MADSci and Isaac
         await self.shutdown_process('madsci')
         await self.shutdown_process('isaac')
 
-    def check_process_health(self):
-        """Check if any processes have returned"""
+    def check_process_health(self) -> Optional[str]:
+        """Check if any processes have exited and track exit codes."""
         for name, process in self.processes.items():
-            if process.returncode is not None:
-                logger.info(f"{name} process return code {process.returncode}")
+            if process.returncode is not None and name not in self.exit_codes:
+                self.exit_codes[name] = process.returncode
+                if process.returncode != 0:
+                    logger.info(f"{name} exited with code {process.returncode}")
                 return name
         return None
 
+
+def format_size(bytes_count: int) -> str:
+    """Format bytes as human-readable size."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if bytes_count < 1024:
+            if unit == 'B':
+                return f"{bytes_count} {unit}"
+            return f"{bytes_count:.1f} {unit}"
+        bytes_count /= 1024
+    return f"{bytes_count:.1f} TB"
+
+
+def generate_summary(pm: ProcessManager, log_manager: LogManager):
+    """Generate end-of-run summary."""
+    log_manager.close_all()
+
+    # Determine outcome
+    has_errors = bool(log_manager.detected_errors)
+    has_failures = any(code != 0 for code in pm.exit_codes.values())
+    success = not has_errors and not has_failures
+
+    print("\n" + "=" * 60)
+    print("RUN SUMMARY")
+    print("=" * 60)
+
+    # 1. Outcome
+    if success:
+        print("Outcome: SUCCESS")
+    else:
+        print("Outcome: FAILURE")
+        for name, code in pm.exit_codes.items():
+            if code != 0:
+                print(f"  - {name} exited with code {code}")
+
+    # 2. Last 20 lines of workflow.log
+    workflow_log = os.path.join(log_manager.run_dir, 'workflow.log')
+    if os.path.exists(workflow_log):
+        print("\nWorkflow Log (last 20 lines):")
+        print("-" * 40)
+        with open(workflow_log, 'r') as f:
+            lines = f.readlines()
+            for line in lines[-20:]:
+                print(line.rstrip())
+        print("-" * 40)
+
+    # 3. Log file paths with sizes
+    print("\nLog Files:")
+    if os.path.exists(log_manager.run_dir):
+        for filename in sorted(os.listdir(log_manager.run_dir)):
+            filepath = os.path.join(log_manager.run_dir, filename)
+            size = os.path.getsize(filepath)
+            print(f"  {filepath} ({format_size(size)})")
+
+    print("=" * 60)
+
+
 def setup_signal_handlers(pm: ProcessManager):
-    """Setup signal handlers for graceful shutdown"""
+    """Setup signal handlers for graceful shutdown."""
     def signal_handler(signum, frame):
         logger.info("Received shutdown signal, initiating graceful shutdown...")
         asyncio.create_task(pm.shutdown_all())
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
+
 
 async def main():
     parser = argparse.ArgumentParser(description="Orchestrate Simlab system startup and coordination")
@@ -175,16 +301,22 @@ async def main():
     parser.add_argument('--nodes-ready-keyword', default='node_start', help='Keyword to detect robot nodes readiness')
 
     parser.add_argument('--timeout', type=int, default=60, help='How long to wait for each process to initialize')
-    parser.add_argument('--extremely-verbose', action='store_true', help='Show all output from all processes')
 
     args = parser.parse_args()
 
-    pm = ProcessManager()
+    # Create run directory for logs
+    run_timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    run_dir = f'/tmp/simlab/{run_timestamp}'
+    os.makedirs(run_dir, exist_ok=True)
+    logger.info(f"Logs: {run_dir}/")
+
+    log_manager = LogManager(run_dir)
+    pm = ProcessManager(log_manager)
     setup_signal_handlers(pm)
 
     isaac_cmd_with_redirect = f"({args.isaac_cmd}) 2>&1"
     isaac_process = await pm.start_process('isaac', isaac_cmd_with_redirect)
-    asyncio.create_task(pm.monitor_output('isaac', isaac_process, args.isaac_ready_keyword, args.extremely_verbose, False))
+    asyncio.create_task(pm.monitor_output('isaac', isaac_process, args.isaac_ready_keyword))
 
     # Let Isaac have an extra moment to stabilize
     await asyncio.sleep(20)
@@ -192,11 +324,11 @@ async def main():
     for i, node_cmd in enumerate(args.node_cmd):
         node_cmd_with_redirect = f"({node_cmd}) 2>&1"
         node_process = await pm.start_process(f'node_{i}', node_cmd_with_redirect)
-        asyncio.create_task(pm.monitor_output(f'node_{i}', node_process, args.nodes_ready_keyword, args.extremely_verbose, False))
+        asyncio.create_task(pm.monitor_output(f'node_{i}', node_process, args.nodes_ready_keyword))
 
     madsci_cmd_with_redirect = f"({args.madsci_cmd}) 2>&1"
     madsci_process = await pm.start_process('madsci', madsci_cmd_with_redirect)
-    asyncio.create_task(pm.monitor_output('madsci', madsci_process, args.madsci_ready_keyword, args.extremely_verbose, False))
+    asyncio.create_task(pm.monitor_output('madsci', madsci_process, args.madsci_ready_keyword))
 
     # Wait for Isaac, all nodes, and MADSci to be ready
     try:
@@ -211,14 +343,16 @@ async def main():
     if pm.shutdown_event.is_set() or pm.check_process_health():
         logger.error("System failed")
         await pm.shutdown_all()
+        generate_summary(pm, log_manager)
         return 1
 
     logger.info("=== Submitting Workflow ===")
 
     workflow_cmd_with_redirect = f"({args.workflow_cmd}) 2>&1"
     workflow_process = await pm.start_process('workflow', workflow_cmd_with_redirect)
+    log_manager.current_phase['workflow'] = 'runtime'  # Workflow has no startup phase
     pm.ready_flags.add('workflow')
-    asyncio.create_task(pm.monitor_output('workflow', workflow_process, None, args.extremely_verbose, False))
+    asyncio.create_task(pm.monitor_output('workflow', workflow_process, None))
 
     # Monitor system health and wait for shutdown signal
     while not pm.shutdown_event.is_set():
@@ -228,8 +362,10 @@ async def main():
 
         await asyncio.sleep(1)
 
-    logger.info("System shutdown completed successfully")
+    generate_summary(pm, log_manager)
+    logger.info("System shutdown completed")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(asyncio.run(main()))
