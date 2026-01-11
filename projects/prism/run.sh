@@ -1,6 +1,6 @@
 # Run from simlab/
 
-python scripts/orchestrate.py \
+python tools/orchestrate.py \
     --node-cmd "source activate-madsci.sh && cd src/madsci/ && ./run_node_ot2.sh" \
     --node-cmd "source activate-madsci.sh && cd src/madsci/ && ./run_node_pf400.sh" \
     --node-cmd "source activate-madsci.sh && cd src/madsci/ && ./run_node_sealer.sh" \

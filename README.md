@@ -39,7 +39,7 @@ For detailed environment management, see [environments/README.md](environments/R
 
 ### Running the System
 
-`python scripts/orchestrate.py` – designed for agents like Claude Code.
+`python tools/orchestrate.py` – designed for agents like Claude Code.
 
 See [src/README.md](src/README.md) for manual operation and technical details.
 
@@ -49,7 +49,6 @@ See [src/README.md](src/README.md) for manual operation and technical details.
 
 - **Isaac Sim Integration** (`src/isaacsim/`): 3D simulation environment with ZMQ communication interface to MADSci
 - **MADSci Integration** (`src/madsci/`): Laboratory orchestration with custom robot nodes and ZMQ communication to Isaac Sim
-- **Reference Material** (`reference/`): MADSci core framework and 20+ device integration modules for reference during development
 
 ### Communication Pattern
 

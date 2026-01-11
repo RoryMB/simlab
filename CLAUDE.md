@@ -70,7 +70,7 @@ Claude Code can use the following orchestration script to run all terminals comm
 # An example of running 2 nodes, the run.py Isaac Sim script, and the run_madsci.sh MADSci script.
 # Any number of node commands can be given.
 # Only one Isaac Sim command, one MADSci command, and one workflow command can be given.
-python scripts/orchestrate.py \
+python tools/orchestrate.py \
     --node-cmd "source activate-madsci.sh && cd src/madsci/ && ./run_node_ur5e.sh" \
     --node-cmd "source activate-madsci.sh && cd src/madsci/ && ./run_node_ot2.sh" \
     --isaac-cmd "source activate-isaacsim.sh && cd src/isaacsim/ && python run.py" \
@@ -89,7 +89,7 @@ The orchestration script discards all output from each process until its ready k
 Adding the --extremely-verbose argument will help reveal startup errors by also printing everything before the ready keywords, but this causes incredibly large amounts of output to print. Use sparingly.
 
 ```bash
-python scripts/orchestrate.py \
+python tools/orchestrate.py \
     --extremely-verbose \
     ...
 ```

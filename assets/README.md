@@ -25,7 +25,7 @@ assets/
 ├── architecture/  # Structural elements (walls, floors, ceilings)
 ├── labware/       # Laboratory equipment (plates, tips, reagents)
 ├── props/         # Environmental objects
-└── scripts/       # Scripts used for automation (converting .blend to .usd)
+└── tools/         # Tools for asset processing (.blend to .usd conversion, etc.)
 
 ```
 
@@ -88,9 +88,9 @@ Laboratory-specific equipment organized by function (tips, plates, reagents, ins
 
 Environmental objects that add visual detail or functional elements to scenes but aren't primary simulation objects. Follows simpler composition patterns requiring only geometry, materials, and physics.
 
-### Scripts
+### Tools
 
-Automated processing scripts to quickly convert .blend files into .usd files for geometry or collision shapes, verify relative paths point to valid files, etc.
+Tools for asset processing: converting .blend files into .usd files for geometry or collision shapes, verifying relative paths point to valid files, etc.
 
 ## Layered Composition Approach
 
