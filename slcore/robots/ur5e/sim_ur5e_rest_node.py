@@ -3,10 +3,9 @@ import signal
 from typing import Annotated, Optional, Union
 
 from madsci.client.resource_client import ResourceClient
-from madsci.common.types.action_types import ActionFailed, ActionResult, ActionSucceeded
+from madsci.common.types.action_types import ActionFailed, ActionSucceeded
 from madsci.common.types.admin_command_types import AdminCommandResponse
 from madsci.common.types.auth_types import OwnershipInfo
-from madsci.common.types.base_types import Error
 from madsci.common.types.location_types import LocationArgument
 from madsci.common.types.resource_types.definitions import SlotResourceDefinition
 from madsci.node_module.helpers import action
@@ -115,16 +114,16 @@ class SimUR5eNode(URNode):
             self.logger.log_info(joints)
             return ActionSucceeded(data={"joints": joints})
         except Exception as e:
-            return ActionFailed(errors=[Error(message=f"Failed to get joint angles: {str(e)}")])
+            return ActionFailed(errors=f"Failed to get joint angles: {e}")
 
     @action(name="set_freedrive", description="Free robot joints")
     def set_freedrive(self, timeout: Annotated[int, "how long to do freedrive"] = 60):
         """Set the robot into freedrive"""
         try:
             success = self.ur5e_interface.set_freedrive(timeout)
-            return ActionSucceeded() if success else ActionFailed(errors=[Error(message="Failed to enable freedrive")])
+            return ActionSucceeded() if success else ActionFailed(errors="Failed to enable freedrive")
         except Exception as e:
-            return ActionFailed(errors=[Error(message=f"Error in set_freedrive: {str(e)}")])
+            return ActionFailed(errors=f"Error in set_freedrive: {e}")
 
     @action(name="set_movement_params", description="Set speed and acceleration parameters")
     def set_movement_params(
@@ -153,7 +152,7 @@ class SimUR5eNode(URNode):
     def movej(
         self,
         joints: Annotated[Union[LocationArgument, list], "Joint angles to move to"],
-    ) -> ActionResult:
+    ):
         """Move the robot using joint angles"""
         try:
             if isinstance(joints, LocationArgument):
@@ -164,10 +163,10 @@ class SimUR5eNode(URNode):
             if self.ur5e_interface.move_to_location(joint_angles):
                 return ActionSucceeded()
             else:
-                return ActionFailed(errors=[Error(message="Failed to move to joint position")])
+                return ActionFailed(errors="Failed to move to joint position")
 
         except Exception as e:
-            return ActionFailed(errors=[Error(message=f"Joint movement error: {str(e)}")])
+            return ActionFailed(errors=f"Joint movement error: {e}")
 
     @action(name="toggle_gripper", description="Move the robot gripper")
     def toggle_gripper(
@@ -187,10 +186,10 @@ class SimUR5eNode(URNode):
                 self.logger.log("No action taken")
                 return ActionSucceeded()
 
-            return ActionSucceeded() if success else ActionFailed(errors=[Error(message="Gripper operation failed")])
+            return ActionSucceeded() if success else ActionFailed(errors="Gripper operation failed")
         except Exception as err:
             self.logger.log_error(err)
-            return ActionFailed(errors=[Error(message=str(err))])
+            return ActionFailed(errors=str(err))
 
     @action(
         name="gripper_transfer",
@@ -213,7 +212,7 @@ class SimUR5eNode(URNode):
         try:
             # Check if required locations are provided
             if not source or not target or not home:
-                return ActionFailed(errors=[Error(message="Source, target and home locations must be provided")])
+                return ActionFailed(errors="Source, target and home locations must be provided")
 
             if self.resource_client:
                 # Set up tool resource if not already done
@@ -229,7 +228,7 @@ class SimUR5eNode(URNode):
             # TODO: Extend to use approach distances and gripper parameters
             return self.transfer(source, target)
         except Exception as e:
-            return ActionFailed(errors=[Error(message=f"Error in gripper_transfer: {str(e)}")])
+            return ActionFailed(errors=f"Error in gripper_transfer: {e}")
 
     @action()
     def gripper_pick(
@@ -257,7 +256,7 @@ class SimUR5eNode(URNode):
             # Note: CoordinateType is available but not yet used by the interface
             # For now, joint_angle_locations=True (default) means we expect joint angles
             if not joint_angle_locations:
-                return ActionFailed(errors=[Error(message="Cartesian coordinates not yet supported in simulation")])
+                return ActionFailed(errors="Cartesian coordinates not yet supported in simulation")
 
             if isinstance(source, LocationArgument):
                 source_coords = source.location
@@ -266,11 +265,11 @@ class SimUR5eNode(URNode):
 
             if self.ur5e_interface.move_to_location(source_coords):
                 success = self.ur5e_interface.close_gripper()
-                return ActionSucceeded() if success else ActionFailed(errors=[Error(message="Failed to close gripper")])
+                return ActionSucceeded() if success else ActionFailed(errors="Failed to close gripper")
             else:
-                return ActionFailed(errors=[Error(message="Failed to move to source location")])
+                return ActionFailed(errors="Failed to move to source location")
         except Exception as e:
-            return ActionFailed(errors=[Error(message=f"Gripper pick error: {str(e)}")])
+            return ActionFailed(errors=f"Gripper pick error: {e}")
 
     def get_location(self) -> AdminCommandResponse:
         """Get the robot's current location"""

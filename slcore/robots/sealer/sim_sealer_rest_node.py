@@ -1,7 +1,6 @@
 import os
 import signal
 
-from madsci.common.types.action_types import ActionResult
 from madsci.node_module.helpers import action
 
 from slcore.robots.common.simple_device_node import SimpleDeviceNodeConfig, SimpleDeviceRestNode
@@ -35,7 +34,7 @@ class SimSealerNode(SimpleDeviceRestNode):
     #     os.kill(os.getpid(), signal.SIGTERM)
 
     @action(name="seal", description="Seal a plate")
-    def seal(self) -> ActionResult:
+    def seal(self):
         """Seal a plate."""
         return self._execute_action(self._interface.seal, "Seal")
 

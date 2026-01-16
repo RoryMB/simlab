@@ -3,7 +3,6 @@ import signal
 from typing import Annotated, Optional
 
 from madsci.client.resource_client import ResourceClient
-from madsci.common.types.action_types import ActionFailed, ActionResult, ActionSucceeded
 from madsci.common.types.auth_types import OwnershipInfo
 from madsci.common.types.resource_types import Slot
 from madsci.common.types.location_types import LocationArgument
@@ -116,7 +115,7 @@ class SimPF400Node(PF400Node):
         target_approach: Annotated[Optional[LocationArgument], "Location to approach from"] = None,
         source_plate_rotation: Annotated[str, "Orientation of the plate at the source, wide or narrow"] = "",
         target_plate_rotation: Annotated[str, "Final orientation of the plate at the target, wide or narrow"] = "",
-    ) -> ActionResult:
+    ):
         return super().transfer(source, target, source_approach, target_approach, source_plate_rotation, target_plate_rotation)
 
     @action(name="pick_plate", description="Pick a plate from a source location")
@@ -124,7 +123,7 @@ class SimPF400Node(PF400Node):
         self,
         source: Annotated[LocationArgument, "Location to pick a plate from"],
         source_approach: Annotated[Optional[LocationArgument], "Location to approach from"] = None,
-    ) -> ActionResult:
+    ):
         """Picks a plate from `source`, optionally moving first to `source_approach`."""
         return super().pick_plate(source, source_approach)
 
@@ -133,7 +132,7 @@ class SimPF400Node(PF400Node):
         self,
         target: Annotated[LocationArgument, "Location to place a plate to"],
         target_approach: Annotated[Optional[LocationArgument], "Location to approach from"] = None,
-    ) -> ActionResult:
+    ):
         """Place a plate in the `target` location, optionally moving first to `target_approach`."""
         return super().place_plate(target, target_approach)
 
@@ -147,7 +146,7 @@ class SimPF400Node(PF400Node):
         source_plate_rotation: Annotated[str, "Orientation of the plate at the source, wide or narrow"] = "",
         target_plate_rotation: Annotated[str, "Final orientation of the plate at the target, wide or narrow"] = "",
         lid_height: Annotated[float, "height of the lid, in steps"] = 7.0,
-    ) -> ActionResult:
+    ):
         """Remove a lid from a plate located at location ."""
         return super().remove_lid(source, target, source_approach, target_approach, source_plate_rotation, target_plate_rotation, lid_height)
 
@@ -161,7 +160,7 @@ class SimPF400Node(PF400Node):
         source_plate_rotation: Annotated[str, "Orientation of the plate at the source, wide or narrow"] = "",
         target_plate_rotation: Annotated[str, "Final orientation of the plate at the target, wide or narrow"] = "",
         lid_height: Annotated[float, "height of the lid, in steps"] = 7.0,
-    ) -> ActionResult:
+    ):
         """Replace a lid on a plate."""
         return super().replace_lid(source, target, source_approach, target_approach, source_plate_rotation, target_plate_rotation, lid_height)
 

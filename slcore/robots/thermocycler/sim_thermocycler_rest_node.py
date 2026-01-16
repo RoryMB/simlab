@@ -2,7 +2,7 @@ import os
 import signal
 from typing import Annotated
 
-from madsci.common.types.action_types import ActionResult, ActionStatus
+from madsci.common.types.action_types import ActionFailed
 from madsci.node_module.helpers import action
 
 from slcore.robots.common.simple_device_node import SimpleDeviceNodeConfig, SimpleDeviceRestNode
@@ -36,12 +36,12 @@ class SimThermocyclerNode(SimpleDeviceRestNode):
     #     os.kill(os.getpid(), signal.SIGTERM)
 
     @action(name="open", description="Open thermocycler lid")
-    def open(self) -> ActionResult:
+    def open(self):
         """Open thermocycler lid."""
         return self._execute_action(self._interface.open, "Open lid")
 
     @action(name="close", description="Close thermocycler lid")
-    def close(self) -> ActionResult:
+    def close(self):
         """Close thermocycler lid."""
         return self._execute_action(self._interface.close, "Close lid")
 
@@ -49,16 +49,11 @@ class SimThermocyclerNode(SimpleDeviceRestNode):
     def run_program(
         self,
         program_number: Annotated[int, "Program number to run"],
-    ) -> ActionResult:
+    ):
         """Run a thermocycling program."""
         success = self._interface.run_program(program_number)
-        if success:
-            return ActionResult(status=ActionStatus.SUCCEEDED)
-        else:
-            return ActionResult(
-                status=ActionStatus.FAILED,
-                errors=["Failed to run thermocycler program"]
-            )
+        if not success:
+            return ActionFailed(errors="Failed to run thermocycler program")
 
 
 if __name__ == "__main__":

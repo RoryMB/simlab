@@ -3,7 +3,7 @@
 from abc import abstractmethod
 from typing import Any
 
-from madsci.common.types.action_types import ActionResult, ActionStatus
+from madsci.common.types.action_types import ActionFailed
 from madsci.common.types.node_types import RestNodeConfig
 from madsci.node_module.rest_node_module import RestNode
 
@@ -54,21 +54,16 @@ class SimpleDeviceRestNode(RestNode):
                 "zmq_server_url": self.config.zmq_server_url,
             }
 
-    def _execute_action(self, method: callable, action_name: str) -> ActionResult:
-        """Execute an interface method and return appropriate ActionResult.
+    def _execute_action(self, method: callable, action_name: str):
+        """Execute an interface method and return ActionFailed on error.
 
         Args:
             method: The interface method to call (e.g., self._interface.seal)
             action_name: Name of the action for error messages
 
         Returns:
-            ActionResult with SUCCEEDED or FAILED status
+            None on success, ActionFailed on failure
         """
         success = method()
-        if success:
-            return ActionResult(status=ActionStatus.SUCCEEDED)
-        else:
-            return ActionResult(
-                status=ActionStatus.FAILED,
-                errors=[f"{action_name} operation failed"]
-            )
+        if not success:
+            return ActionFailed(errors=f"{action_name} operation failed")

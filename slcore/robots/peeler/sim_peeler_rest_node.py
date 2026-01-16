@@ -1,7 +1,6 @@
 import os
 import signal
 
-from madsci.common.types.action_types import ActionResult
 from madsci.node_module.helpers import action
 
 from slcore.robots.common.simple_device_node import SimpleDeviceNodeConfig, SimpleDeviceRestNode
@@ -35,7 +34,7 @@ class SimPeelerNode(SimpleDeviceRestNode):
     #     os.kill(os.getpid(), signal.SIGTERM)
 
     @action(name="peel", description="Peel a plate seal")
-    def peel(self) -> ActionResult:
+    def peel(self):
         """Peel a plate seal."""
         return self._execute_action(self._interface.peel, "Peel")
 
