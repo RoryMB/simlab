@@ -13,6 +13,7 @@ from pxr import PhysxSchema
 
 from slcore.common import utils
 from slcore.common.primary_functions import create_robot, CollisionDetector, CUSTOM_ASSETS_ROOT_PATH
+from slcore.robots.common.config import DEFAULT_PHYSICS_CONFIG
 
 
 def create_scene_objects(world):
@@ -37,7 +38,7 @@ def create_scene_objects(world):
 
     # Set contact offset for microplate
     physx_collision_api = PhysxSchema.PhysxCollisionAPI.Apply(microplate_prim)
-    physx_collision_api.CreateContactOffsetAttr().Set(0.0)
+    physx_collision_api.CreateContactOffsetAttr().Set(DEFAULT_PHYSICS_CONFIG.contact_offset)
 
     exchange_deck = create_prim(
         prim_path="/World/exchange_deck",
@@ -48,7 +49,7 @@ def create_scene_objects(world):
 
     utils.add_collider_to_prim(exchange_deck)
     physx_collision_api = PhysxSchema.PhysxCollisionAPI.Apply(exchange_deck)
-    physx_collision_api.CreateContactOffsetAttr().Set(0.0)
+    physx_collision_api.CreateContactOffsetAttr().Set(DEFAULT_PHYSICS_CONFIG.contact_offset)
 
     # Create reference position markers (invisible Xforms for coordinate calculation)
     create_prim(
@@ -179,7 +180,7 @@ def main():
             "name": "sealer_0",
             "type": "sealer",
             "port": 5558,
-            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Azenta/a4SSealer/a4SSealer.usda"),
+            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Azenta/a4SSealer/a4SSealer.usd"),
             "position": [0.06, -0.675, 0.125],
             "orientation": [1.0, 0.0, 0.0, 0.0],
         },
@@ -188,7 +189,7 @@ def main():
             "name": "peeler_0",
             "type": "peeler",
             "port": 5559,
-            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Azenta/XPeel/XPeel.usda"),
+            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Azenta/XPeel/XPeel.usd"),
             "position": [-0.4, -0.625, 0.125],
             "orientation": [1.0, 0.0, 0.0, 0.0],
         },
@@ -197,7 +198,7 @@ def main():
             "name": "thermocycler_0",
             "type": "thermocycler",
             "port": 5560,
-            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/AnalytikJena/Biometra/Biometra.usda"),
+            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/AnalytikJena/Biometra/Biometra.usd"),
             "position": [0.16, 0.4, 0.125],
             "orientation": [0.0, 0.0, 0.0, 1.0],
         },
@@ -206,7 +207,7 @@ def main():
             "name": "hidex_0",
             "type": "hidex",
             "port": 5561,
-            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Hidex/SenseMicroplateReader/SenseMicroplateReader.usda"),
+            "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Hidex/SenseMicroplateReader/SenseMicroplateReader.usd"),
             "position": [-0.4, 0.55, 0.125],
             "orientation": [0.0, 0.0, 0.0, 1.0],
         },
