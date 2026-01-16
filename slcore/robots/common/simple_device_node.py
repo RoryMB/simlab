@@ -45,6 +45,13 @@ class SimpleDeviceRestNode(RestNode):
         )
         self._interface.initialize_device()
 
+    def shutdown_handler(self) -> None:
+        """Clean up device interface on shutdown."""
+        if self._interface is not None:
+            del self._interface
+            self._interface = None
+        self.shutdown_has_run = True
+
     def state_handler(self) -> None:
         """Periodically called to update the current state of the node."""
         if self._interface is not None:

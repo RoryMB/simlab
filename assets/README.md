@@ -76,6 +76,8 @@ assets/robots/picker/
 └── picker.usd                 # External interface
 ```
 
+**Naming Convention:** Asset directories use original manufacturer and product names (e.g., `Opentrons/OT-2`, `Brooks/PF400`) for traceability to official documentation. Code in `slcore/robots/` uses lowercase identifiers (e.g., `ot2`, `pf400`) per Python naming conventions (PEP 8).
+
 ### Architecture
 
 This directory contains modular building components that can be assembled into different laboratory configurations. Components include walls, floors, ceilings, windows, and other structural elements. Each component follows the same layered approach as Robots but is typically simpler, requiring only geometry, materials, and physics.

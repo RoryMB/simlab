@@ -100,6 +100,13 @@ class SimPF400Node(PF400Node):
                 "zmq_server_url": self.config.zmq_server_url,
             }
 
+    def shutdown_handler(self) -> None:
+        """Clean up PF400 interface on shutdown."""
+        if self.pf400_interface is not None:
+            del self.pf400_interface
+            self.pf400_interface = None
+        self.shutdown_has_run = True
+
     # def _exception_handler(self, e: Exception, set_node_errored: bool = True):
     #     """Overrides the default exception handler to force a shutdown."""
     #     super()._exception_handler(e, set_node_errored)

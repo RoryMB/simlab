@@ -438,7 +438,7 @@
 +        response = self._send_command(command)
 +
 +        if response.get("status") == "success":
-+            return response.get("joint_positions", {})
++            return response.get("joint_angles", {})
 +        else:
 +            raise RuntimeError(f"Failed to get joint positions: {response}")
 +

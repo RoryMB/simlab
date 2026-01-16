@@ -1,5 +1,6 @@
 .madsci/
 /specs/
+/ai_docs/
 
 # UV virtual environments (dual environment structure)
 /.venv-isaacsim/

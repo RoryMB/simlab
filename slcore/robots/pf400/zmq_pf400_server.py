@@ -43,7 +43,7 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
 
         elif action == "get_joints":
             joint_positions = self.robot.get_joint_positions()
-            return self.create_success_response("joints retrieved", data={"joint_positions": joint_positions.tolist()})
+            return self.create_success_response("joints retrieved", joint_angles=joint_positions.tolist())
 
         elif action == "get_status":
             joint_positions = self.robot.get_joint_positions()

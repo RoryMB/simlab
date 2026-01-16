@@ -49,6 +49,13 @@ class SimOT2Node(OT2Node):
 
         self.logger.log("OT2 node online")
 
+    def shutdown_handler(self) -> None:
+        """Clean up OT2 interface on shutdown."""
+        if self.ot2_interface is not None:
+            del self.ot2_interface
+            self.ot2_interface = None
+        self.shutdown_has_run = True
+
     @action(name="run_protocol", description="run a given opentrons protocol")
     def run_protocol(
         self,

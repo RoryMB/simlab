@@ -248,7 +248,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
             for joint_name, position in self.virtual_joints.items():
                 joint_positions[joint_name] = float(position)
 
-            return {"status": "success", "joint_positions": joint_positions}
+            return {"status": "success", "message": "joints retrieved", "joint_angles": joint_positions}
         except Exception as e:
             return {"status": "error", "message": f"Failed to get joint positions: {str(e)}"}
 
@@ -288,7 +288,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
             if current_positions.get("status") != "success":
                 return {"status": "error", "message": "Failed to get current positions"}
 
-            joint_positions = current_positions["joint_positions"]
+            joint_positions = current_positions["joint_angles"]
 
             # Check each axis against home position (tolerance: 0.001m = 1mm)
             tolerance = 0.001
@@ -329,7 +329,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
             if current_positions.get("status") != "success":
                 return {"status": "error", "message": "Failed to get current positions"}
 
-            current_pos = current_positions["joint_positions"].get(axis, 0.0)
+            current_pos = current_positions["joint_angles"].get(axis, 0.0)
 
             # Calculate target position and check limits
             target_pos = current_pos + distance
@@ -354,7 +354,7 @@ class ZMQ_OT2_Server(ZMQ_Robot_Server):
             if final_positions.get("status") != "success":
                 return {"status": "error", "message": "Failed to get final position after probe"}
 
-            final_pos = final_positions["joint_positions"].get(axis, current_pos)
+            final_pos = final_positions["joint_angles"].get(axis, current_pos)
 
             print(f"Probe moved {axis} from {current_pos:.4f} to {final_pos:.4f} (distance: {actual_distance:.4f})")
 
