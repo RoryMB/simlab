@@ -18,13 +18,6 @@ if [ -d ".venv-madsci" ]; then
     fi
 fi
 
-# Check if opentrons fork exists
-if [ ! -d "forks/opentrons" ]; then
-    echo "ERROR: forks/opentrons/ not found"
-    echo "The opentrons fork is required for the MADSci environment"
-    exit 1
-fi
-
 # Step 1: Create virtual environment
 echo "Creating virtual environment..."
 uv venv .venv-madsci -p python@3.12
@@ -41,6 +34,37 @@ uv pip compile requirements-madsci.in \
 echo ""
 echo "Installing dependencies..."
 uv pip sync requirements-madsci.txt
+
+# Step 4: Apply opentrons patches
+echo ""
+echo "Applying opentrons patches..."
+
+# Get site-packages path for patches
+SITE_PACKAGES=$(python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")
+
+# Apply opentrons_shared_data numpy 2 compatibility patch
+if [ -f "forks/opentrons_shared_data.patch" ]; then
+    if patch -d "${SITE_PACKAGES}" -p0 < forks/opentrons_shared_data.patch; then
+        echo "opentrons_shared_data patch applied successfully"
+    else
+        echo "WARNING: Failed to apply opentrons_shared_data patch"
+    fi
+fi
+
+# Apply opentrons simulation patch
+if [ -f "forks/opentrons.patch" ]; then
+    # Create simulation directory for new files
+    mkdir -p "${SITE_PACKAGES}/opentrons/hardware_control/simulation"
+
+    # Apply patch (-p0 keeps paths as-is)
+    if patch -d "${SITE_PACKAGES}" -p0 < forks/opentrons.patch; then
+        echo "opentrons patch applied successfully"
+    else
+        echo "WARNING: Failed to apply opentrons patch - simulation features may not work"
+    fi
+else
+    echo "WARNING: forks/opentrons.patch not found - simulation features will not work"
+fi
 
 deactivate
 

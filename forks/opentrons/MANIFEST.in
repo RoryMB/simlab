@@ -1,3 +1,0 @@
-graft src/opentrons/config
-graft src/opentrons/resources
-exclude pyproject.toml

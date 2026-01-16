@@ -1,0 +1,15 @@
+--- opentrons_shared_data/labware/labware_definition.py
++++ opentrons_shared_data/labware/labware_definition.py
+@@ -8,7 +8,11 @@
+ from enum import Enum
+ from math import sqrt, asin
+ from typing import Final
+-from numpy import pi, trapz
++from numpy import pi
++try:
++    from numpy import trapezoid as trapz  # numpy 2.0+
++except ImportError:
++    from numpy import trapz  # numpy < 2.0
+ from functools import cached_property
+ 
+ from pydantic import (

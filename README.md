@@ -133,8 +133,8 @@ simlab/
 │   └── tools/            # Asset processing tools (.blend to .usd conversion)
 ├── docs/             # Documentation and examples
 │   └── examples/         # Code snippets and reference examples
-├── forks/            # Third-party library forks with custom modifications
-│   └── opentrons/        # Opentrons library fork
+├── forks/            # Patches for third-party libraries (applied during setup)
+│   └── *.patch           # Unified diff patches for opentrons simulation support
 ├── tools/            # User tools and utilities for the command line
 │   └── usd/              # USD command-line tools built from source
 ├── projects/         # Self-contained experimental projects

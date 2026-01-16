@@ -1,5 +1,5 @@
 # MADSci dependencies
--e ./forks/opentrons
+opentrons==8.5.1
 git+https://github.com/AD-SDL/ur_module.git
 git+https://github.com/AD-SDL/ot2_module.git
 pandas
