@@ -1,9 +1,72 @@
 name: Location Manager
-description: A location manager
+description: Location manager for scaling-mvp parallel environments
 manager_id: 01KD2B9DA9KH145B6KHTJ9TTX4
 manager_type: location_manager
-locations: []
+locations:
+  # Staging area - intermediate position for plate transfers
+  - location_name: staging
+    location_id: 01KF5A0001STAGING000000001
+    description: Staging area for plate transfers
+    representations:
+      pf400:
+        # Calibrated from goto_prim to /World/env_0/locations/staging
+        - 0.16330
+        - 0.0
+        - 0.0
+        - 0.0
+        - 0.03738
+        - 0.0
+        - 0.0
+    resource_template_name: plate_nest
+    resource_template_overrides: {}
+    allow_transfers: true
+
+  # Thermocycler nest - plate placement on thermocycler
+  - location_name: thermocycler_nest
+    location_id: 01KF5A0002THERMO00000001
+    description: Thermocycler plate nest
+    representations:
+      pf400:
+        # Estimated based on device position [0.16, 0.4, 0.35]
+        # These values need calibration with command.py
+        - 0.0
+        - 0.2
+        - 0.0
+        - 0.0
+        - 0.0
+        - 0.0
+        - 0.0
+    resource_template_name: plate_nest
+    resource_template_overrides: {}
+    allow_transfers: true
+
+  # Peeler nest - plate placement on peeler
+  - location_name: peeler_nest
+    location_id: 01KF5A0003PEELER00000001
+    description: Peeler plate nest
+    representations:
+      pf400:
+        # Estimated based on device position [-0.4, -0.625, 0.35]
+        # These values need calibration with command.py
+        - -0.5
+        - 0.1
+        - 0.0
+        - 0.0
+        - 0.0
+        - 0.0
+        - 0.0
+    resource_template_name: plate_nest
+    resource_template_overrides: {}
+    allow_transfers: true
+
 transfer_capabilities:
-  transfer_templates: []
+  transfer_templates:
+    - node_name: pf400
+      action: transfer
+      source_argument_name: source
+      target_argument_name: target
+      cost_weight: 1.0
+      additional_args: {}
+      additional_location_args: {}
   override_transfer_templates: null
   capacity_cost_config: null

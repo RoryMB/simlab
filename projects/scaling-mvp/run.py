@@ -6,10 +6,72 @@ simulation_app = SimulationApp({"headless": False})
 
 import numpy as np
 from isaacsim.core.api import World
+from isaacsim.core.utils.prims import create_prim
 
 from slcore.common.primary_functions import create_parallel_robots, CollisionDetector
 from slcore.common.parallel_config import ParallelConfig
 from slcore.robots.common.config import CUSTOM_ASSETS_ROOT_PATH
+
+
+# PF400 location markers for calibration and workflow execution
+# These are world coordinates where the PF400 end effector should move to
+# Each location has a main position and a hover position (0.1m above for safe approach)
+HOVER_HEIGHT = 0.1
+
+PF400_LOCATIONS = {
+    # Home position (safe neutral position)
+    "home": {
+        "position": [0.0, 0.0, 0.5],
+        "orientation": [1.0, 0.0, 0.0, 0.0],
+    },
+    # Staging area (intermediate position for plate transfers)
+    "staging": {
+        "position": [0.3, 0.0, 0.3],
+        "orientation": [1.0, 0.0, 0.0, 0.0],
+    },
+    # Thermocycler nest (plate placement position)
+    # Thermocycler is at [0.16, 0.4, 0.125] with 180-degree rotation
+    "thermocycler_nest": {
+        "position": [0.16, 0.4, 0.35],
+        "orientation": [0.0, 0.0, 0.0, 1.0],  # Match thermocycler orientation
+    },
+    # Peeler nest (plate placement position)
+    # Peeler is at [-0.4, -0.625, 0.125]
+    "peeler_nest": {
+        "position": [-0.4, -0.625, 0.35],
+        "orientation": [1.0, 0.0, 0.0, 0.0],
+    },
+}
+
+
+def create_location_markers(env_id: int, offset: np.ndarray):
+    """Create PF400 location xform markers for an environment.
+
+    Args:
+        env_id: Environment ID for naming
+        offset: [x, y, z] offset for this environment
+    """
+    for name, pose in PF400_LOCATIONS.items():
+        # Calculate offset position
+        pos = np.array(pose["position"]) + offset
+
+        # Create main location marker
+        create_prim(
+            prim_path=f"/World/env_{env_id}/locations/{name}",
+            prim_type="Xform",
+            position=pos,
+            orientation=np.array(pose["orientation"]),
+        )
+
+        # Create hover marker (same position but higher z)
+        hover_pos = pos.copy()
+        hover_pos[2] += HOVER_HEIGHT
+        create_prim(
+            prim_path=f"/World/env_{env_id}/locations/{name}_hover",
+            prim_type="Xform",
+            position=hover_pos,
+            orientation=np.array(pose["orientation"]),
+        )
 
 
 def main():
@@ -54,6 +116,11 @@ def main():
         base_robots_config,
         parallel_config,
     )
+
+    # Create location markers for each environment (for PF400 calibration and goto_prim)
+    for env_id in range(parallel_config.num_envs):
+        offset = parallel_config.get_offset(env_id)
+        create_location_markers(env_id, offset)
 
     # Reset world after all robots are added
     world.reset()
