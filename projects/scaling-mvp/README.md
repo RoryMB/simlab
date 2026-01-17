@@ -102,9 +102,44 @@ steps:
 
 This allows the same workflow to run on any environment - just specify `--env-id N` when submitting.
 
+## Available Workflows
+
+- **workflow.yaml**: Simple thermocycler open/close test
+- **workflow_transfer.yaml**: PF400 transfer demo (staging <-> thermocycler)
+
+## PF400 Calibration
+
+The `command.py` script allows direct ZMQ communication with Isaac Sim for calibrating robot positions:
+
+```bash
+# Start Isaac Sim first
+source activate-isaacsim.sh && cd projects/scaling-mvp && python run.py
+
+# In another terminal, run calibration commands
+source activate-madsci.sh && cd projects/scaling-mvp
+python command.py
+```
+
+The script moves PF400 to named xform locations and captures joint angles. Edit `command.py` to customize:
+- `ENV_ID`: Which environment to control (0-4)
+- `COMMANDS`: List of actions to execute
+
+Available PF400 commands:
+- `goto_prim`: Move to a scene xform (e.g., `/World/env_0/locations/staging`)
+- `get_joints`: Print current joint angles
+- `move_joints`: Move to specific joint angles
+- `gripper_open`/`gripper_close`: Control gripper
+
+Location xforms in run.py:
+- `home`, `home_hover`
+- `staging`, `staging_hover`
+- `thermocycler_nest`, `thermocycler_nest_hover`
+- `peeler_nest`, `peeler_nest_hover`
+
 ## Notes
 
 - Each MongoDB is non-persistent (data lost on container restart)
 - All environments share Redis, PostgreSQL, and shared managers (Event, Resource, Location, Data, Lab, Experiment)
 - ZMQ identities use format `env_{id}.{robot_type}` (e.g., `env_0.pf400`, `env_3.thermocycler`)
 - REST node env vars require `NODE_` prefix: `NODE_ENV_ID`, `NODE_ZMQ_SERVER_URL`
+- Location manager joint angles need calibration using command.py
