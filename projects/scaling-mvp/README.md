@@ -15,7 +15,24 @@ Each environment contains:
 - Peeler device
 - Thermocycler device
 
-## Running the System
+## Quick Start (Automated)
+
+Use the orchestrate script to run everything automatically:
+
+```bash
+# Run environments 0 and 1 with workflow submission
+python tools/orchestrate.py \
+    --isaac-cmd "source activate-isaacsim.sh && cd projects/scaling-mvp && python run.py" \
+    --madsci-cmd "cd projects/scaling-mvp/madsci && ./run_madsci.sh" \
+    --node-cmd "cd projects/scaling-mvp && ./run_nodes.sh 0" \
+    --node-cmd "cd projects/scaling-mvp && ./run_nodes.sh 1" \
+    --workflow-cmd "source activate-madsci.sh && cd projects/scaling-mvp && python run_workflow.py --env-id 0 workflow.yaml && python run_workflow.py --env-id 1 workflow.yaml" \
+    --timeout 240
+```
+
+Logs are written to `/tmp/simlab/<timestamp>/`.
+
+## Running the System (Manual)
 
 ### Terminal 1: Start Isaac Sim
 
@@ -72,8 +89,22 @@ python run_workflow.py --env-id 0 workflow.yaml
 3. **Workflow**: Submit workflows to different environments simultaneously
 4. **Isolation**: Trigger error in one environment, others continue normally
 
+## Workflow Node Naming
+
+Workflows use **logical node names** (`pf400`, `peeler`, `thermocycler`) that are consistent across all workcells:
+
+```yaml
+steps:
+  - name: Open Thermocycler
+    node: thermocycler  # NOT thermocycler_0
+    action: open
+```
+
+This allows the same workflow to run on any environment - just specify `--env-id N` when submitting.
+
 ## Notes
 
 - Each MongoDB is non-persistent (data lost on container restart)
 - All environments share Redis, PostgreSQL, and shared managers (Event, Resource, Location, Data, Lab, Experiment)
 - ZMQ identities use format `env_{id}.{robot_type}` (e.g., `env_0.pf400`, `env_3.thermocycler`)
+- REST node env vars require `NODE_` prefix: `NODE_ENV_ID`, `NODE_ZMQ_SERVER_URL`
