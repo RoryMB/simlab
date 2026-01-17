@@ -4,7 +4,7 @@ This project demonstrates parallel environment execution with 5 independent work
 
 ## Architecture
 
-- **5 parallel Isaac Sim environments** with spatial offsets (10m apart)
+- **5 parallel Isaac Sim environments** with spatial offsets (5m apart)
 - **Single ZMQ ROUTER** on port 5555 (multiplexed communication)
 - **5 separate MongoDB instances** (ports 27017-27021)
 - **5 workcell managers** (ports 8015, 8025, 8035, 8045, 8055)
@@ -67,7 +67,7 @@ python run_workflow.py --env-id 0 workflow.yaml
 
 ## Verification
 
-1. **Visual**: Check Isaac Sim - should see 5 workcells at 10m intervals along X axis
+1. **Visual**: Check Isaac Sim - should see 5 workcells at 5m intervals along X axis
 2. **ZMQ routing**: Send command to one environment, verify only that robot responds
 3. **Workflow**: Submit workflows to different environments simultaneously
 4. **Isolation**: Trigger error in one environment, others continue normally

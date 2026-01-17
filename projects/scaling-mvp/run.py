@@ -21,7 +21,7 @@ def main():
     # Parallel environment configuration
     parallel_config = ParallelConfig(
         num_envs=5,
-        spacing=10.0,  # 10 meters between environments
+        spacing=5.0,  # 5 meters between environments
         zmq_port=5555,
     )
 

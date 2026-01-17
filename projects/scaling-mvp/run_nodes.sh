@@ -43,9 +43,9 @@ set +a
 # Activate MADSci venv
 source "$PROJECT_ROOT/activate-madsci.sh"
 
-# Common environment for all nodes
-export ZMQ_SERVER_URL="tcp://localhost:5555"
-export ENV_ID="$ENV_ID"
+# Common environment for all nodes (NODE_ prefix required by pydantic-settings)
+export NODE_ZMQ_SERVER_URL="tcp://localhost:5555"
+export NODE_ENV_ID="$ENV_ID"
 
 # Trap to kill all background processes on exit
 cleanup() {

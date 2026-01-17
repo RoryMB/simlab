@@ -8,9 +8,9 @@ parameters: []
 
 steps:
   - name: Open Thermocycler
-    node: thermocycler_0
+    node: thermocycler
     action: open
 
   - name: Close Thermocycler
-    node: thermocycler_0
+    node: thermocycler
     action: close

@@ -16,7 +16,7 @@ class ParallelConfig:
     num_envs: int = 5
     """Number of parallel environments to create"""
 
-    spacing: float = 10.0
+    spacing: float = 5.0
     """Distance between environments in meters"""
 
     zmq_port: int = 5555
