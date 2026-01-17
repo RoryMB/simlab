@@ -9,12 +9,12 @@ locations:
     description: Staging area for plate transfers
     representations:
       pf400:
-        # Calibrated from goto_prim to /World/env_0/locations/staging
-        - 0.16330
-        - 0.0
-        - 0.0
-        - 0.0
+        # Calibrated joint angles from command.py
         - 0.03738
+        - 0.16319
+        - 0.0
+        - 0.0
+        - 0.0
         - 0.0
         - 0.0
     resource_template_name: plate_nest
@@ -27,13 +27,12 @@ locations:
     description: Thermocycler plate nest
     representations:
       pf400:
-        # Estimated based on device position [0.16, 0.4, 0.35]
-        # These values need calibration with command.py
-        - 0.0
-        - 0.2
-        - 0.0
-        - 0.0
-        - 0.0
+        # Calibrated joint angles from command.py
+        - -0.44856
+        - 0.19619
+        - 0.75693
+        - 2.4972
+        - -1.6833
         - 0.0
         - 0.0
     resource_template_name: plate_nest
@@ -46,13 +45,12 @@ locations:
     description: Peeler plate nest
     representations:
       pf400:
-        # Estimated based on device position [-0.4, -0.625, 0.35]
-        # These values need calibration with command.py
-        - -0.5
-        - 0.1
-        - 0.0
-        - 0.0
-        - 0.0
+        # Calibrated joint angles from command.py
+        - -0.51091
+        - 0.1323
+        - 0.11105
+        - 0.80197
+        - -2.48375
         - 0.0
         - 0.0
     resource_template_name: plate_nest

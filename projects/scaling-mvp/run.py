@@ -15,8 +15,10 @@ from slcore.robots.common.config import CUSTOM_ASSETS_ROOT_PATH
 
 # PF400 location markers for calibration and workflow execution
 # These are world coordinates where the PF400 end effector should move to
-# Each location has a main position and a hover position (0.1m above for safe approach)
-HOVER_HEIGHT = 0.1
+# Each location has a main position and a hover position above for safe vertical approach
+#
+# Values calibrated from projects/prism/run_phys.py
+HOVER_HEIGHT = 0.1  # 10cm above target for auto-generated hover positions
 
 PF400_LOCATIONS = {
     # Home position (safe neutral position)
@@ -29,17 +31,17 @@ PF400_LOCATIONS = {
         "position": [0.3, 0.0, 0.3],
         "orientation": [1.0, 0.0, 0.0, 0.0],
     },
-    # Thermocycler nest (plate placement position)
-    # Thermocycler is at [0.16, 0.4, 0.125] with 180-degree rotation
+    # Thermocycler nest (calibrated from prism bio_biometra3_nest)
+    # Device at [0.16, 0.4, 0.125] rotated 180° Z
     "thermocycler_nest": {
-        "position": [0.16, 0.4, 0.35],
-        "orientation": [0.0, 0.0, 0.0, 1.0],  # Match thermocycler orientation
+        "position": [0.161, 0.387, 0.333],
+        "orientation": [0.707, 0.0, 0.0, 0.707],  # 90° Z rotation
     },
-    # Peeler nest (plate placement position)
-    # Peeler is at [-0.4, -0.625, 0.125]
+    # Peeler nest (calibrated from prism peeler_nest)
+    # Device at [-0.4, -0.625, 0.125], tray is at different position
     "peeler_nest": {
-        "position": [-0.4, -0.625, 0.35],
-        "orientation": [1.0, 0.0, 0.0, 0.0],
+        "position": [-0.285, -0.342, 0.269],
+        "orientation": [-0.707, 0.0, 0.0, 0.707],  # -90° Z rotation
     },
 }
 

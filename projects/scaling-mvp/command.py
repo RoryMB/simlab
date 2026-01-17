@@ -60,18 +60,43 @@ COMMANDS = [
     # === Peeler Commands ===
     # {"robot": "peeler", "action": "peel"},
 
-    # === Example calibration sequence ===
-    # Move through locations to capture joint angles:
+    # === Safe calibration sequence ===
+    # Key principles:
+    # 1. Open lids BEFORE approaching devices
+    # 2. Always return to home between different target areas
+    # 3. Approach via hover (from above) to avoid collisions
+
+    # Start at home
     {"robot": "pf400", "action": "goto_prim", "prim_name": f"/World/env_{ENV_ID}/locations/home"},
     {"robot": "pf400", "action": "get_joints"},
+
+    # --- Staging calibration ---
     {"robot": "pf400", "action": "goto_prim", "prim_name": f"/World/env_{ENV_ID}/locations/staging_hover"},
     {"robot": "pf400", "action": "get_joints"},
     {"robot": "pf400", "action": "goto_prim", "prim_name": f"/World/env_{ENV_ID}/locations/staging"},
     {"robot": "pf400", "action": "get_joints"},
+    # Return to hover, then home
+    {"robot": "pf400", "action": "goto_prim", "prim_name": f"/World/env_{ENV_ID}/locations/staging_hover"},
+    {"robot": "pf400", "action": "goto_prim", "prim_name": f"/World/env_{ENV_ID}/locations/home"},
+
+    # --- Thermocycler calibration ---
+    # IMPORTANT: Open lid before approaching!
+    {"robot": "thermocycler", "action": "open"},
     {"robot": "pf400", "action": "goto_prim", "prim_name": f"/World/env_{ENV_ID}/locations/thermocycler_nest_hover"},
     {"robot": "pf400", "action": "get_joints"},
     {"robot": "pf400", "action": "goto_prim", "prim_name": f"/World/env_{ENV_ID}/locations/thermocycler_nest"},
     {"robot": "pf400", "action": "get_joints"},
+    # Return to hover, then home, then close lid
+    {"robot": "pf400", "action": "goto_prim", "prim_name": f"/World/env_{ENV_ID}/locations/thermocycler_nest_hover"},
+    {"robot": "pf400", "action": "goto_prim", "prim_name": f"/World/env_{ENV_ID}/locations/home"},
+    {"robot": "thermocycler", "action": "close"},
+
+    # --- Peeler calibration ---
+    {"robot": "pf400", "action": "goto_prim", "prim_name": f"/World/env_{ENV_ID}/locations/peeler_nest_hover"},
+    {"robot": "pf400", "action": "get_joints"},
+    {"robot": "pf400", "action": "goto_prim", "prim_name": f"/World/env_{ENV_ID}/locations/peeler_nest"},
+    {"robot": "pf400", "action": "get_joints"},
+    {"robot": "pf400", "action": "goto_prim", "prim_name": f"/World/env_{ENV_ID}/locations/peeler_nest_hover"},
     {"robot": "pf400", "action": "goto_prim", "prim_name": f"/World/env_{ENV_ID}/locations/home"},
 ]
 
@@ -94,6 +119,13 @@ MOTION_ACTIONS = {
     "seal",
     "peel",
 }
+
+# Robots that support get_status for polling motion completion
+# Other robots use simple time-based waiting
+ROBOTS_WITH_STATUS = {"pf400"}
+
+# Fixed wait time for robots without status polling (seconds)
+SIMPLE_WAIT_TIME = 3.0
 
 
 class CommandRunner:
@@ -201,7 +233,13 @@ class CommandRunner:
                 # For motion actions, wait for completion
                 if action in MOTION_ACTIONS:
                     print(" -> queued, waiting...", end="", flush=True)
-                    success, msg = self.wait_for_completion(robot_type)
+                    # Use status polling for robots that support it, time-based for others
+                    if robot_type in ROBOTS_WITH_STATUS:
+                        success, msg = self.wait_for_completion(robot_type)
+                    else:
+                        # Simple time-based wait for devices without status polling
+                        time.sleep(SIMPLE_WAIT_TIME)
+                        success, msg = True, "Motion complete (timed wait)"
                     if success:
                         print(f" -> {msg}")
                     else:
@@ -212,16 +250,12 @@ class CommandRunner:
                 else:
                     # Non-motion actions (like get_joints) complete immediately
                     print(f" -> OK")
-                    if "data" in response:
-                        data = response["data"]
-                        # Format joint angles nicely if present
-                        if "joint_positions" in data:
-                            joints = data["joint_positions"]
-                            # Round for readability
-                            joints_rounded = [round(j, 4) for j in joints]
-                            print(f"    Joint angles: {joints_rounded}")
-                        else:
-                            print(f"    Data: {data}")
+                    # Format joint angles nicely if present (at top level of response)
+                    if "joint_angles" in response:
+                        joints = response["joint_angles"]
+                        # Round for readability
+                        joints_rounded = [round(j, 5) for j in joints]
+                        print(f"    Joint angles: {joints_rounded}")
 
         finally:
             self.cleanup()
