@@ -1,0 +1,29 @@
+name: Resource Manager
+description: A resource manager
+manager_id: 01KD27G0ACA2JC3HJPTQJBQB5D
+manager_type: resource_manager
+resource_manager_id: 01JWVNE903BCECPSA9GE4XPKEM
+default_templates:
+- template_name: plate_nest
+  description: Standard plate nest for holding individual plates on instrument decks
+  base_resource:
+    resource_name: plate_nest_template
+    resource_name_prefix: null
+    resource_class: deck_slot
+    base_type: slot
+    resource_description: Plate nest for holding labware on instrument decks
+    owner: {}
+    custom_attributes: null
+    capacity: 1
+    default_children: null
+    default_child_template: null
+    default_child_quantity: null
+  required_overrides:
+  - resource_name
+  tags:
+  - plate
+  - nest
+  - deck
+  - slot
+  version: 1.0.0
+custom_types: {}

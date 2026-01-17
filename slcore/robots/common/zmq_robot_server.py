@@ -1,9 +1,6 @@
-import json
-import threading
 from abc import ABC, abstractmethod
 
 import numpy as np
-import zmq
 from isaacsim.core.utils.stage import get_current_stage
 from isaacsim.core.utils.types import ArticulationAction
 from isaacsim.robot_motion.motion_generation import (
@@ -18,16 +15,26 @@ from pxr import Gf, Sdf, UsdPhysics
 from slcore.common import utils
 
 class ZMQ_Robot_Server(ABC):
-    """Base class for ZMQ robot servers with enhanced end-effector robot functionality"""
+    """Base class for ZMQ robot handlers with enhanced end-effector robot functionality.
 
-    def __init__(self, simulation_app, robot, robot_prim_path: str, robot_name: str, port: int, motion_type: str = "smooth"):
+    Note: Socket management is handled by ZMQRouterServer. This class focuses on
+    command handling and robot control logic.
+    """
+
+    def __init__(
+        self,
+        simulation_app,
+        robot,
+        robot_prim_path: str,
+        robot_name: str,
+        env_id: int,
+        motion_type: str = "smooth",
+    ):
         self.simulation_app = simulation_app
         self.robot = robot
         self.robot_name = robot_name
-        self.port = port
+        self.env_id = env_id
         self.motion_type = motion_type
-        self.context = None
-        self.socket = None
 
         # Cache paths and prims
         stage = get_current_stage()
@@ -49,55 +56,6 @@ class ZMQ_Robot_Server(ABC):
         self.current_action = None
         self.target_joints = None
         self.target_pose = None
-
-    def start_server(self):
-        """Start ZMQ server in background thread"""
-        zmq_thread = threading.Thread(target=self.zmq_server_thread, daemon=True)
-        zmq_thread.start()
-        return zmq_thread
-
-    def zmq_server_thread(self):
-        """ZMQ server running in background thread"""
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REP)
-        self.socket.bind(f"tcp://*:{self.port}")
-
-        print(f"{self.robot_name} ZMQ server listening on port {self.port}")
-
-        while self.simulation_app.is_running():
-            try:
-                if self.socket.poll(100):
-                    message = self.socket.recv_string(zmq.NOBLOCK)
-                    request = json.loads(message)
-
-                    print(f"{self.robot_name} received command: {request}")
-                    response = self.handle_command(request)
-                    print(f"{self.robot_name} sending response: {response}")
-
-                    self.socket.send_string(json.dumps(response))
-
-            except zmq.Again:
-                continue
-            except Exception as e:
-                print(f"ZMQ server error for {self.robot_name}: {e}")
-                import traceback
-                traceback.print_exc()
-                error_response = {"status": "error", "message": str(e)}
-                try:
-                    self.socket.send_string(json.dumps(error_response))
-                except zmq.ZMQError as send_error:
-                    print(f"Failed to send error response: {send_error}")
-                except Exception as send_error:
-                    print(f"Unexpected error sending response: {send_error}")
-
-        self.cleanup()
-
-    def cleanup(self):
-        """Clean up ZMQ resources"""
-        if self.socket:
-            self.socket.close()
-        if self.context:
-            self.context.term()
 
     @abstractmethod
     def handle_command(self, request: dict) -> dict:

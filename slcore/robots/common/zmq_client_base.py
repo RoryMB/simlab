@@ -16,21 +16,34 @@ class ZMQClientInterface(ABC):
 
     status_code: int = 0
 
-    def __init__(self, zmq_server_url: str, logger=None, timeout_ms: int = 5000):
-        """Initialize ZMQ client connection.
+    def __init__(
+        self,
+        zmq_server_url: str,
+        env_id: int,
+        robot_type: str,
+        logger=None,
+        timeout_ms: int = 5000,
+    ):
+        """Initialize ZMQ DEALER client connection.
 
         Args:
             zmq_server_url: ZMQ server URL (e.g., "tcp://localhost:5555")
+            env_id: Environment ID for routing (0-N)
+            robot_type: Robot type identifier (e.g., "pf400", "peeler")
             logger: Optional EventClient logger instance
             timeout_ms: Timeout in milliseconds for ZMQ commands (default: 5000)
         """
         self.logger = logger or EventClient()
         self.zmq_server_url = zmq_server_url
+        self.env_id = env_id
+        self.robot_type = robot_type
         self.timeout_ms = timeout_ms
+        self.identity = f"env_{env_id}.{robot_type}"
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REQ)
+        self.socket = self.context.socket(zmq.DEALER)
+        self.socket.setsockopt_string(zmq.IDENTITY, self.identity)
         self.socket.connect(self.zmq_server_url)
-        self.logger.log(f"{self.__class__.__name__} connected to {zmq_server_url}")
+        self.logger.log(f"{self.__class__.__name__} connected to {zmq_server_url} with identity {self.identity}")
 
     def __del__(self):
         """Clean up ZMQ resources."""
@@ -44,7 +57,7 @@ class ZMQClientInterface(ABC):
         pass
 
     def send_zmq_command(self, command: dict) -> dict:
-        """Send a command via ZMQ and return the response.
+        """Send a command via ZMQ DEALER and return the response.
 
         Args:
             command: Dictionary containing the command to send
@@ -53,10 +66,12 @@ class ZMQClientInterface(ABC):
             Response dictionary from the server, or error dict on failure
         """
         try:
-            self.socket.send_string(json.dumps(command))
+            # DEALER sends: [empty, message]
+            self.socket.send_multipart([b"", json.dumps(command).encode()])
             if self.socket.poll(self.timeout_ms):
-                response_str = self.socket.recv_string()
-                return json.loads(response_str)
+                # DEALER receives: [empty, response]
+                _, response_bytes = self.socket.recv_multipart()
+                return json.loads(response_bytes.decode())
             else:
                 return {"status": "error", "message": f"Timeout after {self.timeout_ms}ms"}
         except Exception as e:

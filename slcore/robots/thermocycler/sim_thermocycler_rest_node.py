@@ -12,7 +12,7 @@ from slcore.robots.thermocycler.sim_thermocycler_interface import SimThermocycle
 class SimThermocyclerNodeConfig(SimpleDeviceNodeConfig):
     """Configuration for the thermocycler node module."""
 
-    zmq_server_url: str = "tcp://localhost:5560"
+    zmq_server_url: str = "tcp://localhost:5555"
 
 
 class SimThermocyclerNode(SimpleDeviceRestNode):

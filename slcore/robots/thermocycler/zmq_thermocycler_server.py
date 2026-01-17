@@ -8,8 +8,8 @@ from slcore.robots.common.zmq_server_mixins import RaycastMixin
 class ZMQ_Thermocycler_Server(RaycastMixin, ZMQ_Robot_Server):
     """Handles ZMQ communication for Thermocycler device"""
 
-    def __init__(self, simulation_app, robot, robot_prim_path, robot_name: str, port: int):
-        super().__init__(simulation_app, robot, robot_prim_path, robot_name, port)
+    def __init__(self, simulation_app, robot, robot_prim_path, robot_name: str, env_id: int):
+        super().__init__(simulation_app, robot, robot_prim_path, robot_name, env_id)
 
         # Thermocycler lid joint configuration
         self.lid_open_position = -0.2

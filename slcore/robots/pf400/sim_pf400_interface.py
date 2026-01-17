@@ -13,13 +13,14 @@ class SimPF400(ZMQClientInterface):
 
     def __init__(
         self,
-        zmq_server_url: str = "tcp://localhost:5557",
+        zmq_server_url: str = "tcp://localhost:5555",
+        env_id: int = 0,
         resource_client: ResourceClient = None,
         gripper_resource_id: Optional[str] = None,
         logger: Optional[EventClient] = None,
     ) -> "SimPF400":
         """Initialize the PF400 ZMQ client."""
-        super().__init__(zmq_server_url, logger)
+        super().__init__(zmq_server_url, env_id, "pf400", logger)
         self.resource_client = resource_client
         self.gripper_resource_id = gripper_resource_id
 

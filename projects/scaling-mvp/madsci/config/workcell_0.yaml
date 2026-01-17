@@ -1,0 +1,8 @@
+name: Workcell_0
+manager_type: workcell_manager
+manager_id: 01KF4PJM53QNJAWB5DXENCMD47
+description: Parallel environment 0
+nodes:
+  pf400_0: http://127.0.0.1:8100/
+  peeler_0: http://127.0.0.1:8101/
+  thermocycler_0: http://127.0.0.1:8102/

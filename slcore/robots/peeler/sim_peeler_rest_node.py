@@ -10,7 +10,7 @@ from slcore.robots.peeler.sim_peeler_interface import SimPeeler
 class SimPeelerNodeConfig(SimpleDeviceNodeConfig):
     """Configuration for the peeler node module."""
 
-    zmq_server_url: str = "tcp://localhost:5559"
+    zmq_server_url: str = "tcp://localhost:5555"
 
 
 class SimPeelerNode(SimpleDeviceRestNode):

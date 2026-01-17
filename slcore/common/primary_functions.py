@@ -9,8 +9,10 @@ from omni.physx.scripts.physicsUtils import PhysicsSchemaTools
 from pxr import PhysxSchema, UsdPhysics
 
 from slcore.common import utils
+from slcore.common.parallel_config import ParallelConfig
 from slcore.robots.common.config import CUSTOM_ASSETS_ROOT_PATH, PhysicsConfig, DEFAULT_PHYSICS_CONFIG
 from slcore.robots.common.validation import validate_prim_exists
+from slcore.robots.common.zmq_router_server import ZMQRouterServer
 from slcore.robots.ot2.zmq_ot2_server import ZMQ_OT2_Server
 from slcore.robots.ur5e.zmq_ur5e_server import ZMQ_UR5e_Server
 from slcore.robots.pf400.zmq_pf400_server import ZMQ_PF400_Server
@@ -32,7 +34,7 @@ ROBOT_SERVER_REGISTRY = {
 }
 
 
-def create_zmq_server(robot_type: str, simulation_app, robot, robot_prim_path: str, robot_name: str, port: int):
+def create_zmq_server(robot_type: str, simulation_app, robot, robot_prim_path: str, robot_name: str, env_id: int):
     """Factory function to create ZMQ server for a given robot type.
 
     Args:
@@ -41,7 +43,7 @@ def create_zmq_server(robot_type: str, simulation_app, robot, robot_prim_path: s
         robot: Robot object
         robot_prim_path: USD prim path for the robot
         robot_name: Name identifier for the robot
-        port: ZMQ port number
+        env_id: Environment ID for routing in parallel simulations
 
     Returns:
         ZMQ server instance for the robot type
@@ -52,7 +54,7 @@ def create_zmq_server(robot_type: str, simulation_app, robot, robot_prim_path: s
     server_class = ROBOT_SERVER_REGISTRY.get(robot_type)
     if server_class is None:
         raise ValueError(f"Unknown robot type: {robot_type}. Available types: {list(ROBOT_SERVER_REGISTRY.keys())}")
-    return server_class(simulation_app, robot, robot_prim_path, robot_name, port)
+    return server_class(simulation_app, robot, robot_prim_path, robot_name, env_id)
 
 
 class CollisionDetector:
@@ -83,7 +85,24 @@ class CollisionDetector:
 
 
 def create_robot(simulation_app, world, robot_config, add=True):
-    """Create robots and their ZMQ servers"""
+    """Create robots and their ZMQ servers.
+
+    Args:
+        simulation_app: Isaac Sim application instance
+        world: Isaac Sim world
+        robot_config: Dictionary with robot configuration including:
+            - asset_path: USD file path
+            - prim_path: USD prim path
+            - name: Robot name
+            - type: Robot type (pf400, peeler, etc.)
+            - env_id: Environment ID (required for parallel environments)
+            - position: [x, y, z] position (optional)
+            - orientation: [w, x, y, z] quaternion (optional)
+        add: Whether to add the robot to the stage (default: True)
+
+    Returns:
+        Tuple of (robot, zmq_server)
+    """
     # Create robot in simulation
     if add:
         add_reference_to_stage(
@@ -106,13 +125,14 @@ def create_robot(simulation_app, world, robot_config, add=True):
 
     # Create appropriate ZMQ server based on robot type using factory pattern
     robot_type = robot_config["type"]
+    env_id = robot_config.get("env_id", 0)  # Default to 0 for backward compatibility
     zmq_server = create_zmq_server(
         robot_type,
         simulation_app,
         robot,
         robot_config["prim_path"],
         robot_config["name"],
-        robot_config["port"]
+        env_id,
     )
 
     # Enable collision detection
@@ -130,3 +150,58 @@ def create_robot(simulation_app, world, robot_config, add=True):
                 physx_collision.CreateContactOffsetAttr().Set(DEFAULT_PHYSICS_CONFIG.contact_offset)
 
     return robot, zmq_server
+
+
+def create_parallel_robots(
+    simulation_app,
+    world,
+    base_robots: list[dict],
+    parallel_config: ParallelConfig,
+):
+    """Create N copies of robots with spatial offsets for parallel environments.
+
+    Args:
+        simulation_app: Isaac Sim application instance
+        world: Isaac Sim world
+        base_robots: List of base robot configs (without env_id or spatial offsets)
+        parallel_config: Parallel environment configuration
+
+    Returns:
+        Tuple of (router_server, handlers_dict) where handlers_dict maps
+        identity strings (env_id.robot_type) to ZMQ server instances
+    """
+    # Create ROUTER server
+    router_server = ZMQRouterServer(simulation_app, parallel_config.zmq_port)
+
+    handlers = {}
+
+    # Create robots for each environment
+    for env_id in range(parallel_config.num_envs):
+        offset = parallel_config.get_offset(env_id)
+
+        # Clone robots with environment-specific configuration
+        for base_robot in base_robots:
+            robot_config = base_robot.copy()
+            robot_type = robot_config["type"]
+
+            # Update prim path and name with environment ID
+            robot_config["prim_path"] = f"/World/env_{env_id}/{robot_type}"
+            robot_config["name"] = f"{robot_type}_{env_id}"
+            robot_config["env_id"] = env_id
+
+            # Apply spatial offset to position
+            if "position" in robot_config:
+                base_position = np.array(robot_config["position"])
+                robot_config["position"] = (base_position + offset).tolist()
+
+            # Create robot and handler
+            robot, handler = create_robot(simulation_app, world, robot_config)
+
+            # Register handler with ROUTER server
+            router_server.register_handler(env_id, robot_type, handler)
+
+            # Store in handlers dict
+            identity = f"env_{env_id}.{robot_type}"
+            handlers[identity] = handler
+
+    return router_server, handlers

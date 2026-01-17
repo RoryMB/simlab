@@ -12,6 +12,7 @@ class SimpleDeviceNodeConfig(RestNodeConfig):
     """Configuration for simple device nodes."""
 
     zmq_server_url: str = "tcp://localhost:5555"
+    env_id: int = 0
 
 
 class SimpleDeviceRestNode(RestNode):
@@ -41,7 +42,8 @@ class SimpleDeviceRestNode(RestNode):
     def startup_handler(self) -> None:
         """Initialize the device interface."""
         self._interface = self.interface_class(
-            zmq_server_url=self.config.zmq_server_url
+            zmq_server_url=self.config.zmq_server_url,
+            env_id=self.config.env_id,
         )
         self._interface.initialize_device()
 

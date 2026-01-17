@@ -1,0 +1,9 @@
+name: Location Manager
+description: A location manager
+manager_id: 01KD2B9DA9KH145B6KHTJ9TTX4
+manager_type: location_manager
+locations: []
+transfer_capabilities:
+  transfer_templates: []
+  override_transfer_templates: null
+  capacity_cost_config: null

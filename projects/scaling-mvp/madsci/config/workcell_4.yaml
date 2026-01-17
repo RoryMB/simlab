@@ -1,0 +1,8 @@
+name: Workcell_4
+manager_type: workcell_manager
+manager_id: 01KF4PJMQB9G6GJAYDW57T93SP
+description: Parallel environment 4
+nodes:
+  pf400_4: http://127.0.0.1:8140/
+  peeler_4: http://127.0.0.1:8141/
+  thermocycler_4: http://127.0.0.1:8142/

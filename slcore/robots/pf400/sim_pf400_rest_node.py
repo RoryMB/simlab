@@ -19,8 +19,11 @@ class SimPF400NodeConfig(PF400NodeConfig):
     pf400_ip: Optional[str] = ""
     "Not used in simulation; setting a default value"
 
-    zmq_server_url: str = "tcp://localhost:5557"
-    "For Isaac Sim communication"
+    zmq_server_url: str = "tcp://localhost:5555"
+    "For Isaac Sim communication (multiplexed ROUTER port)"
+
+    env_id: int = 0
+    "Environment ID for routing in parallel simulations"
 
     resource_server_url: str = "http://localhost:8013"
     "Resource server URL for MADSci resource management"
@@ -80,6 +83,7 @@ class SimPF400Node(PF400Node):
 
         self.pf400_interface = SimPF400(
             zmq_server_url=self.config.zmq_server_url,
+            env_id=self.config.env_id,
             resource_client=self.resource_client,
             gripper_resource_id=gripper_resource_id,
         )

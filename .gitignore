@@ -2,6 +2,10 @@
 /specs/
 /ai_docs/
 
+# MADSci generated node files
+default.node.yaml
+default.node.info.yaml
+
 # UV virtual environments (dual environment structure)
 /.venv-isaacsim/
 /.venv-madsci/
