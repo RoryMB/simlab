@@ -94,10 +94,11 @@ Note: The activation scripts validate that the virtual environment exists before
 
 ### Communication Pattern
 
-The system uses ZMQ REQ-REP pattern for Isaac Sim ↔ MADSci communication:
+The system uses ZMQ ROUTER-DEALER pattern for Isaac Sim ↔ MADSci communication:
 
-- **Isaac Sim Server**: Handles robot movement commands and returns status
-- **MADSci Client**: Sends movement commands and processes responses
+- **Isaac Sim**: Runs a single ZMQ ROUTER server on port 5555
+- **Robot nodes**: Connect as DEALER clients with identity-based routing (e.g., `env_0.pf400`, `env_1.thermocycler`)
+- **Multiplexing**: Multiple robot instances share a single ZMQ port, with routing based on client identity
 
 ### Workflow Pattern
 
@@ -139,7 +140,9 @@ simlab/
 │   └── usd/              # USD command-line tools built from source
 ├── projects/         # Self-contained experimental projects
 │   ├── _template/        # Template for new projects (madsci/, workflow.yaml, run_workflow.py)
+│   ├── scaling-mvp/      # Parallel environment testing (5 simultaneous workcells)
 │   └── [custom]/         # Custom projects, each with optional madsci/ subdirectory
+├── specs/            # Specifications, design docs, and issue reports
 ├── requirements-isaacsim.in  # Isaac Sim dependencies
 ├── requirements-madsci.in    # MADSci dependencies
 └── activate-{isaacsim,madsci}.sh  # Environment activation scripts

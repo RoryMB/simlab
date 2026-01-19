@@ -3,68 +3,254 @@ description: Location manager for scaling-mvp parallel environments
 manager_id: 01KD2B9DA9KH145B6KHTJ9TTX4
 manager_type: location_manager
 locations:
-  # Staging area - intermediate position for plate transfers
-  - location_name: staging
-    location_id: 01KF5A0001STAGING000000001
-    description: Staging area for plate transfers
-    representations:
-      pf400:
-        # Calibrated joint angles from command.py
-        - 0.03738
-        - 0.16319
-        - 0.0
-        - 0.0
-        - 0.0
-        - 0.0
-        - 0.0
-    resource_template_name: plate_nest
-    resource_template_overrides: {}
-    allow_transfers: true
-
-  # Thermocycler nest - plate placement on thermocycler
-  - location_name: thermocycler_nest
-    location_id: 01KF5A0002THERMO00000001
-    description: Thermocycler plate nest
-    representations:
-      pf400:
-        # Calibrated joint angles from command.py
-        - -0.44856
-        - 0.19619
-        - 0.75693
-        - 2.4972
-        - -1.6833
-        - 0.0
-        - 0.0
-    resource_template_name: plate_nest
-    resource_template_overrides: {}
-    allow_transfers: true
-
-  # Peeler nest - plate placement on peeler
-  - location_name: peeler_nest
-    location_id: 01KF5A0003PEELER00000001
-    description: Peeler plate nest
-    representations:
-      pf400:
-        # Calibrated joint angles from command.py
-        - -0.51091
-        - 0.1323
-        - 0.11105
-        - 0.80197
-        - -2.48375
-        - 0.0
-        - 0.0
-    resource_template_name: plate_nest
-    resource_template_overrides: {}
-    allow_transfers: true
-
+- location_name: env_0.peeler_nest
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ200
+  description: Peeler plate nest (env 0)
+  representations:
+    pf400:
+    - -0.51091
+    - 0.1623
+    - 0.11105
+    - 0.80197
+    - -2.48375
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_0.peeler_nest
+  allow_transfers: true
+- location_name: env_0.staging
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ201
+  description: Staging area (env 0)
+  representations:
+    pf400:
+    - 0.03738
+    - 0.16319
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_0.staging
+  allow_transfers: true
+- location_name: env_0.thermocycler_nest
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ202
+  description: Thermocycler plate nest (env 0)
+  representations:
+    pf400:
+    - -0.44856
+    - 0.19619
+    - 0.75693
+    - 2.4972
+    - -1.6833
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_0.thermocycler_nest
+  allow_transfers: true
+- location_name: env_1.peeler_nest
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ210
+  description: Peeler plate nest (env 1)
+  representations:
+    pf400:
+    - -0.51091
+    - 0.1623
+    - 0.11105
+    - 0.80197
+    - -2.48375
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_1.peeler_nest
+  allow_transfers: true
+- location_name: env_1.staging
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ211
+  description: Staging area (env 1)
+  representations:
+    pf400:
+    - 0.03738
+    - 0.16319
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_1.staging
+  allow_transfers: true
+- location_name: env_1.thermocycler_nest
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ212
+  description: Thermocycler plate nest (env 1)
+  representations:
+    pf400:
+    - -0.44856
+    - 0.19619
+    - 0.75693
+    - 2.4972
+    - -1.6833
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_1.thermocycler_nest
+  allow_transfers: true
+- location_name: env_2.peeler_nest
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ220
+  description: Peeler plate nest (env 2)
+  representations:
+    pf400:
+    - -0.51091
+    - 0.1623
+    - 0.11105
+    - 0.80197
+    - -2.48375
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_2.peeler_nest
+  allow_transfers: true
+- location_name: env_2.staging
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ221
+  description: Staging area (env 2)
+  representations:
+    pf400:
+    - 0.03738
+    - 0.16319
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_2.staging
+  allow_transfers: true
+- location_name: env_2.thermocycler_nest
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ222
+  description: Thermocycler plate nest (env 2)
+  representations:
+    pf400:
+    - -0.44856
+    - 0.19619
+    - 0.75693
+    - 2.4972
+    - -1.6833
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_2.thermocycler_nest
+  allow_transfers: true
+- location_name: env_3.peeler_nest
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ230
+  description: Peeler plate nest (env 3)
+  representations:
+    pf400:
+    - -0.51091
+    - 0.1623
+    - 0.11105
+    - 0.80197
+    - -2.48375
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_3.peeler_nest
+  allow_transfers: true
+- location_name: env_3.staging
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ231
+  description: Staging area (env 3)
+  representations:
+    pf400:
+    - 0.03738
+    - 0.16319
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_3.staging
+  allow_transfers: true
+- location_name: env_3.thermocycler_nest
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ232
+  description: Thermocycler plate nest (env 3)
+  representations:
+    pf400:
+    - -0.44856
+    - 0.19619
+    - 0.75693
+    - 2.4972
+    - -1.6833
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_3.thermocycler_nest
+  allow_transfers: true
+- location_name: env_4.peeler_nest
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ240
+  description: Peeler plate nest (env 4)
+  representations:
+    pf400:
+    - -0.51091
+    - 0.1623
+    - 0.11105
+    - 0.80197
+    - -2.48375
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_4.peeler_nest
+  allow_transfers: true
+- location_name: env_4.staging
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ241
+  description: Staging area (env 4)
+  representations:
+    pf400:
+    - 0.03738
+    - 0.16319
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_4.staging
+  allow_transfers: true
+- location_name: env_4.thermocycler_nest
+  location_id: 01KF51P5NXQTSDEKH2CKYMQ242
+  description: Thermocycler plate nest (env 4)
+  representations:
+    pf400:
+    - -0.44856
+    - 0.19619
+    - 0.75693
+    - 2.4972
+    - -1.6833
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: env_4.thermocycler_nest
+  allow_transfers: true
 transfer_capabilities:
   transfer_templates:
-    - node_name: pf400
-      action: transfer
-      source_argument_name: source
-      target_argument_name: target
-      cost_weight: 1.0
-      additional_args: {}
-      additional_location_args: {}
+  - node_name: pf400
+    action: transfer
+    source_argument_name: source
+    target_argument_name: target
+    cost_weight: 1.0
+    additional_args: {}
+    additional_location_args: {}
   override_transfer_templates: null
   capacity_cost_config: null

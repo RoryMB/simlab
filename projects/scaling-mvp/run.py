@@ -7,10 +7,13 @@ simulation_app = SimulationApp({"headless": False})
 import numpy as np
 from isaacsim.core.api import World
 from isaacsim.core.utils.prims import create_prim
+from isaacsim.core.utils.stage import add_reference_to_stage
+from pxr import PhysxSchema
 
-from slcore.common.primary_functions import create_parallel_robots, CollisionDetector
+from slcore.common import utils
+from slcore.common.primary_functions import create_parallel_robots, CollisionDetector, CUSTOM_ASSETS_ROOT_PATH
 from slcore.common.parallel_config import ParallelConfig
-from slcore.robots.common.config import CUSTOM_ASSETS_ROOT_PATH
+from slcore.robots.common.config import DEFAULT_PHYSICS_CONFIG
 
 
 # PF400 location markers for calibration and workflow execution
@@ -37,10 +40,10 @@ PF400_LOCATIONS = {
         "position": [0.161, 0.387, 0.333],
         "orientation": [0.707, 0.0, 0.0, 0.707],  # 90° Z rotation
     },
-    # Peeler nest (calibrated from prism peeler_nest)
+    # Peeler nest (calibrated from prism peeler_nest, raised 3cm)
     # Device at [-0.4, -0.625, 0.125], tray is at different position
     "peeler_nest": {
-        "position": [-0.285, -0.342, 0.269],
+        "position": [-0.285, -0.342, 0.299],
         "orientation": [-0.707, 0.0, 0.0, 0.707],  # -90° Z rotation
     },
 }
@@ -74,6 +77,38 @@ def create_location_markers(env_id: int, offset: np.ndarray):
             position=hover_pos,
             orientation=np.array(pose["orientation"]),
         )
+
+
+def create_microplate(world, env_id: int, offset: np.ndarray):
+    """Create a microplate at the peeler for testing transfers.
+
+    Args:
+        world: The simulation world
+        env_id: Environment ID for naming
+        offset: [x, y, z] offset for this environment
+    """
+    microplate_asset_path = str(CUSTOM_ASSETS_ROOT_PATH / "labware/microplate/microplate.usd")
+    prim_path = f"/World/env_{env_id}/microplate"
+
+    add_reference_to_stage(
+        usd_path=microplate_asset_path,
+        prim_path=prim_path,
+    )
+
+    # Position at peeler nest (peeler is open, thermocycler starts closed)
+    plate_pos = np.array(PF400_LOCATIONS["peeler_nest"]["position"]) + offset
+    plate_rot = np.array([1.0, 0.0, 0.0, 0.0])  # Identity rotation
+
+    microplate_prim = world.stage.GetPrimAtPath(prim_path)
+    utils.set_xform_world_pose(microplate_prim, plate_pos, plate_rot)
+
+    # Enable collision detection for microplate
+    contact_report_api = PhysxSchema.PhysxContactReportAPI.Apply(microplate_prim)
+    contact_report_api.CreateThresholdAttr().Set(0.0)
+
+    # Set contact offset for microplate
+    physx_collision_api = PhysxSchema.PhysxCollisionAPI.Apply(microplate_prim)
+    physx_collision_api.CreateContactOffsetAttr().Set(DEFAULT_PHYSICS_CONFIG.contact_offset)
 
 
 def main():
@@ -123,6 +158,11 @@ def main():
     for env_id in range(parallel_config.num_envs):
         offset = parallel_config.get_offset(env_id)
         create_location_markers(env_id, offset)
+
+    # Create microplates at thermocycler for each environment (for transfer testing)
+    for env_id in range(parallel_config.num_envs):
+        offset = parallel_config.get_offset(env_id)
+        create_microplate(world, env_id, offset)
 
     # Reset world after all robots are added
     world.reset()

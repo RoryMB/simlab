@@ -2,6 +2,7 @@
 """
 PRISM PCR Workflow - Direct Isaac Sim Commands (Joint-based)
 
+Uses DEALER sockets with identity-based routing to communicate with Isaac Sim.
 All movements use move_joints with original joint angles from location.manager.yaml.
 Home reset before any motion to sealer, thermocycler, peeler, or hidex.
 """
@@ -17,14 +18,11 @@ import zmq
 # CONFIGURATION
 # ============================================================================
 
-ROBOT_PORTS = {
-    "pf400_0": 5557,
-    "sealer_0": 5558,
-    "peeler_0": 5559,
-    "thermocycler_0": 5560,
-    "hidex_0": 5561,
-    "ot2_0": 5556,
-}
+# Environment ID (use 0 for single-environment setups)
+ENV_ID = 0
+
+# ZMQ ROUTER server (single multiplexed port)
+ZMQ_SERVER_URL = "tcp://localhost:5555"
 
 STOP_ON_ERROR = True
 
@@ -74,23 +72,23 @@ def transfer(source, source_approach, target, target_approach):
 
     cmds = []
     # Pick
-    cmds.append({"robot": "pf400_0", "action": "move_joints", "joint_positions": src_approach, "_comment": f"Approach {source_approach}"})
-    cmds.append({"robot": "pf400_0", "action": "move_joints", "joint_positions": hover(src), "_comment": f"Hover above {source}"})
-    cmds.append({"robot": "pf400_0", "action": "move_joints", "joint_positions": src, "_comment": f"Lower to {source}"})
-    cmds.append({"robot": "pf400_0", "action": "gripper_close", "_comment": "Pick up plate"})
-    cmds.append({"robot": "pf400_0", "action": "move_joints", "joint_positions": hover(src), "_comment": f"Retract from {source}"})
+    cmds.append({"robot": "pf400", "action": "move_joints", "joint_positions": src_approach, "_comment": f"Approach {source_approach}"})
+    cmds.append({"robot": "pf400", "action": "move_joints", "joint_positions": hover(src), "_comment": f"Hover above {source}"})
+    cmds.append({"robot": "pf400", "action": "move_joints", "joint_positions": src, "_comment": f"Lower to {source}"})
+    cmds.append({"robot": "pf400", "action": "gripper_close", "_comment": "Pick up plate"})
+    cmds.append({"robot": "pf400", "action": "move_joints", "joint_positions": hover(src), "_comment": f"Retract from {source}"})
     # Place
-    cmds.append({"robot": "pf400_0", "action": "move_joints", "joint_positions": tgt_approach, "_comment": f"Approach {target_approach}"})
-    cmds.append({"robot": "pf400_0", "action": "move_joints", "joint_positions": hover(tgt), "_comment": f"Hover above {target}"})
-    cmds.append({"robot": "pf400_0", "action": "move_joints", "joint_positions": tgt, "_comment": f"Lower to {target}"})
-    cmds.append({"robot": "pf400_0", "action": "gripper_open", "_comment": "Release plate"})
-    cmds.append({"robot": "pf400_0", "action": "move_joints", "joint_positions": hover(tgt), "_comment": f"Retract from {target}"})
+    cmds.append({"robot": "pf400", "action": "move_joints", "joint_positions": tgt_approach, "_comment": f"Approach {target_approach}"})
+    cmds.append({"robot": "pf400", "action": "move_joints", "joint_positions": hover(tgt), "_comment": f"Hover above {target}"})
+    cmds.append({"robot": "pf400", "action": "move_joints", "joint_positions": tgt, "_comment": f"Lower to {target}"})
+    cmds.append({"robot": "pf400", "action": "gripper_open", "_comment": "Release plate"})
+    cmds.append({"robot": "pf400", "action": "move_joints", "joint_positions": hover(tgt), "_comment": f"Retract from {target}"})
     return cmds
 
 
 def home():
     """Return home command."""
-    return {"robot": "pf400_0", "action": "move_joints", "joint_positions": HOME_JOINTS, "_comment": "Home"}
+    return {"robot": "pf400", "action": "move_joints", "joint_positions": HOME_JOINTS, "_comment": "Home"}
 
 
 # ============================================================================
@@ -117,7 +115,7 @@ COMMANDS.extend(transfer("exchange_deck_high_narrow", "safe_path_exchange", "sea
 
 # Seal
 COMMANDS.append({"_step": "Seal plate"})
-COMMANDS.append({"robot": "sealer_0", "action": "seal"})
+COMMANDS.append({"robot": "sealer", "action": "seal"})
 
 # Home before thermocycler
 COMMANDS.append({"_step": "Home before thermocycler open"})
@@ -125,7 +123,7 @@ COMMANDS.append(home())
 
 # Open thermocycler
 COMMANDS.append({"_step": "Open thermocycler"})
-COMMANDS.append({"robot": "thermocycler_0", "action": "open"})
+COMMANDS.append({"robot": "thermocycler", "action": "open"})
 
 # Home before sealer pickup
 COMMANDS.append({"_step": "Home before sealer pickup"})
@@ -145,15 +143,15 @@ COMMANDS.extend(transfer("exchange_deck_high_wide", "safe_path_exchange", "bio_b
 
 # Close thermocycler
 COMMANDS.append({"_step": "Close thermocycler"})
-COMMANDS.append({"robot": "thermocycler_0", "action": "close"})
+COMMANDS.append({"robot": "thermocycler", "action": "close"})
 
 # Run thermocycler
 COMMANDS.append({"_step": "Run thermocycler program"})
-COMMANDS.append({"robot": "thermocycler_0", "action": "run_program", "program_number": 5})
+COMMANDS.append({"robot": "thermocycler", "action": "run_program", "program_number": 5})
 
 # Open thermocycler
 COMMANDS.append({"_step": "Open thermocycler (unload)"})
-COMMANDS.append({"robot": "thermocycler_0", "action": "open"})
+COMMANDS.append({"robot": "thermocycler", "action": "open"})
 
 # Home before thermocycler pickup
 COMMANDS.append({"_step": "Home before thermocycler pickup"})
@@ -173,7 +171,7 @@ COMMANDS.extend(transfer("exchange_deck_high_narrow", "safe_path_exchange", "pee
 
 # Peel
 COMMANDS.append({"_step": "Peel plate"})
-COMMANDS.append({"robot": "peeler_0", "action": "peel"})
+COMMANDS.append({"robot": "peeler", "action": "peel"})
 
 # Home before hidex
 COMMANDS.append({"_step": "Home before hidex"})
@@ -181,7 +179,7 @@ COMMANDS.append(home())
 
 # Open Hidex
 COMMANDS.append({"_step": "Open Hidex"})
-COMMANDS.append({"robot": "hidex_0", "action": "open"})
+COMMANDS.append({"robot": "hidex", "action": "open"})
 
 # Home before peeler pickup
 COMMANDS.append({"_step": "Home before peeler pickup"})
@@ -193,15 +191,15 @@ COMMANDS.extend(transfer("peeler_nest", "safe_path_peeler", "hidex_geraldine_hig
 
 # Close Hidex
 COMMANDS.append({"_step": "Close Hidex"})
-COMMANDS.append({"robot": "hidex_0", "action": "close"})
+COMMANDS.append({"robot": "hidex", "action": "close"})
 
 # Run assay
 COMMANDS.append({"_step": "Run Hidex assay"})
-COMMANDS.append({"robot": "hidex_0", "action": "run_assay", "assay_name": "PCR_Final_Results"})
+COMMANDS.append({"robot": "hidex", "action": "run_assay", "assay_name": "PCR_Final_Results"})
 
 # Open Hidex
 COMMANDS.append({"_step": "Open Hidex (complete)"})
-COMMANDS.append({"robot": "hidex_0", "action": "open"})
+COMMANDS.append({"robot": "hidex", "action": "open"})
 
 
 # ============================================================================
@@ -210,42 +208,64 @@ COMMANDS.append({"robot": "hidex_0", "action": "open"})
 
 MOTION_ACTIONS = {"move_joints", "goto_pose", "goto_prim", "gripper_open", "gripper_close"}
 
+# Robots that support get_status for polling motion completion
+ROBOTS_WITH_STATUS = {"pf400"}
+
+# Fixed wait time for robots without status polling (seconds)
+SIMPLE_WAIT_TIME = 3.0
+
 
 class CommandRunner:
-    def __init__(self, robot_ports, stop_on_error=True):
-        self.robot_ports = robot_ports
+    """Executes commands against Isaac Sim ZMQ ROUTER server."""
+
+    def __init__(self, zmq_url: str, env_id: int, stop_on_error: bool = True):
+        self.zmq_url = zmq_url
+        self.env_id = env_id
         self.stop_on_error = stop_on_error
         self.context = zmq.Context()
-        self.sockets = {}
+        self.sockets = {}  # robot_type -> socket
 
-    def connect(self):
-        for name, port in self.robot_ports.items():
-            socket = self.context.socket(zmq.REQ)
-            socket.connect(f"tcp://localhost:{port}")
-            self.sockets[name] = socket
-            print(f"Connected to {name} on port {port}")
+    def connect(self, robot_type: str):
+        """Connect to ROUTER server with robot-specific identity."""
+        if robot_type in self.sockets:
+            return
+
+        identity = f"env_{self.env_id}.{robot_type}"
+        socket = self.context.socket(zmq.DEALER)
+        socket.setsockopt_string(zmq.IDENTITY, identity)
+        socket.connect(self.zmq_url)
+        self.sockets[robot_type] = socket
+        print(f"Connected as {identity}")
 
     def cleanup(self):
+        """Close all connections."""
         for socket in self.sockets.values():
             socket.close()
         self.context.term()
 
-    def send_command(self, robot, cmd, timeout_ms=5000):
-        if robot not in self.sockets:
-            return {"status": "error", "message": f"Unknown robot: {robot}"}
-        socket = self.sockets[robot]
+    def send_command(self, robot_type: str, cmd: dict, timeout_ms: int = 5000) -> dict:
+        """Send command via DEALER and return response."""
+        self.connect(robot_type)
+        socket = self.sockets[robot_type]
+
         try:
-            socket.send_string(json.dumps(cmd))
+            # DEALER sends: [empty, message]
+            socket.send_multipart([b"", json.dumps(cmd).encode()])
+
             if socket.poll(timeout_ms):
-                return json.loads(socket.recv_string())
-            return {"status": "error", "message": "Timeout"}
+                # DEALER receives: [empty, response]
+                _, response_bytes = socket.recv_multipart()
+                return json.loads(response_bytes.decode())
+            else:
+                return {"status": "error", "message": "Timeout"}
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    def wait_for_completion(self, robot, max_wait=10.0):
+    def wait_for_completion(self, robot_type: str, max_wait: float = 60.0) -> tuple[bool, str]:
+        """Wait for robot motion to complete. Returns (success, message)."""
         start = time.time()
         while time.time() - start < max_wait:
-            resp = self.send_command(robot, {"action": "get_status"})
+            resp = self.send_command(robot_type, {"action": "get_status"})
             if resp.get("status") != "success":
                 return False, f"Status error: {resp.get('message')}"
             data = resp.get("data", {})
@@ -256,8 +276,8 @@ class CommandRunner:
             time.sleep(0.05)
         return False, f"Timeout after {max_wait}s"
 
-    def execute(self, commands):
-        self.connect()
+    def execute(self, commands: list) -> bool:
+        """Execute command sequence. Returns True if all succeeded."""
         cmd_num = 0
         try:
             for cmd in commands:
@@ -265,18 +285,18 @@ class CommandRunner:
                     print(f"\n{'='*60}\n  {cmd['_step']}\n{'='*60}")
                     continue
 
-                robot = cmd.get("robot")
+                robot_type = cmd.get("robot")
                 action = cmd.get("action")
-                if not robot or not action:
+                if not robot_type or not action:
                     continue
 
                 cmd_num += 1
                 comment = cmd.get("_comment", action)
                 zmq_cmd = {k: v for k, v in cmd.items() if not k.startswith("_") and k != "robot"}
 
-                print(f"  [{cmd_num}] {robot}: {comment}", end="", flush=True)
+                print(f"  [{cmd_num}] env_{self.env_id}.{robot_type}: {comment}", end="", flush=True)
 
-                resp = self.send_command(robot, zmq_cmd)
+                resp = self.send_command(robot_type, zmq_cmd)
                 if resp.get("status") != "success":
                     print(f" -> FAILED: {resp.get('message')}")
                     if self.stop_on_error:
@@ -284,7 +304,12 @@ class CommandRunner:
                     continue
 
                 if action in MOTION_ACTIONS:
-                    ok, msg = self.wait_for_completion(robot)
+                    # Use status polling for robots that support it, time-based for others
+                    if robot_type in ROBOTS_WITH_STATUS:
+                        ok, msg = self.wait_for_completion(robot_type)
+                    else:
+                        time.sleep(SIMPLE_WAIT_TIME)
+                        ok, msg = True, "OK (timed wait)"
                     print(f" -> {msg}")
                     if not ok and self.stop_on_error:
                         return False
@@ -299,8 +324,12 @@ class CommandRunner:
 def main():
     actual = [c for c in COMMANDS if "robot" in c]
     print(f"PRISM PCR Workflow - {len(actual)} commands")
-    runner = CommandRunner(ROBOT_PORTS, STOP_ON_ERROR)
+    print(f"ZMQ ROUTER: {ZMQ_SERVER_URL}")
+    print("-" * 60)
+
+    runner = CommandRunner(ZMQ_SERVER_URL, ENV_ID, STOP_ON_ERROR)
     success = runner.execute(COMMANDS)
+
     print("\n" + "="*60)
     print("Workflow completed successfully" if success else "Workflow failed")
     sys.exit(0 if success else 1)

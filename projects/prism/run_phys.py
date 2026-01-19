@@ -1,3 +1,5 @@
+"""Isaac Sim entry point for prism project using ROUTER-DEALER ZMQ pattern."""
+
 from isaacsim import SimulationApp
 
 # This MUST be run before importing ANYTHING else
@@ -12,7 +14,8 @@ from isaacsim.core.utils.prims import create_prim
 from pxr import PhysxSchema
 
 from slcore.common import utils
-from slcore.common.primary_functions import create_robot, CollisionDetector, CUSTOM_ASSETS_ROOT_PATH
+from slcore.common.primary_functions import create_parallel_robots, CollisionDetector, CUSTOM_ASSETS_ROOT_PATH
+from slcore.common.parallel_config import ParallelConfig
 from slcore.robots.common.config import DEFAULT_PHYSICS_CONFIG
 
 
@@ -26,10 +29,9 @@ def create_scene_objects(world):
     microplate_asset_path = str(CUSTOM_ASSETS_ROOT_PATH / "labware/microplate/microplate.usd")
     add_reference_to_stage(
         usd_path=microplate_asset_path,
-        prim_path="/World/microplate",
+        prim_path="/World/env_0/microplate",
     )
-    microplate_prim = world.stage.GetPrimAtPath("/World/microplate")
-    # utils.set_xform_world_pose(microplate_prim, np.array([0.64, 0.5, 0.3]), np.array([1.0, 0.0, 0.0, 0.0]))
+    microplate_prim = world.stage.GetPrimAtPath("/World/env_0/microplate")
     utils.set_xform_world_pose(microplate_prim, np.array([0.80263, -0.37815, 0.27746]), np.array([1.0, 0.0, 0.0, 0.0]))
 
     # Enable collision detection for microplate
@@ -41,7 +43,7 @@ def create_scene_objects(world):
     physx_collision_api.CreateContactOffsetAttr().Set(DEFAULT_PHYSICS_CONFIG.contact_offset)
 
     exchange_deck = create_prim(
-        prim_path="/World/exchange_deck",
+        prim_path="/World/env_0/exchange_deck",
         prim_type="Cube",
         position=np.array([1.07, 0.75, -0.23]),
         scale=np.array([0.5, 0.5, 0.5]),
@@ -53,7 +55,7 @@ def create_scene_objects(world):
 
     # Create reference position markers (invisible Xforms for coordinate calculation)
     create_prim(
-        prim_path="/World/target",
+        prim_path="/World/env_0/target",
         prim_type="Xform",
         position=np.array([0.0, 0.0, 1.0]),
     )
@@ -132,7 +134,7 @@ def create_scene_objects(world):
     for name, pose in pf400_locations.items():
         # Create main location marker
         create_prim(
-            prim_path=f"/World/locations/{name}",
+            prim_path=f"/World/env_0/locations/{name}",
             prim_type="Xform",
             position=np.array(pose["position"]),
             orientation=np.array(pose["orientation"]),
@@ -141,7 +143,7 @@ def create_scene_objects(world):
         hover_pos = pose["position"].copy() if isinstance(pose["position"], list) else list(pose["position"])
         hover_pos[2] += HOVER_HEIGHT
         create_prim(
-            prim_path=f"/World/locations/{name}_hover",
+            prim_path=f"/World/env_0/locations/{name}_hover",
             prim_type="Xform",
             position=np.array(hover_pos),
             orientation=np.array(pose["orientation"]),
@@ -154,93 +156,85 @@ def main():
     # Create scene objects (including microplates and platforms)
     create_scene_objects(world)
 
-    # Robot configuration
-    robots_config = [
+    # Single environment configuration
+    parallel_config = ParallelConfig(
+        num_envs=1,
+        spacing=0.0,
+        zmq_port=5555,
+    )
+
+    # Robot configuration (base robots without env_id or prim_path - these are auto-generated)
+    base_robots_config = [
         {
-            "prim_path": "/World/ot2_0",
-            "name": "ot2_0",
             "type": "ot2",
-            "port": 5556,
             "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Opentrons/OT-2/OT-2.usd"),
             "position": [0.67, -0.55, 0.2],
             "orientation": [1.0, 0.0, 0.0, 0.0],
         },
         {
-            "prim_path": "/World/pf400_0",
-            "name": "pf400_0",
             "type": "pf400",
-            "port": 5557,
             "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Brooks/PF400/PF400.usd"),
             "position": [0.0, 0.0, 0.0],
             "orientation": [1.0, 0.0, 0.0, 0.0],
         },
-
         {
-            "prim_path": "/World/sealer_0",
-            "name": "sealer_0",
             "type": "sealer",
-            "port": 5558,
             "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Azenta/a4SSealer/a4SSealer.usd"),
             "position": [0.06, -0.675, 0.125],
             "orientation": [1.0, 0.0, 0.0, 0.0],
         },
         {
-            "prim_path": "/World/peeler_0",
-            "name": "peeler_0",
             "type": "peeler",
-            "port": 5559,
             "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Azenta/XPeel/XPeel.usd"),
             "position": [-0.4, -0.625, 0.125],
             "orientation": [1.0, 0.0, 0.0, 0.0],
         },
         {
-            "prim_path": "/World/thermocycler_0",
-            "name": "thermocycler_0",
             "type": "thermocycler",
-            "port": 5560,
             "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/AnalytikJena/Biometra/Biometra.usd"),
             "position": [0.16, 0.4, 0.125],
             "orientation": [0.0, 0.0, 0.0, 1.0],
         },
         {
-            "prim_path": "/World/hidex_0",
-            "name": "hidex_0",
             "type": "hidex",
-            "port": 5561,
             "asset_path": str(CUSTOM_ASSETS_ROOT_PATH / "robots/Hidex/SenseMicroplateReader/SenseMicroplateReader.usd"),
             "position": [-0.4, 0.55, 0.125],
             "orientation": [0.0, 0.0, 0.0, 1.0],
         },
     ]
 
-    # Create robots and their ZMQ servers
-    zmq_servers = {}
-    for config in robots_config:
-        robot, zmq_server = create_robot(simulation_app, world, config)
-        zmq_servers[config["name"]] = zmq_server
+    # Create robots and ZMQ ROUTER server
+    router_server, handlers = create_parallel_robots(
+        simulation_app,
+        world,
+        base_robots_config,
+        parallel_config,
+    )
 
     # Reset world to initialize physics
     world.reset()
 
     # Set up collision detection (MUST be after world.reset())
-    _collision_detector = CollisionDetector(zmq_servers)
+    collision_detector = CollisionDetector(handlers)
 
-    # Start all ZMQ servers
-    for server in zmq_servers.values():
-        server.start_server()
+    # Start ZMQ ROUTER server
+    router_server.start_server()
+
+    print(f"\nPrism project running with {len(handlers)} robots")
+    print(f"ZMQ ROUTER server listening on port {parallel_config.zmq_port}")
+    print("Press Ctrl+C to stop\n")
 
     # Run simulation loop
     try:
         while simulation_app.is_running():
-            # Call robot server update methods each frame
-            for server in zmq_servers.values():
-                if hasattr(server, 'update'):
-                    server.update()
+            # Call robot handler update methods each frame
+            for handler in handlers.values():
+                handler.update()
 
             # Step the simulation
             world.step(render=True)
     except KeyboardInterrupt:
-        pass
+        print("\nShutting down...")
 
     simulation_app.close()
 

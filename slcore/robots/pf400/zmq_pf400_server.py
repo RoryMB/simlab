@@ -172,7 +172,8 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
         if self.current_action is None:
             return
 
-        microplate_path = "/World/microplate"
+        # Use environment-specific microplate path for parallel environments
+        microplate_path = f"/World/env_{self.env_id}/microplate"
         involves_microplate = microplate_path in actor0 or microplate_path in actor1
         involves_robot = actor0.startswith(self.robot_prim_path) or actor1.startswith(self.robot_prim_path)
         holding_microplate = self._grab_joint is not None

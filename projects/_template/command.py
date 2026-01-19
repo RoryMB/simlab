@@ -2,14 +2,13 @@
 """
 Isaac Sim Direct Command Script Template
 
-Usage:
-    1. Copy this file to a new location (e.g., cp command_template.py my_test.py)
-    2. Edit ROBOT_PORTS and COMMANDS below
-    3. Start Isaac Sim with your scene
-    4. Run: python my_test.py
-    5. Delete when done
+This script talks directly to Isaac Sim via ZMQ ROUTER, bypassing MADSci entirely.
+Uses DEALER sockets with identity-based routing.
 
-This script talks directly to Isaac Sim via ZMQ, bypassing MADSci entirely.
+Usage:
+    1. Start Isaac Sim: python run.py
+    2. Edit COMMANDS below
+    3. Run: python command.py
 """
 
 import json
@@ -23,53 +22,43 @@ import zmq
 # CONFIGURATION - Edit this section
 # ============================================================================
 
-# Robot name -> ZMQ port mapping
-# These must match the ports in your Isaac Sim script (e.g., run_phys.py)
-ROBOT_PORTS = {
-    "pf400_0": 5557,
-    "thermocycler_0": 5560,
-    # "sealer_0": 5558,
-    # "peeler_0": 5559,
-    # "hidex_0": 5561,
-    # "ot2_0": 5556,
-}
+# Environment ID (use 0 for single-environment setups)
+ENV_ID = 0
+
+# ZMQ ROUTER server (single multiplexed port)
+ZMQ_SERVER_URL = "tcp://localhost:5555"
 
 # Stop script on first error/collision? Set False to log and continue.
 STOP_ON_ERROR = True
 
 # Commands to execute sequentially
-# Each command needs "robot" (name from ROBOT_PORTS) and "action"
+# Each command needs "robot" (robot type like pf400, ot2) and "action"
 # Additional fields depend on the action type
 COMMANDS = [
-    # Example: Move PF400 to a prim location in the scene
-    # {"robot": "pf400_0", "action": "goto_prim", "prim_name": "/World/target"},
+    # === PF400 Commands ===
+    # Move to a prim location (xform) in the scene
+    # {"robot": "pf400", "action": "goto_prim", "prim_name": "/World/env_0/locations/high"},
 
-    # Example: Move PF400 to specific joint positions (7 joints)
-    # {"robot": "pf400_0", "action": "move_joints", "joint_positions": [0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0]},
+    # Move to specific joint positions (7 joints)
+    # {"robot": "pf400", "action": "move_joints", "joint_positions": [0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0]},
 
-    # Example: Gripper control
-    # {"robot": "pf400_0", "action": "gripper_close"},
-    # {"robot": "pf400_0", "action": "gripper_open"},
+    # Gripper control
+    # {"robot": "pf400", "action": "gripper_close"},
+    # {"robot": "pf400", "action": "gripper_open"},
 
-    # Example: Move to world pose (position [x,y,z] and orientation [w,x,y,z])
-    # {"robot": "pf400_0", "action": "goto_pose", "position": [0.5, 0.3, 0.4], "orientation": [1.0, 0.0, 0.0, 0.0]},
+    # Move to world pose (position [x,y,z] and orientation [w,x,y,z])
+    # {"robot": "pf400", "action": "goto_pose", "position": [0.5, 0.3, 0.4], "orientation": [1.0, 0.0, 0.0, 0.0]},
 
-    # Example: Get current joint positions (prints result, doesn't wait)
-    # {"robot": "pf400_0", "action": "get_joints"},
+    # Get current joint positions (prints result, doesn't wait)
+    # {"robot": "pf400", "action": "get_joints"},
 
-    # Example: Thermocycler operations
-    # {"robot": "thermocycler_0", "action": "open"},
-    # {"robot": "thermocycler_0", "action": "close"},
-    # {"robot": "thermocycler_0", "action": "run_program", "program_number": 5},
+    # Get status
+    # {"robot": "pf400", "action": "get_status"},
 
-    # Example: Sealer/Peeler operations
-    # {"robot": "sealer_0", "action": "seal"},
-    # {"robot": "peeler_0", "action": "peel"},
-
-    # Example: Hidex operations
-    # {"robot": "hidex_0", "action": "open"},
-    # {"robot": "hidex_0", "action": "close"},
-    # {"robot": "hidex_0", "action": "run_assay", "assay_name": "TestAssay"},
+    # === OT2 Commands ===
+    # {"robot": "ot2", "action": "home"},
+    # {"robot": "ot2", "action": "aspirate", "volume": 100, "pipette": "left"},
+    # {"robot": "ot2", "action": "dispense", "volume": 100, "pipette": "left"},
 ]
 
 
@@ -90,25 +79,40 @@ MOTION_ACTIONS = {
     "close_lid",
     "seal",
     "peel",
+    "home",
+    "aspirate",
+    "dispense",
 }
+
+# Robots that support get_status for polling motion completion
+# Other robots use simple time-based waiting
+ROBOTS_WITH_STATUS = {"pf400"}
+
+# Fixed wait time for robots without status polling (seconds)
+SIMPLE_WAIT_TIME = 3.0
 
 
 class CommandRunner:
-    """Executes commands against Isaac Sim ZMQ servers."""
+    """Executes commands against Isaac Sim ZMQ ROUTER server."""
 
-    def __init__(self, robot_ports: dict, stop_on_error: bool = True):
-        self.robot_ports = robot_ports
+    def __init__(self, zmq_url: str, env_id: int, stop_on_error: bool = True):
+        self.zmq_url = zmq_url
+        self.env_id = env_id
         self.stop_on_error = stop_on_error
         self.context = zmq.Context()
-        self.sockets = {}
+        self.sockets = {}  # robot_type -> socket
 
-    def connect(self):
-        """Connect to all robot ZMQ servers."""
-        for robot_name, port in self.robot_ports.items():
-            socket = self.context.socket(zmq.REQ)
-            socket.connect(f"tcp://localhost:{port}")
-            self.sockets[robot_name] = socket
-            print(f"Connected to {robot_name} on port {port}")
+    def connect(self, robot_type: str):
+        """Connect to ROUTER server with robot-specific identity."""
+        if robot_type in self.sockets:
+            return
+
+        identity = f"env_{self.env_id}.{robot_type}"
+        socket = self.context.socket(zmq.DEALER)
+        socket.setsockopt_string(zmq.IDENTITY, identity)
+        socket.connect(self.zmq_url)
+        self.sockets[robot_type] = socket
+        print(f"Connected as {identity}")
 
     def cleanup(self):
         """Close all connections."""
@@ -116,31 +120,33 @@ class CommandRunner:
             socket.close()
         self.context.term()
 
-    def send_command(self, robot_name: str, command: dict, timeout_ms: int = 5000) -> dict:
-        """Send command and return response."""
-        if robot_name not in self.sockets:
-            return {"status": "error", "message": f"Unknown robot: {robot_name}"}
+    def send_command(self, robot_type: str, command: dict, timeout_ms: int = 5000) -> dict:
+        """Send command via DEALER and return response."""
+        self.connect(robot_type)
+        socket = self.sockets[robot_type]
 
-        socket = self.sockets[robot_name]
         try:
-            socket.send_string(json.dumps(command))
+            # DEALER sends: [empty, message]
+            socket.send_multipart([b"", json.dumps(command).encode()])
+
             if socket.poll(timeout_ms):
-                response = json.loads(socket.recv_string())
-                return response
+                # DEALER receives: [empty, response]
+                _, response_bytes = socket.recv_multipart()
+                return json.loads(response_bytes.decode())
             else:
                 return {"status": "error", "message": "Timeout waiting for response"}
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    def get_status(self, robot_name: str) -> dict:
+    def get_status(self, robot_type: str) -> dict:
         """Get robot status."""
-        return self.send_command(robot_name, {"action": "get_status"})
+        return self.send_command(robot_type, {"action": "get_status"})
 
-    def wait_for_completion(self, robot_name: str, max_wait: float = 60.0) -> tuple[bool, str]:
+    def wait_for_completion(self, robot_type: str, max_wait: float = 60.0) -> tuple[bool, str]:
         """Wait for robot motion to complete. Returns (success, message)."""
         start = time.time()
         while time.time() - start < max_wait:
-            response = self.get_status(robot_name)
+            response = self.get_status(robot_type)
 
             if response.get("status") != "success":
                 return False, f"Failed to get status: {response.get('message', 'Unknown error')}"
@@ -159,15 +165,14 @@ class CommandRunner:
 
     def execute(self, commands: list) -> bool:
         """Execute command sequence. Returns True if all succeeded."""
-        self.connect()
         all_success = True
 
         try:
             for i, cmd in enumerate(commands):
-                robot_name = cmd.get("robot")
+                robot_type = cmd.get("robot")
                 action = cmd.get("action")
 
-                if not robot_name or not action:
+                if not robot_type or not action:
                     print(f"[{i+1}/{len(commands)}] ERROR: Command missing 'robot' or 'action': {cmd}")
                     if self.stop_on_error:
                         return False
@@ -177,10 +182,10 @@ class CommandRunner:
                 # Build the ZMQ command (everything except 'robot' key)
                 zmq_cmd = {k: v for k, v in cmd.items() if k != "robot"}
 
-                print(f"[{i+1}/{len(commands)}] {robot_name}: {action}", end="", flush=True)
+                print(f"[{i+1}/{len(commands)}] env_{self.env_id}.{robot_type}: {action}", end="", flush=True)
 
                 # Send command
-                response = self.send_command(robot_name, zmq_cmd)
+                response = self.send_command(robot_type, zmq_cmd)
 
                 if response.get("status") != "success":
                     print(f" -> FAILED: {response.get('message', 'Unknown error')}")
@@ -192,7 +197,13 @@ class CommandRunner:
                 # For motion actions, wait for completion
                 if action in MOTION_ACTIONS:
                     print(" -> queued, waiting...", end="", flush=True)
-                    success, msg = self.wait_for_completion(robot_name)
+                    # Use status polling for robots that support it, time-based for others
+                    if robot_type in ROBOTS_WITH_STATUS:
+                        success, msg = self.wait_for_completion(robot_type)
+                    else:
+                        # Simple time-based wait for devices without status polling
+                        time.sleep(SIMPLE_WAIT_TIME)
+                        success, msg = True, "Motion complete (timed wait)"
                     if success:
                         print(f" -> {msg}")
                     else:
@@ -203,7 +214,12 @@ class CommandRunner:
                 else:
                     # Non-motion actions (like get_joints) complete immediately
                     print(f" -> OK")
-                    if "data" in response:
+                    # Format joint angles nicely if present
+                    if "joint_angles" in response:
+                        joints = response["joint_angles"]
+                        joints_rounded = [round(j, 5) for j in joints]
+                        print(f"    Joint angles: {joints_rounded}")
+                    elif "data" in response:
                         print(f"    Data: {response['data']}")
 
         finally:
@@ -217,21 +233,11 @@ def main():
         print("No commands defined. Edit the COMMANDS list in this script.")
         sys.exit(1)
 
-    if not ROBOT_PORTS:
-        print("No robots defined. Edit the ROBOT_PORTS dict in this script.")
-        sys.exit(1)
-
-    # Check all referenced robots have ports defined
-    for cmd in COMMANDS:
-        robot = cmd.get("robot")
-        if robot and robot not in ROBOT_PORTS:
-            print(f"ERROR: Robot '{robot}' used in COMMANDS but not defined in ROBOT_PORTS")
-            sys.exit(1)
-
-    print(f"Executing {len(COMMANDS)} commands (stop_on_error={STOP_ON_ERROR})")
+    print(f"Executing {len(COMMANDS)} commands for env_{ENV_ID} (stop_on_error={STOP_ON_ERROR})")
+    print(f"ZMQ ROUTER: {ZMQ_SERVER_URL}")
     print("-" * 60)
 
-    runner = CommandRunner(ROBOT_PORTS, stop_on_error=STOP_ON_ERROR)
+    runner = CommandRunner(ZMQ_SERVER_URL, ENV_ID, stop_on_error=STOP_ON_ERROR)
     success = runner.execute(COMMANDS)
 
     print("-" * 60)

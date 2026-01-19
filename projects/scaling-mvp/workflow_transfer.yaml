@@ -1,49 +1,50 @@
 name: PF400 Transfer Demo Workflow
 metadata:
   author: Simlab
-  info: Demonstrates PF400 plate transfer between staging and thermocycler
+  info: Demonstrates PF400 plate transfer from peeler to thermocycler and back
   version: '1.0'
 
 parameters: []
 
 steps:
-  # Step 1: Open thermocycler to prepare for plate
+  # Step 1: Open thermocycler to receive plate
   - name: Open Thermocycler
     node: thermocycler
     action: open
+    args: {}
 
-  # Step 2: Transfer plate from staging to thermocycler
-  # Note: This requires the location_manager to have staging and thermocycler_nest defined
+  # Step 2: Transfer plate from peeler to thermocycler
   - name: Transfer Plate to Thermocycler
     node: pf400
     action: transfer
-    args:
-      source:
-        location_name: staging
-      target:
-        location_name: thermocycler_nest
+    args: {}
+    locations:
+      source: peeler_nest
+      target: thermocycler_nest
 
   # Step 3: Close thermocycler with plate inside
   - name: Close Thermocycler
     node: thermocycler
     action: close
+    args: {}
 
   # Step 4: Open thermocycler to retrieve plate
   - name: Open Thermocycler for Retrieval
     node: thermocycler
     action: open
+    args: {}
 
-  # Step 5: Transfer plate back from thermocycler to staging
-  - name: Transfer Plate from Thermocycler
+  # Step 5: Transfer plate back from thermocycler to peeler
+  - name: Transfer Plate to Peeler
     node: pf400
     action: transfer
-    args:
-      source:
-        location_name: thermocycler_nest
-      target:
-        location_name: staging
+    args: {}
+    locations:
+      source: thermocycler_nest
+      target: peeler_nest
 
   # Step 6: Close thermocycler when done
   - name: Close Thermocycler Final
     node: thermocycler
     action: close
+    args: {}

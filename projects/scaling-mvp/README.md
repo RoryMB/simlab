@@ -20,14 +20,18 @@ Each environment contains:
 Use the orchestrate script to run everything automatically:
 
 ```bash
-# Run environments 0 and 1 with workflow submission
+# Run all 5 environments with parallel workflow test
 python tools/orchestrate.py \
     --isaac-cmd "source activate-isaacsim.sh && cd projects/scaling-mvp && python run.py" \
     --madsci-cmd "cd projects/scaling-mvp/madsci && ./run_madsci.sh" \
     --node-cmd "cd projects/scaling-mvp && ./run_nodes.sh 0" \
     --node-cmd "cd projects/scaling-mvp && ./run_nodes.sh 1" \
-    --workflow-cmd "source activate-madsci.sh && cd projects/scaling-mvp && python run_workflow.py --env-id 0 workflow.yaml && python run_workflow.py --env-id 1 workflow.yaml" \
-    --timeout 240
+    --node-cmd "cd projects/scaling-mvp && ./run_nodes.sh 2" \
+    --node-cmd "cd projects/scaling-mvp && ./run_nodes.sh 3" \
+    --node-cmd "cd projects/scaling-mvp && ./run_nodes.sh 4" \
+    --workflow-cmd "source activate-madsci.sh && cd projects/scaling-mvp && python run_parallel_workflows.py workflow_transfer.yaml" \
+    --nodes-ready-keyword "Uvicorn running" \
+    --timeout 300
 ```
 
 Logs are written to `/tmp/simlab/<timestamp>/`.
@@ -105,7 +109,22 @@ This allows the same workflow to run on any environment - just specify `--env-id
 ## Available Workflows
 
 - **workflow.yaml**: Simple thermocycler open/close test
-- **workflow_transfer.yaml**: PF400 transfer demo (staging <-> thermocycler)
+- **workflow_transfer.yaml**: PF400 transfer demo (peeler <-> thermocycler)
+
+## Parallel Workflow Testing
+
+The `run_parallel_workflows.py` script submits the same workflow to all 5 environments and tracks results:
+
+```bash
+source activate-madsci.sh
+cd projects/scaling-mvp
+python run_parallel_workflows.py workflow_transfer.yaml
+```
+
+This script:
+- Automatically prefixes location names with `env_{id}.` for each environment
+- Creates test microplates at each environment's starting location
+- Reports success/failure for each environment
 
 ## PF400 Calibration
 
@@ -142,4 +161,5 @@ Location xforms in run.py:
 - All environments share Redis, PostgreSQL, and shared managers (Event, Resource, Location, Data, Lab, Experiment)
 - ZMQ identities use format `env_{id}.{robot_type}` (e.g., `env_0.pf400`, `env_3.thermocycler`)
 - REST node env vars require `NODE_` prefix: `NODE_ENV_ID`, `NODE_ZMQ_SERVER_URL`
-- Location manager joint angles need calibration using command.py
+- Location manager uses env-prefixed names (e.g., `env_0.peeler_nest`) with unique resource_ids per location
+- Location manager joint angles are calibrated from projects/prism ground truth
