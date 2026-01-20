@@ -83,7 +83,23 @@ Note: The activation scripts validate that the virtual environment exists before
 
 ### Running the System
 
-`python tools/orchestrate.py` – designed for agents like Claude Code.
+The orchestrator coordinates startup and shutdown of all system components:
+
+```bash
+# Full system (Isaac Sim + MADSci + robot nodes + workflow)
+python tools/orchestrate.py \
+    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run.py" \
+    --madsci-cmd "cd projects/my-project/madsci/ && ./run_madsci.sh" \
+    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd slcore/robots/pf400/ && ./run_node_pf400.sh" \
+    --workflow-cmd "source activate-madsci.sh && cd projects/my-project && python run_workflow.py workflow.yaml"
+
+# Minimal (Isaac Sim + direct test script, no MADSci)
+python tools/orchestrate.py \
+    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run.py" \
+    --workflow-cmd "source activate-madsci.sh && python my_test_script.py"
+```
+
+All output is logged to `/tmp/simlab/<timestamp>/`. The `--madsci-cmd` and `--node-cmd` arguments are optional for simpler testing scenarios.
 
 ## Architecture Overview
 

@@ -22,9 +22,6 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
     of the older LulaKinematicsSolver.
     """
 
-    # PF400 joint names for differential IK (order matches URDF cspace)
-    PF400_JOINT_NAMES = ["J1", "J4", "J2", "J3", "J6", "J5_mirror", "J5"]
-
     def __init__(self, simulation_app, robot, robot_prim_path, robot_name: str, env_id: int):
         super().__init__(simulation_app, robot, robot_prim_path, robot_name, env_id)
 
@@ -256,11 +253,11 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
             device="cuda:0",
         )
 
-        # Create differential IK solver
+        # Create differential IK solver using joint names from PhysX
         self.diff_ik_solver = DifferentialIKSolver(
             articulation=self.isaac_lab_articulation,
             config=self.diff_ik_config,
-            joint_names=self.PF400_JOINT_NAMES,
+            joint_names=self.isaac_lab_articulation.data.joint_names,
             device="cuda:0",
         )
 
@@ -270,48 +267,56 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
     def execute_goto_pose(self):
         """Execute pose-based movement using differential IK.
 
-        Overrides base class to use DifferentialIKSolver instead of
-        LulaKinematicsSolver/ArticulationKinematicsSolver.
+        Computes IK once on first call, then drives to the computed joint
+        positions on subsequent frames (same as move_joints).
         """
+        # If we already have target joints (IK computed), just drive to them
+        if self.target_joints is not None:
+            self.execute_move_joints()
+            return
+
+        # Need to compute IK - require target pose
         if self.target_pose is None:
             self.current_action = None
             raise RuntimeError(
                 f"Robot {self.robot_name}: Cannot execute goto_pose - missing target pose"
             )
 
-        # Initialize differential IK on first use
-        self._ensure_diff_ik_initialized()
+        # Compute IK once and convert to move_joints action
+        if True:  # Always compute IK here (first frame)
+            # Initialize differential IK on first use
+            self._ensure_diff_ik_initialized()
 
-        target_position, target_orientation = self.target_pose
+            target_position, target_orientation = self.target_pose
 
-        # Update robot base pose for IK solver
-        robot_pos, robot_rot = utils.get_xform_world_pose(self.robot_prim)
-        self.diff_ik_solver.set_robot_base_pose(robot_pos, robot_rot)
+            # Update robot base pose for IK solver
+            robot_pos, robot_rot = utils.get_xform_world_pose(self.robot_prim)
+            self.diff_ik_solver.set_robot_base_pose(robot_pos, robot_rot)
 
-        # Compute IK using differential IK solver
-        joint_positions, success = self.diff_ik_solver.compute_inverse_kinematics(
-            target_position,
-            target_orientation,
-        )
-
-        if not success:
-            self.current_action = None
-            raise RuntimeError(
-                f"Robot {self.robot_name}: IK solve failed for target pose "
-                f"{target_position}, {target_orientation}"
+            # Compute IK using differential IK solver
+            joint_positions, success = self.diff_ik_solver.compute_inverse_kinematics(
+                target_position,
+                target_orientation,
             )
 
-        # Apply joint positions using ArticulationAction
-        action = ArticulationAction(joint_positions=joint_positions)
-        self.robot.apply_action(action)
+            if not success:
+                self.current_action = None
+                self.target_pose = None
+                raise RuntimeError(
+                    f"Robot {self.robot_name}: IK solve failed for target pose "
+                    f"{target_position}, {target_orientation}"
+                )
 
-        # Check if motion is complete
-        if self._close_to_target_joints(joint_positions):
-            self.current_action = None
+            # Cache the computed joint positions and clear pose target
+            self.target_joints = joint_positions
+            self.target_pose = None
             print(
-                f"Robot {self.robot_name} reached target pose with joint angles: "
+                f"Robot {self.robot_name} IK computed target joints: "
                 f"{joint_positions.tolist()}"
             )
+
+            # Start driving to the computed joint positions
+            self.execute_move_joints()
 
     def _close_to_target_joints(self, target_joints: np.ndarray) -> bool:
         """Check if robot joints are close to target positions.

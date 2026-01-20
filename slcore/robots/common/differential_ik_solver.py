@@ -19,7 +19,7 @@ import torch
 from slcore.robots.common.config import DifferentialIKConfig
 
 if TYPE_CHECKING:
-    from isaaclab.assets import Articulation
+    from slcore.robots.common.isaaclab_articulation import ArticulationViewWrapper
 
 
 class DifferentialIKSolver:
@@ -37,7 +37,7 @@ class DifferentialIKSolver:
 
     def __init__(
         self,
-        articulation: Articulation,
+        articulation: ArticulationViewWrapper,
         config: DifferentialIKConfig,
         joint_names: list[str],
         device: str = "cuda:0",
@@ -172,27 +172,36 @@ class DifferentialIKSolver:
         # Deferred import - only available after Isaac Sim starts
         from isaaclab.utils.math import subtract_frame_transforms
 
-        # Convert inputs to tensors
-        target_pos = torch.tensor(
+        # Deferred import for frame transforms
+        from isaaclab.utils.math import subtract_frame_transforms as _subtract
+
+        # Convert inputs to tensors (world frame)
+        target_pos_w = torch.tensor(
             target_position.reshape(1, 3),
             device=self.device,
             dtype=torch.float32,
         )
-        target_quat = torch.tensor(
+        target_quat_w = torch.tensor(
             target_orientation.reshape(1, 4),
             device=self.device,
             dtype=torch.float32,
         )
 
-        # Set target command (pose = [x, y, z, qw, qx, qy, qz])
-        command = torch.cat([target_pos, target_quat], dim=1)
+        # Convert target pose from world frame to robot base frame
+        target_pos_b, target_quat_b = _subtract(
+            self.robot_base_pos,
+            self.robot_base_quat,
+            target_pos_w,
+            target_quat_w,
+        )
+
+        # Set target command in base frame (pose = [x, y, z, qw, qx, qy, qz])
+        command = torch.cat([target_pos_b, target_quat_b], dim=1)
         self.controller.set_command(command)
 
-        # Refresh articulation data buffers
-        self.articulation.update(dt=0.0)
-
-        # Get Jacobian for end effector
-        jacobians = self.articulation.root_physx_view.get_jacobians()
+        # Get Jacobian for end effector (PhysX returns numpy, convert to tensor)
+        jacobians_np = self.articulation.root_physx_view.get_jacobians()
+        jacobians = torch.as_tensor(jacobians_np, device=self.device, dtype=torch.float32)
         jacobian = jacobians[:, self.ee_jacobi_idx, :, self.joint_ids]
 
         # Get current end effector pose in world frame
@@ -201,7 +210,7 @@ class DifferentialIKSolver:
         ee_quat_w = ee_pose_w[:, 3:7]
 
         # Convert EE pose to robot base frame
-        ee_pos_b, ee_quat_b = subtract_frame_transforms(
+        ee_pos_b, ee_quat_b = _subtract(
             self.robot_base_pos,
             self.robot_base_quat,
             ee_pos_w,

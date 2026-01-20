@@ -1,23 +1,24 @@
 """
 Simlab System Orchestrator
 
-Coordinates the startup and shutdown of the 4-terminal Simlab system:
-1. Robot Nodes
-2. Isaac Sim
-3. MADSci
-4. Workflow submission
+Coordinates the startup and shutdown of the Simlab system. Supports running
+the full 4-terminal setup (Isaac Sim + MADSci + Nodes + Workflow) or a
+minimal setup (Isaac Sim + Workflow) for direct testing.
 
 All process output is logged to /tmp/simlab/<timestamp>/ with separate files
 for startup and runtime phases. Console shows only status messages and errors.
 
-Usage:
+Usage (full system):
 python orchestrate.py \
-    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd slcore/robots/ur5e/ && ./run_node_ur5e.sh" \
-    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd slcore/robots/ot2/ && ./run_node_ot2.sh" \
     --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run.py" \
     --madsci-cmd "cd projects/my-project/madsci/ && ./run_madsci.sh" \
-    --workflow-cmd "source activate-madsci.sh && cd projects/my-project && python run_workflow.py workflow.yaml" \
-    --timeout 120
+    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd slcore/robots/ur5e/ && ./run_node_ur5e.sh" \
+    --workflow-cmd "source activate-madsci.sh && cd projects/my-project && python run_workflow.py workflow.yaml"
+
+Usage (minimal - Isaac Sim + workflow only):
+python orchestrate.py \
+    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run.py" \
+    --workflow-cmd "source activate-madsci.sh && python my_test_script.py"
 """
 
 import argparse
@@ -238,10 +239,10 @@ def generate_summary(pm: ProcessManager, log_manager: LogManager):
     """Generate end-of-run summary."""
     log_manager.close_all()
 
-    # Determine outcome
-    has_errors = bool(log_manager.detected_errors)
-    has_failures = any(code != 0 for code in pm.exit_codes.values())
-    success = not has_errors and not has_failures
+    # Determine outcome based on exit codes only
+    # (error pattern matching is for display, not success determination)
+    failed_processes = {name: code for name, code in pm.exit_codes.items() if code != 0}
+    success = len(failed_processes) == 0
 
     print("\n" + "=" * 60)
     print("RUN SUMMARY")
@@ -252,9 +253,8 @@ def generate_summary(pm: ProcessManager, log_manager: LogManager):
         print("Outcome: SUCCESS")
     else:
         print("Outcome: FAILURE")
-        for name, code in pm.exit_codes.items():
-            if code != 0:
-                print(f"  - {name} exited with code {code}")
+        for name, code in failed_processes.items():
+            print(f"  - {name} exited with code {code}")
 
     # 2. Last 20 lines of workflow.log
     workflow_log = os.path.join(log_manager.run_dir, 'workflow.log')
@@ -292,8 +292,8 @@ async def main():
     parser = argparse.ArgumentParser(description="Orchestrate Simlab system startup and coordination")
 
     parser.add_argument('--isaac-cmd', required=True, help='Command to start Isaac Sim')
-    parser.add_argument('--madsci-cmd', required=True, help='Command to start MADSci services')
-    parser.add_argument('--node-cmd', action='append', required=True, help='Command to start a robot node (can be used multiple times)')
+    parser.add_argument('--madsci-cmd', default=None, help='Command to start MADSci services (optional)')
+    parser.add_argument('--node-cmd', action='append', default=None, help='Command to start a robot node (can be used multiple times, optional)')
     parser.add_argument('--workflow-cmd', required=True, help='Command to submit workflow')
 
     parser.add_argument('--isaac-ready-keyword', default='Simulation App Startup Complete', help='Keyword to detect Isaac Sim readiness')
@@ -321,21 +321,27 @@ async def main():
     # Let Isaac have an extra moment to stabilize
     await asyncio.sleep(20)
 
-    for i, node_cmd in enumerate(args.node_cmd):
-        node_cmd_with_redirect = f"({node_cmd}) 2>&1"
-        node_process = await pm.start_process(f'node_{i}', node_cmd_with_redirect)
-        asyncio.create_task(pm.monitor_output(f'node_{i}', node_process, args.nodes_ready_keyword))
+    # Start robot nodes if provided
+    if args.node_cmd:
+        for i, node_cmd in enumerate(args.node_cmd):
+            node_cmd_with_redirect = f"({node_cmd}) 2>&1"
+            node_process = await pm.start_process(f'node_{i}', node_cmd_with_redirect)
+            asyncio.create_task(pm.monitor_output(f'node_{i}', node_process, args.nodes_ready_keyword))
 
-    madsci_cmd_with_redirect = f"({args.madsci_cmd}) 2>&1"
-    madsci_process = await pm.start_process('madsci', madsci_cmd_with_redirect)
-    asyncio.create_task(pm.monitor_output('madsci', madsci_process, args.madsci_ready_keyword))
+    # Start MADSci if provided
+    if args.madsci_cmd:
+        madsci_cmd_with_redirect = f"({args.madsci_cmd}) 2>&1"
+        madsci_process = await pm.start_process('madsci', madsci_cmd_with_redirect)
+        asyncio.create_task(pm.monitor_output('madsci', madsci_process, args.madsci_ready_keyword))
 
     # Wait for Isaac, all nodes, and MADSci to be ready
     try:
         await pm.wait_for_ready('isaac', args.timeout)
-        for i in range(len(args.node_cmd)):
-            await pm.wait_for_ready(f'node_{i}', args.timeout)
-        await pm.wait_for_ready('madsci', args.timeout)
+        if args.node_cmd:
+            for i in range(len(args.node_cmd)):
+                await pm.wait_for_ready(f'node_{i}', args.timeout)
+        if args.madsci_cmd:
+            await pm.wait_for_ready('madsci', args.timeout)
     except Exception as e:
         logger.info(f"Error while starting processes: {e}")
         await pm.shutdown_all()
