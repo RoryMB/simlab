@@ -13,6 +13,9 @@ default.node.info.yaml
 # USD build artifacts (can be regenerated)
 /tools/usd/usd-install/
 
+# Isaac Lab (cloned by setup-isaacsim.sh)
+/IsaacLab/
+
 # IDE
 .vscode/
 .idea/

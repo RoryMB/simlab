@@ -84,7 +84,8 @@ config:
   rate_limit_short_requests: 50
   rate_limit_short_window: 1
   rate_limit_cleanup_interval: 300
-  zmq_server_url: tcp://localhost:5560
+  zmq_server_url: tcp://localhost:5555
+  env_id: 0
 config_schema:
   description: Configuration for the thermocycler node module.
   properties:
@@ -191,8 +192,12 @@ config_schema:
       title: Rate Limit Cleanup Interval
       type: integer
     zmq_server_url:
-      default: tcp://localhost:5560
+      default: tcp://localhost:5555
       title: Zmq Server Url
       type: string
+    env_id:
+      default: 0
+      title: Env Id
+      type: integer
   title: SimThermocyclerNodeConfig
   type: object

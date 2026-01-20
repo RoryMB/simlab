@@ -35,7 +35,46 @@ echo ""
 echo "Installing dependencies..."
 uv pip sync requirements-isaacsim.txt
 
-# Step 4: Build USD tools if not present
+# Step 4: Install PyTorch with CUDA support
+echo ""
+echo "Installing PyTorch with CUDA support..."
+uv pip install torch==2.7.0 torchvision==0.22.0 --index-url https://download.pytorch.org/whl/cu128
+
+# Step 5: Clone Isaac Lab at specific release tag
+ISAACLAB_VERSION="v2.3.1"
+if [ ! -d "IsaacLab" ]; then
+    echo ""
+    echo "Cloning Isaac Lab ${ISAACLAB_VERSION}..."
+    git clone --branch ${ISAACLAB_VERSION} --depth 1 \
+        https://github.com/isaac-sim/IsaacLab.git
+else
+    echo ""
+    echo "Isaac Lab directory exists, ensuring correct version..."
+    cd IsaacLab
+    git fetch --tags
+    git checkout ${ISAACLAB_VERSION}
+    cd "$SCRIPT_DIR"
+fi
+
+# Step 6: Install Isaac Lab extensions
+# Note: Isaac Lab v2.3.1's isaaclab.sh doesn't support uv environments natively,
+# so we install pip first (uv venvs don't include pip by default)
+echo ""
+echo "Installing pip and build dependencies for Isaac Lab..."
+uv pip install pip setuptools wheel
+
+# Pre-install egl_probe with --no-build-isolation so it can find cmake from the venv
+echo ""
+echo "Pre-installing egl_probe (requires cmake from venv)..."
+pip install --no-build-isolation egl_probe
+
+echo ""
+echo "Installing Isaac Lab extensions..."
+cd IsaacLab
+./isaaclab.sh --install
+cd "$SCRIPT_DIR"
+
+# Step 7: Build USD tools if not present
 if [ ! -d "tools/usd/usd-install/bin" ]; then
     echo ""
     echo "Building USD tools from source..."

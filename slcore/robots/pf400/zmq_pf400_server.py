@@ -1,15 +1,29 @@
 import numpy as np
 from isaacsim.core.utils.stage import get_current_stage
+from isaacsim.core.utils.types import ArticulationAction
 from pxr import Gf
 
 from slcore.common import utils
 from slcore.robots.common.zmq_robot_server import ZMQ_Robot_Server
-from slcore.robots.common.config import CUSTOM_ASSETS_ROOT_PATH, DEFAULT_PHYSICS_CONFIG
+from slcore.robots.common.config import (
+    CUSTOM_ASSETS_ROOT_PATH,
+    DEFAULT_PHYSICS_CONFIG,
+    DifferentialIKConfig,
+)
 from slcore.robots.common.zmq_server_mixins import RaycastMixin
+from slcore.robots.common.isaaclab_articulation import create_articulation_from_prim
+from slcore.robots.common.differential_ik_solver import DifferentialIKSolver
 
 
 class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
-    """Handles ZMQ communication for PF400 robot with integrated control"""
+    """Handles ZMQ communication for PF400 robot with integrated control.
+
+    Uses Isaac Lab's DifferentialIKController for inverse kinematics instead
+    of the older LulaKinematicsSolver.
+    """
+
+    # PF400 joint names for differential IK (order matches URDF cspace)
+    PF400_JOINT_NAMES = ["J1", "J4", "J2", "J3", "J6", "J5_mirror", "J5"]
 
     def __init__(self, simulation_app, robot, robot_prim_path, robot_name: str, env_id: int):
         super().__init__(simulation_app, robot, robot_prim_path, robot_name, env_id)
@@ -21,8 +35,11 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
         self.raycast_direction = Gf.Vec3d(0, 0, -1)  # Downward for PF400
         self.raycast_distance = DEFAULT_PHYSICS_CONFIG.raycast_distance
 
-        # Initialize PF400-specific motion generation
-        self._initialize_motion_generation()
+        # Differential IK components (lazily initialized)
+        self.diff_ik_config: DifferentialIKConfig = None
+        self.diff_ik_solver: DifferentialIKSolver = None
+        self.isaac_lab_articulation = None
+        self._diff_ik_initialized = False
 
     def handle_command(self, request: dict) -> dict:
         """Handle incoming ZMQ command"""
@@ -219,12 +236,101 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
         elif self.current_action == "gripper_close":
             self.execute_gripper_close()
 
-    def _initialize_motion_generation(self):
-        """Initialize motion generation algorithms for the PF400"""
-        # PF400 robot configuration paths
-        robot_config_dir = str(CUSTOM_ASSETS_ROOT_PATH / "robots/Brooks/PF400/isaacsim")
-        robot_description_path = robot_config_dir + "/descriptor.yaml"
-        urdf_path = robot_config_dir + "/PF400.urdf"
+    def _ensure_diff_ik_initialized(self):
+        """Lazily initialize differential IK on first use.
 
-        # Use superclass method
-        self.initialize_motion_generation(robot_description_path, urdf_path, 'pointer')
+        Isaac Lab Articulation requires physics simulation to be running,
+        so we defer initialization until the first goto_pose call.
+        """
+        if self._diff_ik_initialized:
+            return
+
+        # Load configuration from YAML
+        config_dir = CUSTOM_ASSETS_ROOT_PATH / "robots/Brooks/PF400/isaacsim"
+        config_path = config_dir / "differential_ik_config.yaml"
+        self.diff_ik_config = DifferentialIKConfig.from_yaml(config_path)
+
+        # Create Isaac Lab Articulation wrapper (points to same USD prim as self.robot)
+        self.isaac_lab_articulation = create_articulation_from_prim(
+            prim_path=self.robot_prim_path,
+            device="cuda:0",
+        )
+
+        # Create differential IK solver
+        self.diff_ik_solver = DifferentialIKSolver(
+            articulation=self.isaac_lab_articulation,
+            config=self.diff_ik_config,
+            joint_names=self.PF400_JOINT_NAMES,
+            device="cuda:0",
+        )
+
+        self._diff_ik_initialized = True
+        print(f"Differential IK initialized for {self.robot_name}")
+
+    def execute_goto_pose(self):
+        """Execute pose-based movement using differential IK.
+
+        Overrides base class to use DifferentialIKSolver instead of
+        LulaKinematicsSolver/ArticulationKinematicsSolver.
+        """
+        if self.target_pose is None:
+            self.current_action = None
+            raise RuntimeError(
+                f"Robot {self.robot_name}: Cannot execute goto_pose - missing target pose"
+            )
+
+        # Initialize differential IK on first use
+        self._ensure_diff_ik_initialized()
+
+        target_position, target_orientation = self.target_pose
+
+        # Update robot base pose for IK solver
+        robot_pos, robot_rot = utils.get_xform_world_pose(self.robot_prim)
+        self.diff_ik_solver.set_robot_base_pose(robot_pos, robot_rot)
+
+        # Compute IK using differential IK solver
+        joint_positions, success = self.diff_ik_solver.compute_inverse_kinematics(
+            target_position,
+            target_orientation,
+        )
+
+        if not success:
+            self.current_action = None
+            raise RuntimeError(
+                f"Robot {self.robot_name}: IK solve failed for target pose "
+                f"{target_position}, {target_orientation}"
+            )
+
+        # Apply joint positions using ArticulationAction
+        action = ArticulationAction(joint_positions=joint_positions)
+        self.robot.apply_action(action)
+
+        # Check if motion is complete
+        if self._close_to_target_joints(joint_positions):
+            self.current_action = None
+            print(
+                f"Robot {self.robot_name} reached target pose with joint angles: "
+                f"{joint_positions.tolist()}"
+            )
+
+    def _close_to_target_joints(self, target_joints: np.ndarray) -> bool:
+        """Check if robot joints are close to target positions.
+
+        Uses configurable thresholds from differential_ik_config.yaml.
+
+        Args:
+            target_joints: Target joint positions
+
+        Returns:
+            True if robot is close to target and nearly stopped
+        """
+        current_joints = np.array(self.robot.get_joint_positions())
+        velocities = np.array(self.robot.get_joint_velocities())
+
+        joint_diff = np.sum(np.abs(current_joints - target_joints))
+        vel_sum = np.sum(np.abs(velocities))
+
+        return (
+            joint_diff < self.diff_ik_config.joint_diff_threshold
+            and vel_sum < self.diff_ik_config.velocity_threshold
+        )

@@ -4,7 +4,7 @@ requests
 
 # USD dependencies
 usd-core
-cmake>=3.24
+cmake>=3.24,<4.0
 
 # Shared
 zmq

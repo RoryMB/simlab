@@ -255,7 +255,8 @@ config:
   pf400_ip: ''
   pf400_port: 10100
   pf400_status_port: 10000
-  zmq_server_url: tcp://localhost:5557
+  zmq_server_url: tcp://localhost:5555
+  env_id: 0
   resource_server_url: http://localhost:8013
 config_schema:
   description: Configuration for the pf400 node module.
@@ -377,9 +378,13 @@ config_schema:
       title: Pf400 Status Port
       type: integer
     zmq_server_url:
-      default: tcp://localhost:5557
+      default: tcp://localhost:5555
       title: Zmq Server Url
       type: string
+    env_id:
+      default: 0
+      title: Env Id
+      type: integer
     resource_server_url:
       default: http://localhost:8013
       title: Resource Server Url

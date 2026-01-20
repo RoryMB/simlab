@@ -13,6 +13,7 @@ This PhD research project integrates Isaac Sim (NVIDIA's 3D simulation software)
 ## Key Capabilities
 
 - **Isaac Sim Integration**: Full 3D simulation environment for laboratory robotics with physics-based interactions
+- **Isaac Lab Integration**: Reinforcement learning framework for robot control
 - **MADSci Integration**: Laboratory experiment orchestration with standardized device interfaces
 - **ZMQ Communication**: Real-time bidirectional communication between simulation and orchestration systems
 - **Protocol Conversion**: Autonomous agent-based conversion of scientific protocols into executable robot workflows
@@ -26,7 +27,7 @@ This project uses two separate UV-managed virtual environments.
 
 **Automated setup** (recommended for first-time setup):
 ```bash
-./setup-isaacsim.sh  # Creates Isaac Sim environment + builds USD tools
+./setup-isaacsim.sh  # Creates Isaac Sim environment + Isaac Lab + USD tools
 ./setup-madsci.sh    # Creates MADSci environment
 ```
 
@@ -112,8 +113,9 @@ The system uses ZMQ ROUTER-DEALER pattern for Isaac Sim ↔ MADSci communication
 
 ```
 simlab/
-├── .venv-isaacsim/   # Isaac Sim environment (includes USD tools)
+├── .venv-isaacsim/   # Isaac Sim environment (includes Isaac Lab and USD tools)
 ├── .venv-madsci/     # MADSci environment
+├── IsaacLab/         # Isaac Lab v2.3.1 (cloned by setup-isaacsim.sh, gitignored)
 ├── slcore/           # Python package (import as: from slcore.robots.common import ...)
 │   ├── common/           # Shared utilities (utils.py, primary_functions.py)
 │   └── robots/           # Per-robot directories

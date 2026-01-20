@@ -173,6 +173,7 @@ def main():
     # Start multiplexed ZMQ ROUTER server
     router_server.start_server()
 
+    print("Simulation App Startup Complete")
     print(f"\nScaling MVP: {parallel_config.num_envs} parallel environments running")
     print(f"ZMQ ROUTER server listening on port {parallel_config.zmq_port}")
     print(f"Total handlers registered: {len(handlers)}")

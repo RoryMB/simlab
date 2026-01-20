@@ -3,6 +3,6 @@ manager_type: workcell_manager
 manager_id: 01KF4PJM53QNJAWB5DXENCMD47
 description: Parallel environment 0
 nodes:
-  pf400: http://127.0.0.1:8100/
+  pf400: http://127.0.0.1:8020/
   peeler: http://127.0.0.1:8101/
-  thermocycler: http://127.0.0.1:8102/
+  thermocycler: http://127.0.0.1:8023/
