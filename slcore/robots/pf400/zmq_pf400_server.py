@@ -28,6 +28,9 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
         # PF400-specific gripper state
         self._grab_joint = None
 
+        # IK solution preference (set per goto_pose call)
+        self.solution_preference = "closest_to_current"
+
         # PF400-specific raycast configuration
         self.raycast_direction = Gf.Vec3d(0, 0, -1)  # Downward for PF400
         self.raycast_distance = DEFAULT_PHYSICS_CONFIG.raycast_distance
@@ -85,19 +88,28 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
         elif action == "goto_pose":
             position = request.get("position", [])
             orientation = request.get("orientation", [])
+            solution_preference = request.get("solution_preference", "closest_to_current")
 
             if len(position) != 3 or len(orientation) != 4:
                 return self.create_error_response("goto_pose requires position [x,y,z] and orientation [w,x,y,z]")
 
+            if solution_preference not in ("closest_to_current", "closest_to_home"):
+                return self.create_error_response("solution_preference must be 'closest_to_current' or 'closest_to_home'")
+
             self.current_action = "goto_pose"
             self.target_pose = (np.array(position), np.array(orientation))
-            return self.create_success_response("goto_pose queued", position=position, orientation=orientation)
+            self.solution_preference = solution_preference
+            return self.create_success_response("goto_pose queued", position=position, orientation=orientation, solution_preference=solution_preference)
 
         elif action == "goto_prim":
             prim_name = request.get("prim_name", "")
+            solution_preference = request.get("solution_preference", "closest_to_current")
 
             if not prim_name:
                 return self.create_error_response("goto_prim requires prim_name parameter")
+
+            if solution_preference not in ("closest_to_current", "closest_to_home"):
+                return self.create_error_response("solution_preference must be 'closest_to_current' or 'closest_to_home'")
 
             # Get prim from stage
             stage = get_current_stage()
@@ -112,7 +124,8 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
             # Queue goto_pose with prim's pose
             self.current_action = "goto_pose"
             self.target_pose = (position, orientation)
-            return self.create_success_response("goto_prim queued", prim_name=prim_name, position=position.tolist(), orientation=orientation.tolist())
+            self.solution_preference = solution_preference
+            return self.create_success_response("goto_prim queued", prim_name=prim_name, position=position.tolist(), orientation=orientation.tolist(), solution_preference=solution_preference)
 
         elif action == "get_ee_pose":
             # Get end effector (pointer) world position and orientation
@@ -297,6 +310,7 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
             joint_positions, success = self.diff_ik_solver.compute_inverse_kinematics(
                 target_position,
                 target_orientation,
+                solution_preference=self.solution_preference,
             )
 
             if not success:

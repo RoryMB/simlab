@@ -157,12 +157,16 @@ class DifferentialIKSolver:
         self,
         target_position: np.ndarray,
         target_orientation: np.ndarray,
+        solution_preference: str = "closest_to_current",
     ) -> tuple[np.ndarray, bool]:
         """Compute joint positions to achieve target end-effector pose.
 
         Args:
             target_position: Target position [x, y, z] in world frame (meters)
             target_orientation: Target orientation quaternion [w, x, y, z]
+            solution_preference: Which IK solution to prefer:
+                - "closest_to_current": Minimize movement from current joint positions (default)
+                - "closest_to_home": Prefer configurations near the defined home pose
 
         Returns:
             Tuple of (joint_positions, success) where:
@@ -217,9 +221,19 @@ class DifferentialIKSolver:
             ee_quat_w,
         )
 
-        # Get current joint positions for controlled joints
-        all_joint_pos = self.articulation.data.joint_pos
-        joint_pos = all_joint_pos[:, self.joint_ids]
+        # Get joint positions seed based on solution preference
+        if solution_preference == "closest_to_home":
+            # Use home pose as seed (select only controlled joints)
+            home_pose_full = torch.tensor(
+                self.config.home_pose,
+                device=self.device,
+                dtype=torch.float32,
+            )
+            joint_pos = home_pose_full[self.joint_ids].unsqueeze(0)
+        else:
+            # Use current joint positions as seed (closest_to_current)
+            all_joint_pos = self.articulation.data.joint_pos
+            joint_pos = all_joint_pos[:, self.joint_ids]
 
         # Compute IK solution
         joint_pos_des = self.controller.compute(
