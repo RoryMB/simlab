@@ -17,3 +17,9 @@ export PYTHONPATH="$SCRIPT_DIR/tools/usd/usd-install/lib/python:$PYTHONPATH"
 
 # Add project root to PYTHONPATH for package imports (e.g., from slcore.robots.common import ...)
 export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
+
+# cuRobo CUDA 12.x compatibility
+export CUROBO_TORCH_CUDA_GRAPH_RESET=1
+
+# Accept the EULA on behalf of AI agents
+export OMNI_KIT_ACCEPT_EULA=YES

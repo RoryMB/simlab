@@ -14,6 +14,7 @@ This PhD research project integrates Isaac Sim (NVIDIA's 3D simulation software)
 
 - **Isaac Sim Integration**: Full 3D simulation environment for laboratory robotics with physics-based interactions
 - **Isaac Lab Integration**: Reinforcement learning framework for robot control
+- **cuRobo Integration**: GPU-accelerated collision-aware motion planning
 - **MADSci Integration**: Laboratory experiment orchestration with standardized device interfaces
 - **ZMQ Communication**: Real-time bidirectional communication between simulation and orchestration systems
 - **Protocol Conversion**: Autonomous agent-based conversion of scientific protocols into executable robot workflows
@@ -25,30 +26,33 @@ This PhD research project integrates Isaac Sim (NVIDIA's 3D simulation software)
 
 This project uses two separate UV-managed virtual environments.
 
+**Versions installed by setup-isaacsim.sh:**
+
+| Component | Version |
+|-----------|---------|
+| Python | 3.11 |
+| Isaac Sim | 5.1.0 |
+| Isaac Lab | 2.3.1 |
+| cuRobo | 0.7.7 |
+| OpenUSD tools | 24.11 |
+
+**Versions installed by setup-madsci.sh:**
+
+| Component | Version |
+|-----------|---------|
+| Python | 3.12 |
+| MADSci | 0.6.0 |
+| Opentrons | 8.5.1 |
+
+**Prerequisites:**
+```bash
+sudo apt install git-lfs  # Required for cuRobo
+```
+
 **Automated setup** (recommended for first-time setup):
 ```bash
-./setup-isaacsim.sh  # Creates Isaac Sim environment + Isaac Lab + USD tools
-./setup-madsci.sh    # Creates MADSci environment
-```
-
-**Manual setup** (if you prefer step-by-step control):
-
-Isaac Sim environment:
-```bash
-uv venv .venv-isaacsim -p python@3.11
-source .venv-isaacsim/bin/activate
-uv pip compile requirements-isaacsim.in --extra-index-url https://pypi.nvidia.com -o requirements-isaacsim.txt
-uv pip sync requirements-isaacsim.txt
-deactivate
-```
-
-MADSci environment:
-```bash
-uv venv .venv-madsci -p python@3.12
-source .venv-madsci/bin/activate
-uv pip compile requirements-madsci.in --override overrides-madsci.txt -o requirements-madsci.txt
-uv pip sync requirements-madsci.txt
-deactivate
+./setup-isaacsim.sh  # Creates Isaac Sim environment + Isaac Lab + cuRobo + USD tools
+./setup-madsci.sh    # Creates MADSci environment + Opentrons patches
 ```
 
 **Activate environments:**
@@ -129,9 +133,10 @@ The system uses ZMQ ROUTER-DEALER pattern for Isaac Sim ↔ MADSci communication
 
 ```
 simlab/
-├── .venv-isaacsim/   # Isaac Sim environment (includes Isaac Lab and USD tools)
-├── .venv-madsci/     # MADSci environment
-├── IsaacLab/         # Isaac Lab v2.3.1 (cloned by setup-isaacsim.sh, gitignored)
+├── .venv-isaacsim/   # Isaac Sim environment (includes Isaac Lab, cuRobo, and USD tools)
+├── .venv-madsci/     # MADSci environment (includes patched Opentrons)
+├── IsaacLab/         # Isaac Lab (cloned by setup-isaacsim.sh)
+├── curobo/           # cuRobo (cloned by setup-isaacsim.sh)
 ├── slcore/           # Python package (import as: from slcore.robots.common import ...)
 │   ├── common/           # Shared utilities (utils.py, primary_functions.py)
 │   └── robots/           # Per-robot directories

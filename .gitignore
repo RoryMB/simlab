@@ -16,6 +16,9 @@ default.node.info.yaml
 # Isaac Lab (cloned by setup-isaacsim.sh)
 /IsaacLab/
 
+# cuRobo (cloned by setup-isaacsim.sh)
+/curobo/
+
 # IDE
 .vscode/
 .idea/

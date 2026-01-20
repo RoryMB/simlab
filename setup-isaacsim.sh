@@ -4,6 +4,21 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Check for CUDA 12.x (required for Isaac Lab and cuRobo)
+if ! command -v nvcc &> /dev/null; then
+    echo "Error: nvcc not found in PATH"
+    echo "CUDA 12.x toolkit is required. Install it and add to PATH."
+    exit 1
+fi
+
+CUDA_VERSION=$(nvcc --version | grep -oP 'release \K[0-9]+')
+if [ "$CUDA_VERSION" -lt 12 ]; then
+    echo "Error: CUDA 12.x required, but found CUDA ${CUDA_VERSION}.x"
+    echo "Install CUDA 12.x toolkit and ensure it's first in PATH."
+    exit 1
+fi
+echo "Found CUDA ${CUDA_VERSION}.x"
+
 # Check if venv already exists
 if [ -d ".venv-isaacsim" ]; then
     echo "WARNING: .venv-isaacsim already exists"
@@ -65,7 +80,7 @@ uv pip install pip setuptools wheel
 
 # Pre-install egl_probe with --no-build-isolation so it can find cmake from the venv
 echo ""
-echo "Pre-installing egl_probe (requires cmake from venv)..."
+echo "Pre-installing egl_probe..."
 pip install --no-build-isolation egl_probe
 
 echo ""
@@ -74,14 +89,36 @@ cd IsaacLab
 ./isaaclab.sh --install
 cd "$SCRIPT_DIR"
 
-# Step 7: Build USD tools if not present
+# Step 7: Clone and install cuRobo at specific release tag
+CUROBO_VERSION="v0.7.7"
+if [ ! -d "curobo" ]; then
+    echo ""
+    echo "Cloning cuRobo ${CUROBO_VERSION}..."
+    git clone --branch ${CUROBO_VERSION} --depth 1 \
+        https://github.com/NVlabs/curobo.git
+else
+    echo ""
+    echo "cuRobo directory exists, ensuring correct version..."
+    cd curobo
+    git fetch --tags
+    git checkout ${CUROBO_VERSION}
+    cd "$SCRIPT_DIR"
+fi
+
+echo ""
+echo "Installing cuRobo..."
+# CUDA 12.x requires this environment variable for cuRobo compatibility
+export CUROBO_TORCH_CUDA_GRAPH_RESET=1
+uv pip install -e curobo --no-build-isolation
+
+# Step 8: Build USD tools if not present
 if [ ! -d "tools/usd/usd-install/bin" ]; then
     echo ""
     echo "Building USD tools from source..."
 
     # Clone USD source if needed
     if [ ! -d "tools/usd/usd-source" ]; then
-        echo "Cloning OpenUSD v24.11..."
+        echo "Cloning OpenUSD..."
         git clone --depth 1 --branch v24.11 \
             https://github.com/PixarAnimationStudios/OpenUSD.git \
             tools/usd/usd-source
@@ -89,7 +126,6 @@ if [ ! -d "tools/usd/usd-install/bin" ]; then
 
     # Build USD
     echo "Building USD..."
-    echo "Build started at: $(date)"
     python3 tools/usd/usd-source/build_scripts/build_usd.py \
         --build-variant release \
         --no-imaging \
@@ -97,7 +133,6 @@ if [ ! -d "tools/usd/usd-install/bin" ]; then
         --no-tutorials \
         --no-materialx \
         tools/usd/usd-install
-    echo "Build completed at: $(date)"
 
     # Cleanup
     echo "Cleaning up build artifacts..."
@@ -119,7 +154,3 @@ deactivate
 echo "========================================="
 echo "Isaac Sim Environment Setup Complete!"
 echo "Activate with: source activate-isaacsim.sh"
-echo ""
-echo "IMPORTANT: Accept Isaac Sim EULA on first run:"
-echo "  source activate-isaacsim.sh"
-echo "  isaacsim"
