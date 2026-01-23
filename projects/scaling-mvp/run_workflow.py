@@ -156,9 +156,7 @@ def main():
     try:
         result = workcell_client.submit_workflow(
             workflow_definition=workflow,
-            await_completion=True,
-            raise_on_failed=False,
-            raise_on_cancelled=False,
+            prompt_on_error=False, # CRITICAL
         )
         print(f"\nWorkflow completed with status: {result.status}")
         if result.status.ok:

@@ -90,11 +90,11 @@ Note: The activation scripts validate that the virtual environment exists before
 The orchestrator coordinates startup and shutdown of all system components:
 
 ```bash
-# Full system (Isaac Sim + MADSci + robot nodes + workflow)
+# Full system with REST Gateway
 python tools/orchestrate.py \
     --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run.py" \
+    --gateway-cmd "source activate-madsci.sh && python -m slcore.gateway.rest_gateway --num-envs 5" \
     --madsci-cmd "cd projects/my-project/madsci/ && ./run_madsci.sh" \
-    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd slcore/robots/pf400/ && ./run_node_pf400.sh" \
     --workflow-cmd "source activate-madsci.sh && cd projects/my-project && python run_workflow.py workflow.yaml"
 
 # Minimal (Isaac Sim + direct test script, no MADSci)
@@ -103,7 +103,7 @@ python tools/orchestrate.py \
     --workflow-cmd "source activate-madsci.sh && python my_test_script.py"
 ```
 
-All output is logged to `/tmp/simlab/<timestamp>/`. The `--madsci-cmd` and `--node-cmd` arguments are optional for simpler testing scenarios.
+All output is logged to `/tmp/simlab/<timestamp>/`. The `--gateway-cmd` and `--madsci-cmd` arguments are optional for simpler testing scenarios.
 
 ## Architecture Overview
 
@@ -120,6 +120,20 @@ The system uses ZMQ ROUTER-DEALER pattern for Isaac Sim ↔ MADSci communication
 - **Isaac Sim**: Runs a single ZMQ ROUTER server on port 5555
 - **Robot nodes**: Connect as DEALER clients with identity-based routing (e.g., `env_0.pf400`, `env_1.thermocycler`)
 - **Multiplexing**: Multiple robot instances share a single ZMQ port, with routing based on client identity
+
+**REST Gateway (Simulation):**
+
+For simulation, the REST Gateway consolidates all robot REST nodes into a single FastAPI process with path-based routing. This replaces individual node processes/ports with a single gateway on port 8000.
+
+```
+MADSci Workcell Manager
+    |
+    | HTTP POST /env_0/pf400/action/transfer
+    v
+REST Gateway (port 8000) --> ZMQ DEALER --> Isaac Sim ZMQ ROUTER (port 5555)
+```
+
+Workcell configs use path-based URLs: `http://127.0.0.1:8000/env_0/pf400` instead of individual ports per robot.
 
 ### Workflow Pattern
 
@@ -139,6 +153,7 @@ simlab/
 ├── curobo/           # cuRobo (cloned by setup-isaacsim.sh)
 ├── slcore/           # Python package (import as: from slcore.robots.common import ...)
 │   ├── common/           # Shared utilities (utils.py, primary_functions.py)
+│   ├── gateway/          # REST Gateway for consolidated robot node routing
 │   └── robots/           # Per-robot directories
 │       ├── common/           # Shared robot utilities (ZMQ base classes, config)
 │       ├── ur5e/             # UR5e arm

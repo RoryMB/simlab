@@ -6,6 +6,7 @@ This project demonstrates parallel environment execution with 5 independent work
 
 - **5 parallel Isaac Sim environments** with spatial offsets (5m apart)
 - **Single ZMQ ROUTER** on port 5555 (multiplexed communication)
+- **Single REST Gateway** on port 8000 (path-based routing for all robots)
 - **5 separate MongoDB instances** (ports 27017-27021)
 - **5 workcell managers** (ports 8015, 8025, 8035, 8045, 8055)
 - **Shared MADSci services** (Event, Resource, Location, etc.)
@@ -15,28 +16,22 @@ Each environment contains:
 - Peeler device
 - Thermocycler device
 
-## Quick Start (Automated)
+## Quick Start
 
 Use the orchestrate script to run everything automatically:
 
 ```bash
-# Run all 5 environments with parallel workflow test
 python tools/orchestrate.py \
     --isaac-cmd "source activate-isaacsim.sh && cd projects/scaling-mvp && python run.py" \
+    --gateway-cmd "source activate-madsci.sh && python -m slcore.gateway.rest_gateway --num-envs 5" \
     --madsci-cmd "cd projects/scaling-mvp/madsci && ./run_madsci.sh" \
-    --node-cmd "cd projects/scaling-mvp && ./run_nodes.sh 0" \
-    --node-cmd "cd projects/scaling-mvp && ./run_nodes.sh 1" \
-    --node-cmd "cd projects/scaling-mvp && ./run_nodes.sh 2" \
-    --node-cmd "cd projects/scaling-mvp && ./run_nodes.sh 3" \
-    --node-cmd "cd projects/scaling-mvp && ./run_nodes.sh 4" \
     --workflow-cmd "source activate-madsci.sh && cd projects/scaling-mvp && python run_parallel_workflows.py workflow_transfer.yaml" \
-    --nodes-ready-keyword "Uvicorn running" \
-    --timeout 300
+    --timeout 240
 ```
 
 Logs are written to `/tmp/simlab/<timestamp>/`.
 
-## Running the System (Manual)
+## Running Manually
 
 ### Terminal 1: Start Isaac Sim
 
@@ -46,45 +41,27 @@ cd projects/scaling-mvp
 python run.py
 ```
 
-### Terminal 2: Start MADSci Services
+### Terminal 2: Start REST Gateway
+
+```bash
+source activate-madsci.sh
+python -m slcore.gateway.rest_gateway --num-envs 5 --robot-types pf400,peeler,thermocycler
+```
+
+### Terminal 3: Start MADSci Services
 
 ```bash
 cd projects/scaling-mvp/madsci
 ./run_madsci.sh
 ```
 
-### Terminals 3-7: Start Robot Nodes
-
-Use the `run_nodes.sh` script to start all nodes for each environment:
-
-```bash
-cd projects/scaling-mvp
-./run_nodes.sh 0   # Environment 0: REST ports 8100-8102
-./run_nodes.sh 1   # Environment 1: REST ports 8110-8112
-./run_nodes.sh 2   # Environment 2: REST ports 8120-8122
-./run_nodes.sh 3   # Environment 3: REST ports 8130-8132
-./run_nodes.sh 4   # Environment 4: REST ports 8140-8142
-```
-
-Each script instance runs PF400, Peeler, and Thermocycler nodes for that environment. Press Ctrl+C to stop all nodes for that environment.
-
-### Terminal 8: Submit Workflow
+### Terminal 4: Submit Workflow
 
 ```bash
 source activate-madsci.sh
 cd projects/scaling-mvp
-python run_workflow.py --env-id 0 workflow.yaml
+python run_workflow.py workflow_transfer.yaml
 ```
-
-## Port Mapping
-
-| Environment | Workcell Manager | PF400 | Peeler | Thermocycler | MongoDB |
-|-------------|------------------|-------|--------|--------------|---------|
-| 0           | 8015             | 8100  | 8101   | 8102         | 27017   |
-| 1           | 8025             | 8110  | 8111   | 8112         | 27018   |
-| 2           | 8035             | 8120  | 8121   | 8122         | 27019   |
-| 3           | 8045             | 8130  | 8131   | 8132         | 27020   |
-| 4           | 8055             | 8140  | 8141   | 8142         | 27021   |
 
 ## Verification
 
@@ -160,6 +137,5 @@ Location xforms in run.py:
 - Each MongoDB is non-persistent (data lost on container restart)
 - All environments share Redis, PostgreSQL, and shared managers (Event, Resource, Location, Data, Lab, Experiment)
 - ZMQ identities use format `env_{id}.{robot_type}` (e.g., `env_0.pf400`, `env_3.thermocycler`)
-- REST node env vars require `NODE_` prefix: `NODE_ENV_ID`, `NODE_ZMQ_SERVER_URL`
+- Gateway routes requests via URL path (e.g., `/env_0/pf400/action/transfer`)
 - Location manager uses env-prefixed names (e.g., `env_0.peeler_nest`) with unique resource_ids per location
-- Location manager joint angles are calibrated from projects/prism ground truth

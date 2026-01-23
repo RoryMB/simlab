@@ -2,8 +2,8 @@
 Simlab System Orchestrator
 
 Coordinates the startup and shutdown of the Simlab system. Supports running
-the full 4-terminal setup (Isaac Sim + MADSci + Nodes + Workflow) or a
-minimal setup (Isaac Sim + Workflow) for direct testing.
+the full system (Isaac Sim + Gateway + MADSci + Workflow) or a minimal setup
+(Isaac Sim + Workflow) for direct testing.
 
 All process output is logged to /tmp/simlab/<timestamp>/ with separate files
 for startup and runtime phases. Console shows only status messages and errors.
@@ -11,8 +11,8 @@ for startup and runtime phases. Console shows only status messages and errors.
 Usage (full system):
 python orchestrate.py \
     --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run.py" \
+    --gateway-cmd "source activate-madsci.sh && python -m slcore.gateway.rest_gateway --num-envs 5" \
     --madsci-cmd "cd projects/my-project/madsci/ && ./run_madsci.sh" \
-    --node-cmd "set -a; source projects/my-project/madsci/config/.env; set +a && source activate-madsci.sh && cd slcore/robots/ur5e/ && ./run_node_ur5e.sh" \
     --workflow-cmd "source activate-madsci.sh && cd projects/my-project && python run_workflow.py workflow.yaml"
 
 Usage (minimal - Isaac Sim + workflow only):
@@ -205,11 +205,7 @@ class ProcessManager:
         self.shutdown_event.set()
 
         await self.shutdown_process('workflow')
-
-        node_names = [name for name in self.processes.keys() if name.startswith('node_')]
-        for name in node_names:
-            await self.shutdown_process(name)
-
+        await self.shutdown_process('gateway')
         await self.shutdown_process('madsci')
         await self.shutdown_process('isaac')
 
@@ -292,13 +288,13 @@ async def main():
     parser = argparse.ArgumentParser(description="Orchestrate Simlab system startup and coordination")
 
     parser.add_argument('--isaac-cmd', required=True, help='Command to start Isaac Sim')
+    parser.add_argument('--gateway-cmd', default=None, help='Command to start REST gateway (optional)')
     parser.add_argument('--madsci-cmd', default=None, help='Command to start MADSci services (optional)')
-    parser.add_argument('--node-cmd', action='append', default=None, help='Command to start a robot node (can be used multiple times, optional)')
     parser.add_argument('--workflow-cmd', required=True, help='Command to submit workflow')
 
     parser.add_argument('--isaac-ready-keyword', default='Simulation App Startup Complete', help='Keyword to detect Isaac Sim readiness')
+    parser.add_argument('--gateway-ready-keyword', default='Gateway ready', help='Keyword to detect gateway readiness')
     parser.add_argument('--madsci-ready-keyword', default='Uvicorn running on http://localhost:8015', help='Keyword to detect MADSci readiness')
-    parser.add_argument('--nodes-ready-keyword', default='node_start', help='Keyword to detect robot nodes readiness')
 
     parser.add_argument('--timeout', type=int, default=60, help='How long to wait for each process to initialize')
 
@@ -321,12 +317,11 @@ async def main():
     # Let Isaac have an extra moment to stabilize
     await asyncio.sleep(20)
 
-    # Start robot nodes if provided
-    if args.node_cmd:
-        for i, node_cmd in enumerate(args.node_cmd):
-            node_cmd_with_redirect = f"({node_cmd}) 2>&1"
-            node_process = await pm.start_process(f'node_{i}', node_cmd_with_redirect)
-            asyncio.create_task(pm.monitor_output(f'node_{i}', node_process, args.nodes_ready_keyword))
+    # Start gateway if provided
+    if args.gateway_cmd:
+        gateway_cmd_with_redirect = f"({args.gateway_cmd}) 2>&1"
+        gateway_process = await pm.start_process('gateway', gateway_cmd_with_redirect)
+        asyncio.create_task(pm.monitor_output('gateway', gateway_process, args.gateway_ready_keyword))
 
     # Start MADSci if provided
     if args.madsci_cmd:
@@ -334,12 +329,11 @@ async def main():
         madsci_process = await pm.start_process('madsci', madsci_cmd_with_redirect)
         asyncio.create_task(pm.monitor_output('madsci', madsci_process, args.madsci_ready_keyword))
 
-    # Wait for Isaac, all nodes, and MADSci to be ready
+    # Wait for Isaac, gateway, and MADSci to be ready
     try:
         await pm.wait_for_ready('isaac', args.timeout)
-        if args.node_cmd:
-            for i in range(len(args.node_cmd)):
-                await pm.wait_for_ready(f'node_{i}', args.timeout)
+        if args.gateway_cmd:
+            await pm.wait_for_ready('gateway', args.timeout)
         if args.madsci_cmd:
             await pm.wait_for_ready('madsci', args.timeout)
     except Exception as e:

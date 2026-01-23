@@ -6,12 +6,12 @@ This template provides a standalone MADSci configuration for a simlab project.
 
 1. Copy this entire `madsci/` directory into your project:
    ```bash
-   cp -r projects/template/madsci projects/my-project/madsci
+   cp -r projects/_template/madsci projects/my-project/madsci
    ```
 
 2. Configure your workcell in `config/workcell.yaml`:
-   - Uncomment and add the nodes (robots) your project uses
-   - Node URLs correspond to the REST servers started by `run_node_*.sh` scripts
+   - Add the nodes (robots) your project uses
+   - Node URLs use path-based routing through the REST Gateway
 
 3. Define locations in `config/managers/location.manager.yaml`:
    - Add locations relevant to your lab layout
@@ -21,17 +21,13 @@ This template provides a standalone MADSci configuration for a simlab project.
 
 ## Running
 
-Start the MADSci services:
-```bash
-cd projects/my-project/madsci
-./run_madsci.sh
-```
-
-Or via the orchestrator:
+Start the full system via the orchestrator:
 ```bash
 python tools/orchestrate.py \
+    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run.py" \
+    --gateway-cmd "source activate-madsci.sh && python -m slcore.gateway.rest_gateway --num-envs 1 --robot-types pf400,peeler,thermocycler" \
     --madsci-cmd "cd projects/my-project/madsci && ./run_madsci.sh" \
-    ...
+    --workflow-cmd "source activate-madsci.sh && cd projects/my-project && python run_workflow.py workflow.yaml"
 ```
 
 ## Files
@@ -55,19 +51,3 @@ The `.madsci/` directory (created at runtime) contains:
 - Datapoints from experiments
 
 This directory is gitignored by default.
-
-## Robot Nodes
-
-Robot nodes (in `slcore/robots/`) require MADSci server URLs from the `.env` file.
-Source your project's `.env` before running any node script:
-
-```bash
-# Load project's MADSci environment, then run node
-set -a; source projects/my-project/madsci/config/.env; set +a
-cd slcore/robots/ur5e && ./run_node_ur5e.sh
-```
-
-Or combine into a single command:
-```bash
-(set -a; source projects/my-project/madsci/config/.env; set +a; cd slcore/robots/ur5e && ./run_node_ur5e.sh)
-```
