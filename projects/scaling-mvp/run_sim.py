@@ -20,7 +20,7 @@ from slcore.robots.common.config import DEFAULT_PHYSICS_CONFIG
 # These are world coordinates where the PF400 end effector should move to
 # Each location has a main position and a hover position above for safe vertical approach
 #
-# Values calibrated from projects/prism/run_phys.py
+# Values calibrated from projects/prism/run_sim.py
 HOVER_HEIGHT = 0.1  # 10cm above target for auto-generated hover positions
 
 PF400_LOCATIONS = {

@@ -22,10 +22,10 @@ Use the orchestrate script to run everything automatically:
 
 ```bash
 python tools/orchestrate.py \
-    --isaac-cmd "source activate-isaacsim.sh && cd projects/scaling-mvp && python run.py" \
+    --isaac-cmd "source activate-isaacsim.sh && cd projects/scaling-mvp && python run_sim.py" \
     --gateway-cmd "source activate-madsci.sh && python -m slcore.gateway.rest_gateway --num-envs 5" \
-    --madsci-cmd "cd projects/scaling-mvp/madsci && ./run_madsci.sh" \
-    --workflow-cmd "source activate-madsci.sh && cd projects/scaling-mvp && python run_parallel_workflows.py workflow_transfer.yaml" \
+    --madsci-cmd "./tools/run_madsci.sh projects/scaling-mvp" \
+    --workflow-cmd "source activate-madsci.sh && cd projects/scaling-mvp && python run_workflow.py workflow_transfer.yaml" \
     --timeout 240
 ```
 
@@ -38,7 +38,7 @@ Logs are written to `/tmp/simlab/<timestamp>/`.
 ```bash
 source activate-isaacsim.sh
 cd projects/scaling-mvp
-python run.py
+python run_sim.py
 ```
 
 ### Terminal 2: Start REST Gateway
@@ -51,8 +51,7 @@ python -m slcore.gateway.rest_gateway --num-envs 5 --robot-types pf400,peeler,th
 ### Terminal 3: Start MADSci Services
 
 ```bash
-cd projects/scaling-mvp/madsci
-./run_madsci.sh
+./tools/run_madsci.sh projects/scaling-mvp
 ```
 
 ### Terminal 4: Submit Workflow
@@ -109,7 +108,7 @@ The `command.py` script allows direct ZMQ communication with Isaac Sim for calib
 
 ```bash
 # Start Isaac Sim first
-source activate-isaacsim.sh && cd projects/scaling-mvp && python run.py
+source activate-isaacsim.sh && cd projects/scaling-mvp && python run_sim.py
 
 # In another terminal, run calibration commands
 source activate-madsci.sh && cd projects/scaling-mvp
@@ -126,7 +125,7 @@ Available PF400 commands:
 - `move_joints`: Move to specific joint angles
 - `gripper_open`/`gripper_close`: Control gripper
 
-Location xforms in run.py:
+Location xforms in run_sim.py:
 - `home`, `home_hover`
 - `staging`, `staging_hover`
 - `thermocycler_nest`, `thermocycler_nest_hover`

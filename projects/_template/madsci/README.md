@@ -24,9 +24,9 @@ This template provides a standalone MADSci configuration for a simlab project.
 Start the full system via the orchestrator:
 ```bash
 python tools/orchestrate.py \
-    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run.py" \
+    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run_sim.py" \
     --gateway-cmd "source activate-madsci.sh && python -m slcore.gateway.rest_gateway --num-envs 1 --robot-types pf400,peeler,thermocycler" \
-    --madsci-cmd "cd projects/my-project/madsci && ./run_madsci.sh" \
+    --madsci-cmd "./tools/run_madsci.sh projects/my-project" \
     --workflow-cmd "source activate-madsci.sh && cd projects/my-project && python run_workflow.py workflow.yaml"
 ```
 
@@ -35,7 +35,6 @@ python tools/orchestrate.py \
 | File | Purpose | Customize? |
 |------|---------|------------|
 | `compose.yaml` | Docker service definitions | Rarely |
-| `run_madsci.sh` | Convenience script to start/stop services | No |
 | `config/.env` | Manager paths and URLs | No |
 | `config/workcell.yaml` | Which nodes are in this workcell | Yes |
 | `config/managers/location.manager.yaml` | Lab locations and robot positions | Yes |

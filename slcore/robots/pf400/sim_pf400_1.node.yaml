@@ -1,7 +1,0 @@
-node_name: sim_pf400_1
-node_id: 01K237Y03CQ2T9VA4CQ9MG9SKZ
-node_description: A basic node.
-node_type: device
-module_name: sim_pf400
-module_version: 0.0.1
-capabilities: null

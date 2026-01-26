@@ -47,40 +47,6 @@ def set_xform_world_pose(prim, position, orientation):
     xform_op.Set(gf_matrix)
 
 
-# Don't use this anymore
-# def get_prim_world_pose(prim) -> tuple[np.ndarray, np.ndarray]:
-#     """Get world pose of a prim.
-
-#     Args:
-#         prim: USD prim object
-
-#     Returns:
-#         Tuple of (position, orientation) where:
-#         - position: [x, y, z] in world frame
-#         - orientation: [w, x, y, z] quaternion in world frame
-#     """
-#     # Use Isaac Sim's existing SingleXFormPrim for consistent API
-#     prim_wrapper = SingleXFormPrim(prim_path=str(prim.GetPath()))
-#     return prim_wrapper.get_world_pose()
-
-
-# Don't use this anymore
-# def set_prim_world_pose(
-#     prim,
-#     position: Optional[np.ndarray] = None,
-#     orientation: Optional[np.ndarray] = None,
-# ) -> None:
-#     """Set world pose of a prim.
-
-#     Args:
-#         prim: USD prim object
-#         position: [x, y, z] position in world frame (optional)
-#         orientation: [w, x, y, z] quaternion in world frame (optional)
-#     """
-#     prim_wrapper = SingleXFormPrim(prim_path=str(prim.GetPath()))
-#     prim_wrapper.set_world_pose(position=position, orientation=orientation)
-
-
 def get_relative_pose(prim, relative_to_prim) -> tuple[np.ndarray, np.ndarray]:
     """Get pose of one prim relative to another prim.
 

@@ -92,14 +92,14 @@ The orchestrator coordinates startup and shutdown of all system components:
 ```bash
 # Full system with REST Gateway
 python tools/orchestrate.py \
-    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run.py" \
+    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run_sim.py" \
     --gateway-cmd "source activate-madsci.sh && python -m slcore.gateway.rest_gateway --num-envs 5" \
-    --madsci-cmd "cd projects/my-project/madsci/ && ./run_madsci.sh" \
+    --madsci-cmd "./tools/run_madsci.sh projects/my-project" \
     --workflow-cmd "source activate-madsci.sh && cd projects/my-project && python run_workflow.py workflow.yaml"
 
 # Minimal (Isaac Sim + direct test script, no MADSci)
 python tools/orchestrate.py \
-    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run.py" \
+    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run_sim.py" \
     --workflow-cmd "source activate-madsci.sh && python my_test_script.py"
 ```
 

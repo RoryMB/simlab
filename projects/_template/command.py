@@ -6,7 +6,7 @@ This script talks directly to Isaac Sim via ZMQ ROUTER, bypassing MADSci entirel
 Uses DEALER sockets with identity-based routing.
 
 Usage:
-    1. Start Isaac Sim: python run.py
+    1. Start Isaac Sim: python run_sim.py
     2. Edit COMMANDS below
     3. Run: python command.py
 """

@@ -4,6 +4,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Load version definitions
+source versions.env
+
 # Check for CUDA 12.x (required for Isaac Lab and cuRobo)
 if ! command -v nvcc &> /dev/null; then
     echo "Error: nvcc not found in PATH"
@@ -53,10 +56,9 @@ uv pip sync requirements-isaacsim.txt
 # Step 4: Install PyTorch with CUDA support
 echo ""
 echo "Installing PyTorch with CUDA support..."
-uv pip install torch==2.7.0 torchvision==0.22.0 --index-url https://download.pytorch.org/whl/cu128
+uv pip install torch==${PYTORCH_VERSION} torchvision==${TORCHVISION_VERSION} --index-url https://download.pytorch.org/whl/cu128
 
 # Step 5: Clone Isaac Lab at specific release tag
-ISAACLAB_VERSION="v2.3.1"
 if [ ! -d "IsaacLab" ]; then
     echo ""
     echo "Cloning Isaac Lab ${ISAACLAB_VERSION}..."
@@ -72,8 +74,7 @@ else
 fi
 
 # Step 6: Install Isaac Lab extensions
-# Note: Isaac Lab v2.3.1's isaaclab.sh doesn't support uv environments natively,
-# so we install pip first (uv venvs don't include pip by default)
+# Note: Isaac Lab's isaaclab.sh uses pip directly, so we must install it
 echo ""
 echo "Installing pip and build dependencies for Isaac Lab..."
 uv pip install pip setuptools wheel
@@ -81,7 +82,7 @@ uv pip install pip setuptools wheel
 # Pre-install egl_probe with --no-build-isolation so it can find cmake from the venv
 echo ""
 echo "Pre-installing egl_probe..."
-pip install --no-build-isolation egl_probe
+uv pip install --no-build-isolation egl_probe
 
 echo ""
 echo "Installing Isaac Lab extensions..."
@@ -90,7 +91,6 @@ cd IsaacLab
 cd "$SCRIPT_DIR"
 
 # Step 7: Clone and install cuRobo at specific release tag
-CUROBO_VERSION="v0.7.7"
 if [ ! -d "curobo" ]; then
     echo ""
     echo "Cloning cuRobo ${CUROBO_VERSION}..."
@@ -119,7 +119,7 @@ if [ ! -d "tools/usd/usd-install/bin" ]; then
     # Clone USD source if needed
     if [ ! -d "tools/usd/usd-source" ]; then
         echo "Cloning OpenUSD..."
-        git clone --depth 1 --branch v24.11 \
+        git clone --depth 1 --branch ${OPENUSD_VERSION} \
             https://github.com/PixarAnimationStudios/OpenUSD.git \
             tools/usd/usd-source
     fi

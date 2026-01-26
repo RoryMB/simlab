@@ -10,14 +10,14 @@ for startup and runtime phases. Console shows only status messages and errors.
 
 Usage (full system):
 python orchestrate.py \
-    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run.py" \
+    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run_sim.py" \
     --gateway-cmd "source activate-madsci.sh && python -m slcore.gateway.rest_gateway --num-envs 5" \
-    --madsci-cmd "cd projects/my-project/madsci/ && ./run_madsci.sh" \
+    --madsci-cmd "./tools/run_madsci.sh projects/my-project" \
     --workflow-cmd "source activate-madsci.sh && cd projects/my-project && python run_workflow.py workflow.yaml"
 
 Usage (minimal - Isaac Sim + workflow only):
 python orchestrate.py \
-    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run.py" \
+    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run_sim.py" \
     --workflow-cmd "source activate-madsci.sh && python my_test_script.py"
 """
 

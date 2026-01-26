@@ -11,7 +11,6 @@ from madsci.common.types.resource_types.definitions import SlotResourceDefinitio
 from madsci.node_module.helpers import action
 from ur_rest_node import URNode, URNodeConfig
 
-from slcore.robots.common.types import CoordinateType
 from slcore.robots.ur5e.sim_ur5e_interface import SimUR5e
 
 
@@ -253,8 +252,7 @@ class SimUR5eNode(URNode):
 
         # For simulation, just move to source and close gripper
         try:
-            # Note: CoordinateType is available but not yet used by the interface
-            # For now, joint_angle_locations=True (default) means we expect joint angles
+            # joint_angle_locations=True (default) means we expect joint angles
             if not joint_angle_locations:
                 return ActionFailed(errors="Cartesian coordinates not yet supported in simulation")
 

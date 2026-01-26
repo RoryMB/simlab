@@ -50,9 +50,9 @@ Claude Code should use the orchestration script to run the full system:
 
 ```bash
 python tools/orchestrate.py \
-    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run.py" \
+    --isaac-cmd "source activate-isaacsim.sh && cd projects/my-project && python run_sim.py" \
     --gateway-cmd "source activate-madsci.sh && python -m slcore.gateway.rest_gateway --num-envs 1 --robot-types pf400,peeler,thermocycler" \
-    --madsci-cmd "cd projects/my-project/madsci/ && ./run_madsci.sh" \
+    --madsci-cmd "./tools/run_madsci.sh projects/my-project" \
     --workflow-cmd "source activate-madsci.sh && cd projects/my-project && python run_workflow.py workflow.yaml"
 ```
 
@@ -74,5 +74,5 @@ Console shows only:
 Isaac Sim produces thousands of lines of startup logs. When running Isaac Sim outside of `tools/orchestrate.py`, filter out everything before "Simulation App Startup Complete":
 
 ```bash
-source activate-isaacsim.sh && cd projects/prism && python run_phys.py 2>&1 | sed -n '/Simulation App Startup Complete/,$p'
+source activate-isaacsim.sh && cd projects/prism && python run_sim.py 2>&1 | sed -n '/Simulation App Startup Complete/,$p'
 ```

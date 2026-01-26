@@ -36,7 +36,7 @@ def test_zmq(env_id: int = 0, robot_type: str = "thermocycler", action: str = "o
         print(f"Response: {json.dumps(response, indent=2)}")
     except zmq.Again:
         print("ERROR: Timeout waiting for response from Isaac Sim")
-        print("  - Is Isaac Sim running with run.py?")
+        print("  - Is Isaac Sim running with run_sim.py?")
         print("  - Check Isaac Sim terminal for errors")
     except Exception as e:
         print(f"ERROR: {e}")
