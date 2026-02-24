@@ -2,19 +2,38 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional
 
 import yaml
-from isaacsim.storage.native import get_assets_root_path
 
 
 # Project paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
 CUSTOM_ASSETS_ROOT_PATH = PROJECT_ROOT / "assets"
-NVIDIA_ASSETS_ROOT_PATH = get_assets_root_path()
-# if NVIDIA_ASSETS_ROOT_PATH is None:
-#     print("Error: Could not find Isaac Sim assets folder")
-#     simulation_app.close()
-#     sys.exit()
+
+# Lazy-loaded Isaac Sim assets path (requires SimulationApp to be initialized)
+_nvidia_assets_root_path: Optional[Path] = None
+
+
+def get_nvidia_assets_root_path() -> Optional[Path]:
+    """Get the NVIDIA Isaac Sim assets root path.
+
+    This function lazy-loads the path to avoid requiring Isaac Sim
+    initialization at module import time.
+
+    Returns:
+        Path to NVIDIA assets, or None if Isaac Sim is not initialized.
+    """
+    global _nvidia_assets_root_path
+    if _nvidia_assets_root_path is None:
+        try:
+            from isaacsim.storage.native import get_assets_root_path
+            _nvidia_assets_root_path = get_assets_root_path()
+        except ImportError:
+            pass
+    return _nvidia_assets_root_path
+
+
 
 
 def get_custom_asset_path(relative_path: str) -> str:

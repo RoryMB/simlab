@@ -3,10 +3,6 @@ from abc import ABC, abstractmethod
 import numpy as np
 from isaacsim.core.utils.stage import get_current_stage
 from isaacsim.core.utils.types import ArticulationAction
-from isaacsim.robot_motion.motion_generation import (
-    ArticulationKinematicsSolver,
-    LulaKinematicsSolver,
-)
 from omni.isaac.dynamic_control import _dynamic_control
 from omni.physx import get_physx_scene_query_interface
 from omni.usd.commands.usd_commands import DeletePrimsCommand
@@ -41,10 +37,6 @@ class ZMQ_Robot_Server(ABC):
         self.robot_prim_path = robot_prim_path
         self.robot_prim = stage.GetPrimAtPath(self.robot_prim_path)
 
-        # Enhanced robot functionality
-        self.motion_gen_algo = None
-        self.motion_gen_solver = None
-
         # Pause state
         self.is_paused = False
 
@@ -71,24 +63,6 @@ class ZMQ_Robot_Server(ABC):
     def create_error_response(self, message: str) -> dict:
         """Helper to create standardized error response"""
         return {"status": "error", "message": message}
-
-    def initialize_motion_generation(self, robot_description_path: str, urdf_path: str, end_effector_frame: str = 'end_effector'):
-        """Initialize motion generation algorithms for the robot"""
-        self.motion_gen_algo = LulaKinematicsSolver(
-            robot_description_path=robot_description_path,
-            urdf_path=urdf_path,
-        )
-        self.motion_gen_solver = ArticulationKinematicsSolver(
-            self.robot,
-            self.motion_gen_algo,
-            end_effector_frame,
-        )
-        print(f"Motion generation initialized for {self.robot_name}")
-
-    def set_robot_base_pose(self):
-        """Update robot base pose for motion planning"""
-        robot_pos, robot_rot = utils.get_xform_world_pose(self.robot_prim)
-        self.motion_gen_algo.set_robot_base_pose(robot_pos, robot_rot)
 
     def raycast(self, src: Gf.Vec3d, direction: Gf.Vec3d, distance: float, filter_prim_path: str):
         """Perform raycast to detect objects for gripping"""
@@ -201,48 +175,6 @@ class ZMQ_Robot_Server(ABC):
             if max_diff < 0.01 and max_vel < 0.008:
                 self.current_action = None
                 print(f"Robot {self.robot_name} completed motion")
-
-    def execute_goto_pose(self):
-        """Execute pose-based movement using motion planning"""
-        if self.target_pose is None:
-            self.current_action = None
-            raise RuntimeError(f"Robot {self.robot_name}: Cannot execute goto_pose - missing target pose")
-
-        if self.motion_gen_solver is None:
-            self.current_action = None
-            raise RuntimeError(f"Robot {self.robot_name}: Cannot execute goto_pose - motion generation solver not initialized")
-
-        target_position, target_orientation = self.target_pose
-        self.set_robot_base_pose()
-
-        tolerances = (0.001, 0.01)
-        action, success = self.motion_gen_solver.compute_inverse_kinematics(
-            target_position, target_orientation, *tolerances
-        )
-
-        if not success:
-            self.current_action = None
-            raise RuntimeError(f"Robot {self.robot_name}: IK solve failed for target pose {target_position}, {target_orientation}")
-
-        self.robot.apply_action(action)
-
-        if self.close_to_target(action):
-            self.current_action = None
-            print(f"Robot {self.robot_name} reached target pose with joint angles: {action.joint_positions.tolist() if action.joint_positions is not None else 'None'}")
-
-    def close_to_target(self, action: ArticulationAction) -> bool:
-        """Check if robot is close to target position"""
-        if action.joint_positions is None:
-            return True
-
-        action_joints = action.joint_positions
-        robo_joints = np.array(self.robot.get_joint_positions())[action.joint_indices]
-
-        diff = np.sum(np.abs(action_joints - robo_joints))
-        vel = np.sum(np.abs(self.robot.get_joint_velocities()))
-
-        return diff < 0.003 and vel < 0.008
-
 
     def halt_motion(self):
         """Immediately halt robot motion"""

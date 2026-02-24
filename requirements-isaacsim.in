@@ -8,3 +8,6 @@ cmake>=3.24,<4.0
 
 # Shared
 zmq
+
+# Testing
+pytest

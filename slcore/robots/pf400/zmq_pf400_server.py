@@ -4,6 +4,8 @@ from isaacsim.core.utils.types import ArticulationAction
 from pxr import Gf
 
 from slcore.common import utils
+from slcore.motion import IKError, MotionConfig, MotionDispatcher
+from slcore.motion.approaches import DifferentialIKApproach
 from slcore.robots.common.zmq_robot_server import ZMQ_Robot_Server
 from slcore.robots.common.config import (
     CUSTOM_ASSETS_ROOT_PATH,
@@ -12,14 +14,13 @@ from slcore.robots.common.config import (
 )
 from slcore.robots.common.zmq_server_mixins import RaycastMixin
 from slcore.robots.common.isaaclab_articulation import create_articulation_from_prim
-from slcore.robots.common.differential_ik_solver import DifferentialIKSolver
 
 
 class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
     """Handles ZMQ communication for PF400 robot with integrated control.
 
-    Uses Isaac Lab's DifferentialIKController for inverse kinematics instead
-    of the older LulaKinematicsSolver.
+    Uses the motion architecture with DifferentialIKApproach for inverse
+    kinematics. The MotionDispatcher handles approach selection and validation.
     """
 
     def __init__(self, simulation_app, robot, robot_prim_path, robot_name: str, env_id: int):
@@ -35,11 +36,12 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
         self.raycast_direction = Gf.Vec3d(0, 0, -1)  # Downward for PF400
         self.raycast_distance = DEFAULT_PHYSICS_CONFIG.raycast_distance
 
-        # Differential IK components (lazily initialized)
+        # Motion components (lazily initialized)
+        self.motion_config: MotionConfig = None
+        self.motion_dispatcher: MotionDispatcher = None
         self.diff_ik_config: DifferentialIKConfig = None
-        self.diff_ik_solver: DifferentialIKSolver = None
         self.isaac_lab_articulation = None
-        self._diff_ik_initialized = False
+        self._motion_initialized = False
 
     def handle_command(self, request: dict) -> dict:
         """Handle incoming ZMQ command"""
@@ -60,7 +62,7 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
 
         elif action == "get_joints":
             joint_positions = self.robot.get_joint_positions()
-            return self.create_success_response("joints retrieved", joint_angles=joint_positions.tolist())
+            return self.create_success_response("joints retrieved", joint_positions=joint_positions.tolist())
 
         elif action == "get_status":
             joint_positions = self.robot.get_joint_positions()
@@ -89,6 +91,7 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
             position = request.get("position", [])
             orientation = request.get("orientation", [])
             solution_preference = request.get("solution_preference", "closest_to_current")
+            approach = request.get("approach")  # None means use default
 
             if len(position) != 3 or len(orientation) != 4:
                 return self.create_error_response("goto_pose requires position [x,y,z] and orientation [w,x,y,z]")
@@ -99,11 +102,19 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
             self.current_action = "goto_pose"
             self.target_pose = (np.array(position), np.array(orientation))
             self.solution_preference = solution_preference
-            return self.create_success_response("goto_pose queued", position=position, orientation=orientation, solution_preference=solution_preference)
+            self.requested_approach = approach
+            return self.create_success_response(
+                "goto_pose queued",
+                position=position,
+                orientation=orientation,
+                solution_preference=solution_preference,
+                approach=approach,
+            )
 
         elif action == "goto_prim":
             prim_name = request.get("prim_name", "")
             solution_preference = request.get("solution_preference", "closest_to_current")
+            approach = request.get("approach")  # None means use default
 
             if not prim_name:
                 return self.create_error_response("goto_prim requires prim_name parameter")
@@ -125,7 +136,15 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
             self.current_action = "goto_pose"
             self.target_pose = (position, orientation)
             self.solution_preference = solution_preference
-            return self.create_success_response("goto_prim queued", prim_name=prim_name, position=position.tolist(), orientation=orientation.tolist(), solution_preference=solution_preference)
+            self.requested_approach = approach
+            return self.create_success_response(
+                "goto_prim queued",
+                prim_name=prim_name,
+                position=position.tolist(),
+                orientation=orientation.tolist(),
+                solution_preference=solution_preference,
+                approach=approach,
+            )
 
         elif action == "get_ee_pose":
             # Get end effector (pointer) world position and orientation
@@ -246,19 +265,26 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
         elif self.current_action == "gripper_close":
             self.execute_gripper_close()
 
-    def _ensure_diff_ik_initialized(self):
-        """Lazily initialize differential IK on first use.
+    def _ensure_motion_initialized(self):
+        """Lazily initialize motion dispatcher on first use.
 
         Isaac Lab Articulation requires physics simulation to be running,
         so we defer initialization until the first goto_pose call.
         """
-        if self._diff_ik_initialized:
+        if self._motion_initialized:
             return
 
-        # Load configuration from YAML
+        # Load motion configuration from YAML
         config_dir = CUSTOM_ASSETS_ROOT_PATH / "robots/Brooks/PF400/isaacsim"
-        config_path = config_dir / "differential_ik_config.yaml"
-        self.diff_ik_config = DifferentialIKConfig.from_yaml(config_path)
+        motion_config_path = config_dir / "motion_config.yaml"
+        self.motion_config = MotionConfig.from_yaml(motion_config_path)
+
+        # Create dispatcher
+        self.motion_dispatcher = MotionDispatcher(self.motion_config)
+
+        # Load differential IK config for the approach
+        diff_ik_config_path = config_dir / "differential_ik_config.yaml"
+        self.diff_ik_config = DifferentialIKConfig.from_yaml(diff_ik_config_path)
 
         # Create Isaac Lab Articulation wrapper (points to same USD prim as self.robot)
         self.isaac_lab_articulation = create_articulation_from_prim(
@@ -266,19 +292,20 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
             device="cuda:0",
         )
 
-        # Create differential IK solver using joint names from PhysX
-        self.diff_ik_solver = DifferentialIKSolver(
+        # Create and register differential IK approach
+        diff_ik_approach = DifferentialIKApproach(
             articulation=self.isaac_lab_articulation,
             config=self.diff_ik_config,
             joint_names=self.isaac_lab_articulation.data.joint_names,
             device="cuda:0",
         )
+        self.motion_dispatcher.register_approach("differential_ik", diff_ik_approach)
 
-        self._diff_ik_initialized = True
-        print(f"Differential IK initialized for {self.robot_name}")
+        self._motion_initialized = True
+        print(f"Motion dispatcher initialized for {self.robot_name}")
 
     def execute_goto_pose(self):
-        """Execute pose-based movement using differential IK.
+        """Execute pose-based movement using the motion dispatcher.
 
         Computes IK once on first call, then drives to the computed joint
         positions on subsequent frames (same as move_joints).
@@ -296,46 +323,53 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
             )
 
         # Compute IK once and convert to move_joints action
-        if True:  # Always compute IK here (first frame)
-            # Initialize differential IK on first use
-            self._ensure_diff_ik_initialized()
+        # Initialize motion dispatcher on first use
+        self._ensure_motion_initialized()
 
-            target_position, target_orientation = self.target_pose
+        target_position, target_orientation = self.target_pose
 
-            # Update robot base pose for IK solver
-            robot_pos, robot_rot = utils.get_xform_world_pose(self.robot_prim)
-            self.diff_ik_solver.set_robot_base_pose(robot_pos, robot_rot)
+        # Update robot base pose for the differential IK approach
+        robot_pos, robot_rot = utils.get_xform_world_pose(self.robot_prim)
+        diff_ik_approach = self.motion_dispatcher.get_approach("differential_ik")
+        if diff_ik_approach:
+            diff_ik_approach.set_robot_base_pose(robot_pos, robot_rot)
 
-            # Compute IK using differential IK solver
-            joint_positions, success = self.diff_ik_solver.compute_inverse_kinematics(
-                target_position,
-                target_orientation,
+        # Get approach name (explicit or None for default)
+        approach = getattr(self, 'requested_approach', None)
+
+        try:
+            # Compute motion using dispatcher
+            result = self.motion_dispatcher.compute_motion(
+                target_position=target_position,
+                target_orientation=target_orientation,
+                approach=approach,
                 solution_preference=self.solution_preference,
             )
 
-            if not success:
-                self.current_action = None
-                self.target_pose = None
-                raise RuntimeError(
-                    f"Robot {self.robot_name}: IK solve failed for target pose "
-                    f"{target_position}, {target_orientation}"
-                )
-
             # Cache the computed joint positions and clear pose target
-            self.target_joints = joint_positions
+            self.target_joints = result.joint_positions
             self.target_pose = None
+            self.requested_approach = None
             print(
                 f"Robot {self.robot_name} IK computed target joints: "
-                f"{joint_positions.tolist()}"
+                f"{result.joint_positions.tolist()}"
             )
 
             # Start driving to the computed joint positions
             self.execute_move_joints()
 
+        except IKError as e:
+            self.current_action = None
+            self.target_pose = None
+            self.requested_approach = None
+            raise RuntimeError(
+                f"Robot {self.robot_name}: {e}"
+            ) from e
+
     def _close_to_target_joints(self, target_joints: np.ndarray) -> bool:
         """Check if robot joints are close to target positions.
 
-        Uses configurable thresholds from differential_ik_config.yaml.
+        Uses configurable thresholds from motion_config.yaml.
 
         Args:
             target_joints: Target joint positions
@@ -349,7 +383,12 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
         joint_diff = np.sum(np.abs(current_joints - target_joints))
         vel_sum = np.sum(np.abs(velocities))
 
+        # Get thresholds from motion config
+        thresholds = self.motion_config.execution.convergence_threshold
+        position_threshold = thresholds.get("position", 0.003)
+        velocity_threshold = thresholds.get("velocity", 0.008)
+
         return (
-            joint_diff < self.diff_ik_config.joint_diff_threshold
-            and vel_sum < self.diff_ik_config.velocity_threshold
+            joint_diff < position_threshold
+            and vel_sum < velocity_threshold
         )

@@ -16,26 +16,28 @@ class ZMQ_UR5e_Server(ZMQ_Robot_Server):
         action = request.get("action", "")
 
         if action == "move_joints":
-            joint_angles = request.get("joint_angles", [])
+            joint_positions = request.get("joint_positions", [])
+            if not joint_positions:
+                joint_positions = request.get("joint_angles", [])  # Support both parameter names
 
-            if len(joint_angles) != 6:
-                return self.create_error_response(f"Expected 6 joint angles, got {len(joint_angles)}")
+            if len(joint_positions) != 6:
+                return self.create_error_response(f"Expected 6 joint positions, got {len(joint_positions)}")
 
             try:
                 if self.motion_type == "teleport":
-                    self.robot.set_joint_positions(np.array(joint_angles))
-                    return self.create_success_response("moved", joint_angles=joint_angles)
+                    self.robot.set_joint_positions(np.array(joint_positions))
+                    return self.create_success_response("moved", joint_positions=joint_positions)
                 else:  # smooth motion
-                    action = ArticulationAction(joint_positions=np.array(joint_angles))
+                    action = ArticulationAction(joint_positions=np.array(joint_positions))
                     self.robot.apply_action(action)
-                    return self.create_success_response("started_moving", joint_angles=joint_angles)
+                    return self.create_success_response("started_moving", joint_positions=joint_positions)
             except Exception as e:
                 return self.create_error_response(f"Failed to move robot: {str(e)}")
 
         elif action == "get_joints":
             try:
                 joint_positions = self.robot.get_joint_positions()
-                return self.create_success_response("joints retrieved", joint_angles=joint_positions.tolist())
+                return self.create_success_response("joints retrieved", joint_positions=joint_positions.tolist())
             except Exception as e:
                 return self.create_error_response(f"Failed to get joint positions: {str(e)}")
 
@@ -49,7 +51,7 @@ class ZMQ_UR5e_Server(ZMQ_Robot_Server):
                 euler = quat_to_euler_angles(ee_orient)
                 pose = [ee_pos[0], ee_pos[1], ee_pos[2], euler[0], euler[1], euler[2]]
 
-                return self.create_success_response("pose retrieved", pose=pose, joint_angles=joint_positions.tolist())
+                return self.create_success_response("pose retrieved", pose=pose, joint_positions=joint_positions.tolist())
             except Exception as e:
                 return self.create_error_response(f"Failed to get pose: {str(e)}")
 
