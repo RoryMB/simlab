@@ -1,0 +1,64 @@
+name: Location Manager
+description: Location manager for simple project
+manager_id: 01KG5QRM64BNKAWC6EXFNDNE59
+manager_type: location_manager
+locations:
+- location_name: peeler_nest
+  location_id: 01KG5QRM64BNKAWC6EXFNDNE60
+  description: Peeler plate nest
+  representations:
+    pf400:
+    - -0.51091
+    - 0.1623
+    - 0.11105
+    - 0.80197
+    - -2.48375
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: peeler_nest
+  allow_transfers: true
+- location_name: staging
+  location_id: 01KG5QRM64BNKAWC6EXFNDNE61
+  description: Staging area
+  representations:
+    pf400:
+    - 0.03738
+    - 0.16319
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: staging
+  allow_transfers: true
+- location_name: thermocycler_nest
+  location_id: 01KG5QRM64BNKAWC6EXFNDNE62
+  description: Thermocycler plate nest
+  representations:
+    pf400:
+    - -0.44856
+    - 0.19619
+    - 0.75693
+    - 2.4972
+    - -1.6833
+    - 0.0
+    - 0.0
+  resource_template_name: plate_nest
+  resource_template_overrides:
+    resource_name: thermocycler_nest
+  allow_transfers: true
+transfer_capabilities:
+  transfer_templates:
+  - node_name: pf400
+    action: transfer
+    source_argument_name: source
+    target_argument_name: target
+    cost_weight: 1.0
+    additional_args: {}
+    additional_location_args: {}
+  override_transfer_templates: null
+  capacity_cost_config: null

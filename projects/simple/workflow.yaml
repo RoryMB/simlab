@@ -1,0 +1,44 @@
+name: Plate Transfer Workflow
+metadata:
+  author: Simlab
+  info: PF400 picks up a plate from the peeler, places it in the thermocycler, then returns it.
+  version: '1.0'
+
+parameters: []
+
+steps:
+  - name: Open Thermocycler
+    node: thermocycler
+    action: open
+    args: {}
+
+  - name: Transfer Plate to Thermocycler
+    node: pf400
+    action: transfer
+    args: {}
+    locations:
+      source: peeler_nest
+      target: thermocycler_nest
+
+  - name: Close Thermocycler
+    node: thermocycler
+    action: close
+    args: {}
+
+  - name: Open Thermocycler for Retrieval
+    node: thermocycler
+    action: open
+    args: {}
+
+  - name: Transfer Plate Back to Peeler
+    node: pf400
+    action: transfer
+    args: {}
+    locations:
+      source: thermocycler_nest
+      target: peeler_nest
+
+  - name: Close Thermocycler
+    node: thermocycler
+    action: close
+    args: {}
