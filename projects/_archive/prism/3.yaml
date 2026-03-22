@@ -1,0 +1,145 @@
+name: PCR Amplification Workflow v1
+author: PRISM
+info: Automated PCR reaction setup on OT-2 followed by sealing, thermocycling (program #5), peeling, and reading on Hidex.
+version: '1.0'
+
+flowdef:
+  # 1) Run the OT-2 liquid handling protocol (steps 1–7)
+  - action: run_protocol
+    name: Execute PCR reaction setup and mixing on OT-2
+    module: ot2bioalpha
+    files:
+      protocol: payload.pcr_reaction_setup_and_mix_v1.ot2_protocol
+
+  # 2) Move the prepared reaction plate from OT-2 (wide) to Sealer (narrow) via Exchange
+  - action: transfer
+    name: Move plate from OT-2 deck1 to Exchange (wide)
+    module: biopf400
+    args:
+      source: ot2bioalpha_deck1_wide
+      source_approach: safe_path_ot2bioalpha
+      source_plate_rotation: wide
+      target: sealer_nest
+      target_approach: safe_path_sealer
+      target_plate_rotation: narrow
+
+  - action: seal
+    name: Seal the reaction plate
+    module: bio_sealer
+    args: {}
+
+  # 3) Move sealed plate to Biometra (wide) via Exchange, then run program 5
+  - action: open
+    name: Open Biometra lid to receive plate
+    module: bio_biometra3_96
+    args: {}
+
+  - action: transfer
+    name: Move sealed plate from Sealer to Exchange (narrow)
+    module: biopf400
+    args:
+      source: sealer_nest
+      source_approach: safe_path_sealer
+      source_plate_rotation: narrow
+      target: exchange_deck_high_narrow
+      target_approach: safe_path_exchange
+      target_plate_rotation: narrow
+
+  - action: transfer
+    name: Move sealed plate from Exchange (wide) to Biometra
+    module: biopf400
+    args:
+      source: exchange_deck_high_wide
+      source_approach: safe_path_exchange
+      source_plate_rotation: wide
+      target: bio_biometra3_nest
+      target_approach: safe_path_biometra3
+      target_plate_rotation: wide
+
+  - action: close
+    name: Close Biometra lid before running program
+    module: bio_biometra3_96
+    args: {}
+
+  - action: run_program
+    name: Run Biometra program 5 (thermocycling)
+    module: bio_biometra3_96
+    args:
+      program_number: 5
+
+  - action: open
+    name: Open Biometra lid after thermocycling
+    module: bio_biometra3_96
+    args: {}
+
+  # 4) Move plate to Peeler (narrow) via Exchange and peel
+  - action: transfer
+    name: Move plate from Biometra to Exchange (wide)
+    module: biopf400
+    args:
+      source: bio_biometra3_nest
+      source_approach: safe_path_biometra3
+      source_plate_rotation: wide
+      target: exchange_deck_high_wide
+      target_approach: safe_path_exchange
+      target_plate_rotation: wide
+
+  - action: transfer
+    name: Move plate from Exchange (narrow) to Peeler
+    module: biopf400
+    args:
+      source: exchange_deck_high_narrow
+      source_approach: safe_path_exchange
+      source_plate_rotation: narrow
+      target: peeler_nest
+      target_approach: safe_path_peeler
+      target_plate_rotation: narrow
+
+  - action: peel
+    name: Peel the sealed plate
+    module: bio_peeler
+    args: {}
+
+  # 5) Move plate to Hidex (narrow) via Exchange and run assay
+  - action: transfer
+    name: Move plate from Peeler to Exchange (narrow)
+    module: biopf400
+    args:
+      source: peeler_nest
+      source_approach: safe_path_peeler
+      source_plate_rotation: narrow
+      target: exchange_deck_high_narrow
+      target_approach: safe_path_exchange
+      target_plate_rotation: narrow
+
+  - action: open
+    name: Open Hidex lid to receive plate
+    module: hidex_geraldine
+    args: {}
+
+  - action: transfer
+    name: Move plate from Exchange (narrow) to Hidex
+    module: biopf400
+    args:
+      source: exchange_deck_high_narrow
+      source_approach: safe_path_exchange
+      source_plate_rotation: narrow
+      target: hidex_geraldine_high_nest
+      target_approach: safe_path_hidex
+      target_plate_rotation: narrow
+
+  - action: close
+    name: Close Hidex lid before running assay
+    module: hidex_geraldine
+    args: {}
+
+  - action: run_assay
+    name: Run Hidex assay 'PCR_Final_Results'
+    module: hidex_geraldine
+    args:
+      assay_name: "PCR_Final_Results"
+
+  - action: open
+    name: Open Hidex lid after analysis completion
+    module: hidex_geraldine
+    args: {}

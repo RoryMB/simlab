@@ -1,3 +1,5 @@
+import threading
+
 import numpy as np
 from isaacsim.core.utils.stage import get_current_stage
 from isaacsim.core.utils.types import ArticulationAction
@@ -28,6 +30,8 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
 
         # PF400-specific gripper state
         self._grab_joint = None
+        self._gripper_done = threading.Event()
+        self._gripper_result: dict = None
 
         # IK solution preference (set per goto_pose call)
         self.solution_preference = "closest_to_current"
@@ -80,12 +84,18 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
             return self.create_success_response("status retrieved", data=status)
 
         elif action == "gripper_open":
+            self._gripper_done.clear()
+            self._gripper_result = None
             self.current_action = "gripper_open"
-            return self.create_success_response("gripper_open queued")
+            self._gripper_done.wait(timeout=5.0)
+            return self._gripper_result or self.create_error_response("Gripper open timed out")
 
         elif action == "gripper_close":
+            self._gripper_done.clear()
+            self._gripper_result = None
             self.current_action = "gripper_close"
-            return self.create_success_response("gripper_close queued")
+            self._gripper_done.wait(timeout=5.0)
+            return self._gripper_result or self.create_error_response("Gripper close timed out")
 
         elif action == "goto_pose":
             position = request.get("position", [])
@@ -166,26 +176,33 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
 
     # _get_end_effector_raycast_info is inherited from RaycastMixin
 
+    def _finish_gripper(self, result: dict):
+        """Store gripper result and signal the waiting ZMQ thread."""
+        self.current_action = None
+        self._gripper_result = result
+        self._gripper_done.set()
+
     def execute_gripper_open(self, end_effector_name: str = 'pointer'):
-        """Execute gripper opening using physics-based detachment"""
+        """Execute gripper opening on the main thread, signal ZMQ thread when done."""
         if not self._grab_joint:
             print(f"Robot {self.robot_name} opened gripper (no object to detach)")
-            self.current_action = None
+            self._finish_gripper(self.create_success_response("gripper opened (nothing held)"))
             return
 
         success = self.detach_object(self._grab_joint)
         if success:
             self._grab_joint = None
             print(f"Robot {self.robot_name} opened gripper (detached object)")
+            self._finish_gripper(self.create_success_response("gripper opened (detached object)"))
         else:
             print(f"Robot {self.robot_name} failed to open gripper")
-        self.current_action = None
+            self._finish_gripper(self.create_error_response("Failed to detach object"))
 
     def execute_gripper_close(self, end_effector_name: str = 'pointer'):
-        """Execute gripper closing using raycast-based attachment"""
+        """Execute gripper closing on the main thread, signal ZMQ thread when done."""
         if self._grab_joint:
             print(f"Robot {self.robot_name} already holding object")
-            self.current_action = None
+            self._finish_gripper(self.create_success_response("gripper already holding object"))
             return
 
         # Get raycast info using helper method
@@ -198,18 +215,26 @@ class ZMQ_PF400_Server(RaycastMixin, ZMQ_Robot_Server):
             hit_path = hit_prim.GetPath().pathString
             if "microplate" not in hit_path:
                 print(f"Robot {self.robot_name} ignored grasp target (not a microplate): {hit_path}")
-                self.current_action = None
+                self._finish_gripper(self.create_success_response(
+                    "gripper closed (ignored non-microplate)",
+                    hit_path=hit_path,
+                ))
                 return
 
             try:
                 joint_path = self.attach_object(hit_prim.GetPath().pathString, end_effector_name)
                 self._grab_joint = joint_path
                 print(f"Robot {self.robot_name} closed gripper (attached object)")
+                self._finish_gripper(self.create_success_response(
+                    "gripper closed (attached object)",
+                    attached=hit_path,
+                ))
             except Exception as e:
                 print(f"Robot {self.robot_name} failed to close gripper: {str(e)}")
+                self._finish_gripper(self.create_error_response(f"Failed to attach object: {str(e)}"))
         else:
             print(f"Robot {self.robot_name} closed gripper (no object detected)")
-        self.current_action = None
+            self._finish_gripper(self.create_success_response("gripper closed (no object detected)"))
 
     def on_collision(self, actor0, actor1):
         """Handle collision detection - only care about collisions while moving"""

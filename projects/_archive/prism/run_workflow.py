@@ -119,10 +119,16 @@ def main():
     # Submit the workflow to the workcell manager
     print("\nSubmitting PCR workflow...")
 
+    # Build file_inputs from workflow parameter declarations
+    file_inputs = {}
+    if workflow_definition.parameters and workflow_definition.parameters.file_inputs:
+        for param in workflow_definition.parameters.file_inputs:
+            file_inputs[param.key] = Path("ot2.py")
+
     try:
         workflow_run = wc_client.submit_workflow(
             workflow_definition=workflow_definition,
-            file_inputs={"ot2_protocol_script": Path("ot2.py")},
+            file_inputs=file_inputs if file_inputs else None,
             await_completion=True,
             prompt_on_error=False,
         )

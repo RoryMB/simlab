@@ -226,8 +226,8 @@ class RestGateway:
             node = self.node_manager.get(env_id, robot_type)
             return node.get_action_result(action_id)
 
-        # Store pending actions for the two-step create/start pattern
-        pending_actions: dict[str, tuple[Any, str, dict]] = {}  # action_id -> (node, action_name, args)
+        # Maps action_id -> (env_id, robot_type) for routing upload/start calls
+        pending_action_nodes: dict[str, tuple[str, str]] = {}
 
         @app.post("/{env_id}/{robot_type}/action/{action_name}")
         async def create_action(
@@ -236,10 +236,9 @@ class RestGateway:
             action_name: str,
             request: Request,
         ):
-            """Create an action (MADSci endpoint). Returns action_id for use with /start."""
+            """Create an action (MADSci endpoint). Delegates to the node's create_action."""
             node = self.node_manager.get(env_id, robot_type)
 
-            # Verify action exists
             if action_name not in node.action_handlers:
                 raise HTTPException(
                     status_code=404,
@@ -247,25 +246,43 @@ class RestGateway:
                            f"Available actions: {list(node.action_handlers.keys())}",
                 )
 
-            # Parse request body
             try:
                 body = await request.json()
             except Exception:
                 body = {}
 
-            # Extract args - handle both flat and nested {"args": {...}} formats
-            args = body.get("args", body)
-            if isinstance(args, dict) and "args" in args:
-                args = args["args"]
+            result = node.create_action(action_name, body)
+            action_id = result["action_id"]
+            pending_action_nodes[action_id] = (env_id, robot_type)
+            return result
 
-            # Generate action_id and store for later execution
-            from madsci.common.utils import new_ulid_str
-            action_id = new_ulid_str()
+        @app.post("/{env_id}/{robot_type}/action/{action_name}/{action_id}/upload/{file_arg}")
+        async def upload_action_file(
+            env_id: str,
+            robot_type: str,
+            action_name: str,
+            action_id: str,
+            file_arg: str,
+            request: Request,
+        ):
+            """Upload a file for a pending action (MADSci endpoint)."""
+            from fastapi import UploadFile
 
-            # Store the pending action with extracted args
-            pending_actions[action_id] = (node, action_name, args)
+            node = self.node_manager.get(env_id, robot_type)
 
-            return {"action_id": action_id}
+            form = await request.form()
+            file = form.get("file")
+            if file is None:
+                # Try first form field as the file
+                for value in form.values():
+                    if hasattr(value, "read"):
+                        file = value
+                        break
+
+            if file is None:
+                raise HTTPException(status_code=400, detail="No file provided")
+
+            return node.upload_action_file(action_name, action_id, file_arg, file)
 
         @app.post("/{env_id}/{robot_type}/action/{action_name}/{action_id}/start")
         async def start_action(
@@ -274,33 +291,10 @@ class RestGateway:
             action_name: str,
             action_id: str,
         ):
-            """Start a previously created action (MADSci endpoint)."""
-            if action_id not in pending_actions:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Action '{action_id}' not found. Create it first with POST /action/{action_name}",
-                )
-
-            node, stored_action_name, args = pending_actions.pop(action_id)
-
-            # Verify action_name matches
-            if stored_action_name != action_name:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Action name mismatch: expected '{stored_action_name}', got '{action_name}'",
-                )
-
-            # Create and run action request
-            from madsci.common.types.action_types import ActionRequest
-
-            action_request = ActionRequest(
-                action_id=action_id,
-                action_name=action_name,
-                args=args,
-            )
-
-            result = node.run_action(action_request)
-            return self._action_result_to_dict(result)
+            """Start a previously created action (MADSci endpoint). Delegates to node's start_action."""
+            node = self.node_manager.get(env_id, robot_type)
+            pending_action_nodes.pop(action_id, None)
+            return node.start_action(action_name, action_id)
 
         @app.post("/{env_id}/{robot_type}/admin/{admin_command}")
         async def run_admin_command(env_id: str, robot_type: str, admin_command: str):

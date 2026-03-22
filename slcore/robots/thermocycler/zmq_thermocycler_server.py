@@ -49,7 +49,10 @@ class ZMQ_Thermocycler_Server(RaycastMixin, ZMQ_Robot_Server):
         hit_prim = self.raycast(world_position, world_direction, self.raycast_distance, self.robot_prim_path)
 
         if hit_prim:
-            print(f"Robot {self.robot_name} run_program operation (plate detected, program_number={program_number})")
+            ok, yaw = self._check_plate_orientation(hit_prim, expected_yaw=0)
+            print(f"Robot {self.robot_name} run_program operation (plate detected, relative_yaw={yaw:.1f}, orientation_ok={ok}, program_number={program_number})")
+            if not ok:
+                return self.create_error_response(f"Plate in wrong orientation (relative_yaw={yaw:.1f}, expected ~0/180)")
             return self.create_success_response("run_program operation completed", plate_detected=True, program_number=program_number)
         else:
             print(f"Robot {self.robot_name} run_program operation failed (no plate detected)")

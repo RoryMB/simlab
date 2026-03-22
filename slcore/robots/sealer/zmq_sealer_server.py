@@ -35,7 +35,10 @@ class ZMQ_Sealer_Server(RaycastMixin, ZMQ_Robot_Server):
         hit_prim = self.raycast(world_position, world_direction, self.raycast_distance, self.robot_prim_path)
 
         if hit_prim:
-            print(f"Robot {self.robot_name} seal operation (plate detected)")
+            ok, yaw = self._check_plate_orientation(hit_prim, expected_yaw=90)
+            print(f"Robot {self.robot_name} seal operation (plate detected, relative_yaw={yaw:.1f}, orientation_ok={ok})")
+            if not ok:
+                return self.create_error_response(f"Plate in wrong orientation (relative_yaw={yaw:.1f}, expected ~90/270)")
             return self.create_success_response("seal operation completed", plate_detected=True)
         else:
             print(f"Robot {self.robot_name} seal operation failed (no plate detected)")

@@ -10,11 +10,12 @@ class SimHidex(ZMQClientInterface):
 
     def __init__(
         self,
-        zmq_server_url: str = "tcp://localhost:5561",
+        zmq_server_url: str = "tcp://localhost:5555",
+        env_id: int = 0,
         logger: Optional[EventClient] = None,
     ) -> "SimHidex":
         """Initialize the Hidex ZMQ client."""
-        super().__init__(zmq_server_url, logger)
+        super().__init__(zmq_server_url, env_id, "hidex", logger)
 
     def open(self) -> bool:
         """Open Hidex drawer."""

@@ -169,12 +169,27 @@ class SimPF400(ZMQClientInterface):
 
     def _get_hover_coords(self, coords: list, hover_height: float = 0.1) -> list:
         """Helper to create coordinates directly above a location."""
-        # Create a copy so we don't modify the original list object
         hover_coords = list(coords)
-        # Index 1 is the vertical axis
-        # Set it to a safe height (e.g. 0.5 or current + offset)
         hover_coords[1] = hover_coords[1] + hover_height
         return hover_coords
+
+    def _get_clear_wrist_coords(self, coords: list) -> list:
+        """Helper to zero out wrist joints for safe travel (mini-home).
+
+        Keeps base rotation (index 0) and height (index 1) but zeros
+        all wrist joints (indices 2-6) to create a compact configuration
+        that avoids collisions during zone transitions.
+        """
+        clear_coords = list(coords)
+        for i in range(2, len(clear_coords)):
+            clear_coords[i] = 0
+        return clear_coords
+
+    def _move_to_mini_home(self, coords: list) -> bool:
+        """Move to a mini-home position: same base/height as coords but wrist zeroed."""
+        mini_home = self._get_clear_wrist_coords(coords)
+        self.logger.log(f"Moving to mini-home (wrist clear)")
+        return self.move_to_location_coordinates(mini_home)
 
     def pick_plate(
         self,
@@ -184,37 +199,47 @@ class SimPF400(ZMQClientInterface):
         approach_height_offset: Optional[float] = None,
         grip_width: Optional[int] = None,
     ) -> bool:
-        """Pick a plate from a source location."""
-        # Handle source approach if specified
-        if source_approach:
+        """Pick a plate from a source location.
+
+        Motion sequence: mini-home -> approach -> hover -> pick -> hover -> approach -> mini-home
+        """
+        approach_coords = source_approach.location if source_approach and hasattr(source_approach, 'location') else (source_approach if source_approach else None)
+
+        # Mini-home before entering zone
+        if approach_coords:
+            if not self._move_to_mini_home(approach_coords):
+                raise RuntimeError("Failed to move to mini-home before pick")
             self.logger.log("Moving to source approach location")
-            if not self.move_to_approach_location(source_approach.location if hasattr(source_approach, 'location') else source_approach):
+            if not self.move_to_approach_location(approach_coords):
                 raise RuntimeError("Failed to move to source approach location")
 
-        # [HACK] Move ABOVE Source (Approach safely)
+        # Hover -> pick -> hover
         hover_source = self._get_hover_coords(source.location)
         self.logger.log("Moving to hover position above source")
         if not self.move_to_location_coordinates(hover_source):
             raise RuntimeError("Failed to hover above source")
 
-        # Move to source location
         if not self.move_to_location_coordinates(source.location):
             raise RuntimeError("Failed to move to source location")
 
-        # Close gripper to pick up plate
         if not self.close_gripper():
             raise RuntimeError("Failed to close gripper")
 
-        # Update resource manager - plate picked from source
         if self.resource_client:
             popped_plate, updated_resource = self.resource_client.pop(resource=source.resource_id)
             self.resource_client.push(resource=self.gripper_resource_id, child=popped_plate)
 
-        # [HACK] Move ABOVE Source (Retract safely)
-        hover_source = self._get_hover_coords(source.location)
         self.logger.log("Retracting to hover position above source")
         if not self.move_to_location_coordinates(hover_source):
             raise RuntimeError("Failed to retract above source")
+
+        # Approach -> mini-home to exit zone safely
+        if approach_coords:
+            self.logger.log("Returning to source approach location")
+            if not self.move_to_approach_location(approach_coords):
+                raise RuntimeError("Failed to return to source approach location")
+            if not self._move_to_mini_home(approach_coords):
+                raise RuntimeError("Failed to move to mini-home after pick")
 
         self.logger.log("Picked up plate from source")
         return True
@@ -227,38 +252,49 @@ class SimPF400(ZMQClientInterface):
         approach_height_offset: Optional[float] = None,
         open_width: Optional[int] = None,
     ) -> bool:
-        """Place a plate to a target location."""
-        # Handle target approach if specified
-        if target_approach:
+        """Place a plate to a target location.
+
+        Motion sequence: mini-home -> approach -> hover -> place -> hover -> approach -> mini-home
+        """
+        approach_coords = target_approach.location if target_approach and hasattr(target_approach, 'location') else (target_approach if target_approach else None)
+
+        # Mini-home before entering zone
+        if approach_coords:
+            if not self._move_to_mini_home(approach_coords):
+                raise RuntimeError("Failed to move to mini-home before place")
             self.logger.log("Moving to target approach location")
-            if not self.move_to_approach_location(target_approach.location if hasattr(target_approach, 'location') else target_approach):
+            if not self.move_to_approach_location(approach_coords):
                 raise RuntimeError("Failed to move to target approach location")
 
-        # [HACK] Move ABOVE Target (Approach safely)
+        # Hover -> place -> hover
         hover_target = self._get_hover_coords(target.location)
         self.logger.log("Moving to hover position above target")
         if not self.move_to_location_coordinates(hover_target):
             raise RuntimeError("Failed to hover above target")
 
-        # [HACK] Move to slightly above target location
-        hover_target = self._get_hover_coords(target.location, hover_height=0.02)
-        if not self.move_to_location_coordinates(hover_target):
+        hover_target_low = self._get_hover_coords(target.location, hover_height=0.02)
+        if not self.move_to_location_coordinates(hover_target_low):
             raise RuntimeError("Failed to move to target location")
 
-        # Open gripper to release plate
         if not self.open_gripper():
             raise RuntimeError("Failed to open gripper for release")
 
-        # Update resource manager - plate placed at target
         if self.resource_client:
             popped_plate, updated_resource = self.resource_client.pop(resource=self.gripper_resource_id)
             self.resource_client.push(resource=target.resource_id, child=popped_plate)
 
-        # [HACK] Move ABOVE Target (Retract safely)
         hover_target = self._get_hover_coords(target.location)
         self.logger.log("Retracting to hover position above target")
         if not self.move_to_location_coordinates(hover_target):
             raise RuntimeError("Failed to retract above target")
+
+        # Approach -> mini-home to exit zone safely
+        if approach_coords:
+            self.logger.log("Returning to target approach location")
+            if not self.move_to_approach_location(approach_coords):
+                raise RuntimeError("Failed to return to target approach location")
+            if not self._move_to_mini_home(approach_coords):
+                raise RuntimeError("Failed to move to mini-home after place")
 
         self.logger.log("Placed plate at target")
         return True

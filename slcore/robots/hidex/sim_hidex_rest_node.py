@@ -12,7 +12,7 @@ from slcore.robots.hidex.sim_hidex_interface import SimHidex
 class SimHidexNodeConfig(SimpleDeviceNodeConfig):
     """Configuration for the Hidex node module."""
 
-    zmq_server_url: str = "tcp://localhost:5561"
+    zmq_server_url: str = "tcp://localhost:5555"
 
 
 class SimHidexNode(SimpleDeviceRestNode):

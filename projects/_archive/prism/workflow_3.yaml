@@ -1,0 +1,134 @@
+name: PCR Amplification Workflow v1
+metadata:
+  author: PRISM
+  info: Automated PCR reaction setup on OT-2 followed by sealing, thermocycling (program
+  version: '1.0'
+parameters:
+- key: protocol_script
+  parameter_type: file_input
+  description: Protocol file
+steps:
+- name: Execute PCR reaction setup and mixing on OT-2
+  node: ot2
+  action: run_protocol
+  files:
+    protocol: protocol_script
+- name: Move plate from OT-2 deck1 to Exchange (wide)
+  node: pf400
+  action: transfer
+  args:
+    source_plate_rotation: wide
+    target_plate_rotation: narrow
+  locations:
+    source: ot2bioalpha_deck1_wide
+    source_approach: safe_path_ot2bioalpha
+    target: sealer_nest
+    target_approach: safe_path_sealer
+- name: Seal the reaction plate
+  node: sealer
+  action: seal
+  args: {}
+- name: Open Biometra lid to receive plate
+  node: thermocycler
+  action: open
+  args: {}
+- name: Move sealed plate from Sealer to Exchange (narrow)
+  node: pf400
+  action: transfer
+  args:
+    source_plate_rotation: narrow
+    target_plate_rotation: narrow
+  locations:
+    source: sealer_nest
+    source_approach: safe_path_sealer
+    target: exchange_deck_high_narrow
+    target_approach: safe_path_exchange
+- name: Move sealed plate from Exchange (wide) to Biometra
+  node: pf400
+  action: transfer
+  args:
+    source_plate_rotation: wide
+    target_plate_rotation: wide
+  locations:
+    source: exchange_deck_high_wide
+    source_approach: safe_path_exchange
+    target: bio_biometra3_nest
+    target_approach: safe_path_biometra3
+- name: Close Biometra lid before running program
+  node: thermocycler
+  action: close
+  args: {}
+- name: Run Biometra program 5 (thermocycling)
+  node: thermocycler
+  action: run_program
+  args:
+    program_number: 5
+- name: Open Biometra lid after thermocycling
+  node: thermocycler
+  action: open
+  args: {}
+- name: Move plate from Biometra to Exchange (wide)
+  node: pf400
+  action: transfer
+  args:
+    source_plate_rotation: wide
+    target_plate_rotation: wide
+  locations:
+    source: bio_biometra3_nest
+    source_approach: safe_path_biometra3
+    target: exchange_deck_high_wide
+    target_approach: safe_path_exchange
+- name: Move plate from Exchange (narrow) to Peeler
+  node: pf400
+  action: transfer
+  args:
+    source_plate_rotation: narrow
+    target_plate_rotation: narrow
+  locations:
+    source: exchange_deck_high_narrow
+    source_approach: safe_path_exchange
+    target: peeler_nest
+    target_approach: safe_path_peeler
+- name: Peel the sealed plate
+  node: peeler
+  action: peel
+  args: {}
+- name: Move plate from Peeler to Exchange (narrow)
+  node: pf400
+  action: transfer
+  args:
+    source_plate_rotation: narrow
+    target_plate_rotation: narrow
+  locations:
+    source: peeler_nest
+    source_approach: safe_path_peeler
+    target: exchange_deck_high_narrow
+    target_approach: safe_path_exchange
+- name: Open Hidex lid to receive plate
+  node: hidex
+  action: open
+  args: {}
+- name: Move plate from Exchange (narrow) to Hidex
+  node: pf400
+  action: transfer
+  args:
+    source_plate_rotation: narrow
+    target_plate_rotation: narrow
+  locations:
+    source: exchange_deck_high_narrow
+    source_approach: safe_path_exchange
+    target: hidex_geraldine_high_nest
+    target_approach: safe_path_hidex
+- name: Close Hidex lid before running assay
+  node: hidex
+  action: close
+  args: {}
+- name: Run Hidex assay 'PCR_Final_Results'
+  node: hidex
+  action: run_assay
+  args:
+    assay_name: PCR_Final_Results
+- name: Open Hidex lid after analysis completion
+  node: hidex
+  action: open
+  args: {}

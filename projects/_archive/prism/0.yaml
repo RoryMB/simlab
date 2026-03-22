@@ -1,0 +1,138 @@
+name: Automated PCR Workflow
+author: PRISM
+info: Complete automated workflow for PCR preparation, thermocycling, and final assay analysis.
+version: '1.0'
+
+flowdef:
+  # 1.) Execute all liquid handling steps (Workflow Sequence Overview Steps 1-7) on the OT-2 robot
+  - action: run_protocol
+    name: Execute PCR liquid handling prep
+    module: ot2bioalpha
+    files:
+      protocol: pcr_master_mix_and_sample_prep.py
+
+  # 8.) Seal the plate to prepare it for thermocycling
+  # Transfer destination plate from OT-2 (wide) to Sealer (narrow) via Exchange Station
+  - action: transfer
+    name: Transfer plate from OT-2 deck to Exchange (wide)
+    module: biopf400
+    args:
+      source: ot2bioalpha_deck1_wide
+      source_approach: safe_path_ot2bioalpha
+      source_plate_rotation: wide
+      target: exchange_deck_high_wide
+      target_approach: safe_path_exchange
+      target_plate_rotation: wide
+  - action: transfer
+    name: Transfer plate from Exchange (narrow) to Sealer nest for sealing
+    module: biopf400
+    args:
+      source: exchange_deck_high_narrow # Plate is reoriented at exchange between transfers
+      source_approach: safe_path_exchange
+      source_plate_rotation: narrow
+      target: sealer_nest
+      target_approach: safe_path_sealer
+      target_plate_rotation: narrow
+  - action: seal
+    name: Seal the reaction plate
+    module: bio_sealer
+    args: {} # No arguments for the 'seal' action
+
+  # 9.) Perform a thermocycling operation (program #5)
+  # Transfer sealed plate from Sealer (narrow) to Biometra (wide) via Exchange Station
+  - action: transfer
+    name: Transfer sealed plate from Sealer to Exchange (narrow)
+    module: biopf400
+    args:
+      source: sealer_nest
+      source_approach: safe_path_sealer
+      source_plate_rotation: narrow
+      target: exchange_deck_high_narrow
+      target_approach: safe_path_exchange
+      target_plate_rotation: narrow
+  - action: transfer
+    name: Transfer sealed plate from Exchange (wide) to Biometra thermocycler nest
+    module: biopf400
+    args:
+      source: exchange_deck_high_wide # Plate is reoriented at exchange between transfers
+      source_approach: safe_path_exchange
+      source_plate_rotation: wide
+      target: bio_biometra3_nest
+      target_approach: safe_path_biometra3
+      target_plate_rotation: wide
+  - action: open
+    name: Open Biometra thermocycler lid
+    module: bio_biometra3_96
+    args: {}
+  - action: close
+    name: Close Biometra thermocycler lid
+    module: bio_biometra3_96
+    args: {}
+  - action: run_program
+    name: Run thermocycling program #5
+    module: bio_biometra3_96
+    args:
+      program_number: 5
+  - action: open
+    name: Open Biometra thermocycler lid after program completion
+    module: bio_biometra3_96
+    args: {}
+
+  # 10.) Peel the plate to prepare it for reading
+  # Transfer thermocycled plate from Biometra (wide) to Peeler (narrow) via Exchange Station
+  - action: transfer
+    name: Transfer cycled plate from Biometra to Exchange (wide)
+    module: biopf400
+    args:
+      source: bio_biometra3_nest
+      source_approach: safe_path_biometra3
+      source_plate_rotation: wide
+      target: exchange_deck_high_wide
+      target_approach: safe_path_exchange
+      target_plate_rotation: wide
+  - action: transfer
+    name: Transfer cycled plate from Exchange (narrow) to Peeler nest
+    module: biopf400
+    args:
+      source: exchange_deck_high_narrow # Plate is reoriented at exchange between transfers
+      source_approach: safe_path_exchange
+      source_plate_rotation: narrow
+      target: peeler_nest
+      target_approach: safe_path_peeler
+      target_plate_rotation: narrow
+  - action: peel
+    name: Peel the thermocycled plate
+    module: bio_peeler
+    args: {} # No arguments for the 'peel' action
+
+  # 11.) Perform an absorbance reading using the Hidex plate reader (protocol "PCR_Final_Results")
+  # Transfer peeled plate from Peeler (narrow) to Hidex (narrow) - no rotation change, so no exchange needed
+  - action: transfer
+    name: Transfer peeled plate from Peeler to Hidex plate reader nest
+    module: biopf400
+    args:
+      source: peeler_nest
+      source_approach: safe_path_peeler
+      source_plate_rotation: narrow
+      target: hidex_geraldine_high_nest
+      target_approach: safe_path_hidex
+      target_plate_rotation: narrow
+  - action: open
+    name: Open Hidex plate reader lid
+    module: hidex_geraldine
+    args: {}
+  - action: close
+    name: Close Hidex plate reader lid
+    module: hidex_geraldine
+    args: {}
+  - action: run_assay
+    name: Run PCR final results assay on Hidex
+    module: hidex_geraldine
+    args:
+      assay_name: "PCR_Final_Results"
+
+  # 12.) Open the Hidex plate reader lid after analysis completion
+  - action: open
+    name: Open Hidex plate reader lid after assay completion
+    module: hidex_geraldine
+    args: {}

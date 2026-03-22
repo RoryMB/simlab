@@ -3,9 +3,9 @@ manager_type: workcell_manager
 manager_id: 01JK7069DXAKAMWE0PDX6EY1PC
 description: A MADSci workcell.
 nodes:
-  ot2: http://127.0.0.1:8019/
-  pf400: http://127.0.0.1:8020/
-  sealer: http://127.0.0.1:8021/
-  peeler: http://127.0.0.1:8022/
-  thermocycler: http://127.0.0.1:8023/
-  hidex: http://127.0.0.1:8024/
+  ot2: http://127.0.0.1:8000/env_0/ot2
+  pf400: http://127.0.0.1:8000/env_0/pf400
+  sealer: http://127.0.0.1:8000/env_0/sealer
+  peeler: http://127.0.0.1:8000/env_0/peeler
+  thermocycler: http://127.0.0.1:8000/env_0/thermocycler
+  hidex: http://127.0.0.1:8000/env_0/hidex

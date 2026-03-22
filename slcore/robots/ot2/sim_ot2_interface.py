@@ -15,7 +15,8 @@ class SimOT2_Driver(OT2_Driver):
     def __init__(
         self,
         config: OT2_Config,
-        zmq_server_url: str = "tcp://localhost:5556",
+        zmq_server_url: str = "tcp://localhost:5555",
+        env_id: int = 0,
         python_executable: str = None,
         **kwargs
     ) -> None:
@@ -27,11 +28,14 @@ class SimOT2_Driver(OT2_Driver):
             OT-2 configuration
         zmq_server_url : str
             ZMQ server URL for Isaac Sim communication
+        env_id : int
+            Environment ID for ZMQ DEALER identity routing
         python_executable : str
             Path to python executable to use for running protocols
         """
         # Store simulation-specific parameters
         self.zmq_server_url = zmq_server_url
+        self.env_id = env_id
         self.python_executable = python_executable or "python"
 
         # Storage for protocol paths by run_id
@@ -94,6 +98,7 @@ class SimOT2_Driver(OT2_Driver):
         env = os.environ.copy()
         env['OPENTRONS_SIMULATION_MODE'] = 'zmq'
         env['OT2_SIMULATION_SERVER'] = self.zmq_server_url
+        env['OT2_SIMULATION_IDENTITY'] = f"env_{self.env_id}.ot2"
 
         try:
             # Execute the protocol using OpenTrons execute function

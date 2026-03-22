@@ -336,8 +336,8 @@
 +]
 \ No newline at end of file
 --- /dev/null	2026-01-15 19:39:10.638000095 -0600
-+++ opentrons/hardware_control/simulation/zmq_client.py	2026-01-11 00:27:38.873798620 -0600
-@@ -0,0 +1,192 @@
++++ opentrons/hardware_control/simulation/zmq_client.py	2026-03-21 22:59:27.709475843 -0500
+@@ -0,0 +1,194 @@
 +"""
 +ZMQ client for communicating with external physics simulation.
 +"""
@@ -359,20 +359,22 @@
 +
 +        Args:
 +            server_url: URL of simulation server. If None, uses environment variable
-+                       OT2_SIMULATION_SERVER or defaults to tcp://localhost:5556
++                       OT2_SIMULATION_SERVER or defaults to tcp://localhost:5555
 +        """
 +        self.server_url = (
 +            server_url or
-+            os.environ.get("OT2_SIMULATION_SERVER", "tcp://localhost:5556")
++            os.environ.get("OT2_SIMULATION_SERVER", "tcp://localhost:5555")
 +        )
++        self.identity = os.environ.get("OT2_SIMULATION_IDENTITY", "env_0.ot2")
 +        self.context = zmq.Context()
-+        self.socket = self.context.socket(zmq.REQ)
++        self.socket = self.context.socket(zmq.DEALER)
++        self.socket.setsockopt_string(zmq.IDENTITY, self.identity)
 +        self.socket.connect(self.server_url)
 +
 +        # Set timeout for recv operations
 +        self.socket.setsockopt(zmq.RCVTIMEO, 10000)  # 10 second timeout
 +
-+        logger.info(f"Connected to OT-2 simulation server at {self.server_url}")
++        logger.info(f"Connected to OT-2 simulation server at {self.server_url} as {self.identity}")
 +
 +    async def connect(self) -> None:
 +        """Connect is a no-op since we connect in __init__."""
@@ -403,13 +405,13 @@
 +            RuntimeError: If communication fails
 +        """
 +        try:
-+            # Send command
++            # DEALER sends: [empty, message]
 +            message = json.dumps(command)
-+            self.socket.send_string(message)
++            self.socket.send_multipart([b"", message.encode()])
 +
-+            # Wait for response
-+            response_str = self.socket.recv_string()
-+            response = json.loads(response_str)
++            # DEALER receives: [empty, response]
++            _, response_bytes = self.socket.recv_multipart()
++            response = json.loads(response_bytes.decode())
 +
 +            logger.debug(f"Sent: {command}, Received: {response}")
 +
@@ -438,7 +440,7 @@
 +        response = self._send_command(command)
 +
 +        if response.get("status") == "success":
-+            return response.get("joint_angles", {})
++            return response.get("joint_positions", {})
 +        else:
 +            raise RuntimeError(f"Failed to get joint positions: {response}")
 +

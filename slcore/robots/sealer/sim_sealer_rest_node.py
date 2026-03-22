@@ -10,7 +10,7 @@ from slcore.robots.sealer.sim_sealer_interface import SimSealer
 class SimSealerNodeConfig(SimpleDeviceNodeConfig):
     """Configuration for the sealer node module."""
 
-    zmq_server_url: str = "tcp://localhost:5558"
+    zmq_server_url: str = "tcp://localhost:5555"
 
 
 class SimSealerNode(SimpleDeviceRestNode):

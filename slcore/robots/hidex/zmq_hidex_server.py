@@ -1,4 +1,5 @@
 import numpy as np
+from isaacsim.core.utils.stage import get_current_stage
 from isaacsim.core.utils.types import ArticulationAction
 from pxr import Gf
 
@@ -46,7 +47,7 @@ class ZMQ_Hidex_Server(RaycastMixin, ZMQ_Robot_Server):
         """Execute run_assay operation - check for plate presence"""
 
         if self._attached_plate:
-            print(f"Robot {self.robot_name} run_assay operation (attached plate detected, assay_name={assay_name})")
+            print(f"Robot {self.robot_name} run_assay operation (plate detected, assay_name={assay_name})")
             return self.create_success_response("run_assay operation completed", plate_detected=True, assay_name=assay_name)
         else:
             print(f"Robot {self.robot_name} run_assay operation failed (no plate detected)")
@@ -65,6 +66,13 @@ class ZMQ_Hidex_Server(RaycastMixin, ZMQ_Robot_Server):
             hit_prim = self.raycast(world_position, world_direction, self.raycast_distance, self.robot_prim_path)
 
             if hit_prim:
+                # Check orientation before attaching
+                ok, yaw = self._check_plate_orientation(hit_prim, expected_yaw=90)
+                print(f"Robot {self.robot_name} plate orientation check (relative_yaw={yaw:.1f}, orientation_ok={ok})")
+                if not ok:
+                    print(f"Robot {self.robot_name} rejecting plate: wrong orientation (relative_yaw={yaw:.1f}, expected ~90/270)")
+                    return
+
                 # Attach and store joint path
                 self._attached_plate = self.attach_object(hit_prim.GetPath().pathString, 'pointer')
                 print(f"Hidex attached object: {hit_prim.GetPath().pathString}")

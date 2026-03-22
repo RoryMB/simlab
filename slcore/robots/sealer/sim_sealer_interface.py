@@ -10,11 +10,12 @@ class SimSealer(ZMQClientInterface):
 
     def __init__(
         self,
-        zmq_server_url: str = "tcp://localhost:5558",
+        zmq_server_url: str = "tcp://localhost:5555",
+        env_id: int = 0,
         logger: Optional[EventClient] = None,
     ) -> "SimSealer":
         """Initialize the Sealer ZMQ client."""
-        super().__init__(zmq_server_url, logger)
+        super().__init__(zmq_server_url, env_id, "sealer", logger)
 
     def seal(self) -> bool:
         """Seal a plate."""

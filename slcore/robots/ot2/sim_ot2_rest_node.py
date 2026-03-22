@@ -19,8 +19,11 @@ class SimOT2NodeConfig(OT2NodeConfig):
     ot2_ip: str = ""
     "Not used in simulation; setting a default value"
 
-    zmq_server_url: str = "tcp://localhost:5556"
+    zmq_server_url: str = "tcp://localhost:5555"
     "For Isaac Sim communication"
+
+    env_id: int = 0
+    "Environment ID for ZMQ routing"
 
     python_executable: str = "python"
     "Python executable to use for running protocols"
@@ -44,6 +47,7 @@ class SimOT2Node(OT2Node):
         self.ot2_interface = SimOT2_Driver(
             config=OT2_Config(ip=self.config.ot2_ip),
             zmq_server_url=self.config.zmq_server_url,
+            env_id=self.config.env_id,
             python_executable=self.config.python_executable,
         )
 
