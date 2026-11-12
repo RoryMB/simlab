@@ -2,20 +2,16 @@
 
 ## Introduction
 
-This document provides a comprehensive guide to organizing and composing USD (Universal Scene Description) assets for laboratory automation scenarios with Isaac Sim integration.
+This directory holds the USD (Universal Scene Description) assets used by the laboratory automation simulations in Isaac Sim, together with the source files they are built from.
 
 ## Core Principles
 
-Our asset organization follows these key principles:
-- **Layered composition**: Building complex assets from multiple specialized USD files
-- **Separation of concerns**: Isolating geometry, materials, physics, and behavior
-- **Traceability**: Maintaining source files for reference and future modifications
-- **Consistency**: Following standardized patterns across all asset types
-- **Reusability**: Creating modular components that can be composed in multiple ways
+- **Meshes live in Blender exports**: All mesh data sits in binary geometry files exported from Blender. Everything added on top (materials, physics, joints) sits in a small text file that overrides the geometry. A mesh can be re-exported without disturbing the rest, and the text file stays small enough to read in full.
+- **Traceability**: Each asset keeps its source files (CAD, reference photos, the Blender file).
+- **Consistency**: Every asset follows the same layout and naming.
+- **Reusability**: Materials used by more than one asset live in one shared library.
 
 ## Directory Structure
-
-The assets directory is organized into functional categories:
 
 ```
 assets/
@@ -25,254 +21,117 @@ assets/
 ├── architecture/  # Structural elements (walls, floors, ceilings)
 ├── labware/       # Laboratory equipment (plates, tips, reagents)
 ├── props/         # Environmental objects
-└── tools/         # Tools for asset processing (.blend to .usd conversion, etc.)
-
+└── tools/         # Scripts for inspecting how USD files compose
 ```
+
+### File Extensions
+
+The extension tells you what role a USD file plays:
+
+- `.usd`: a top-level asset file, the one you load or reference from a scene (for example `picker.usd`). These sit directly in the asset's directory.
+- `.usda`: a text layer underneath a top-level file, such as a material. These are meant to be read and edited as text.
+- `.usdc`: geometry exported from Blender. Change these by re-exporting from the source `.blend` (see [Exporting Geometry from Blender](#exporting-geometry-from-blender)), never by editing them.
+
+USD reads both text and binary content under `.usd`, so a top-level file can be either.
 
 ### Materials
 
-The shared material library contains commonly used materials that can be referenced across multiple assets. Individual assets can reference these shared materials while also defining asset-specific custom materials when needed.
+The shared material library holds materials used by more than one asset. A material used by only one asset lives in that asset's own `materials/` directory instead.
 
 ```
 assets/materials/
-├── metals/
-│   ├── aluminum_anodized.usd
-│   ├── steel_brushed.usd
-│   └── titanium_matte.usd
-├── plastics/
-│   ├── abs_black.usd
-│   ├── peek_natural.usd
-│   └── nylon_white.usd
-└── .../
+├── black_glossy.usda
+├── glass.usda
+├── metal.usda
+├── transparent_plastic.usda
+├── vention_bar.usda
+└── ...
 ```
 
 ### Scenes
 
-The scenes directory contains complete laboratory layouts ready for simulation. These files reference components from the other directories to create fully composed environments.
+The scenes directory contains complete laboratory layouts ready for simulation. These files reference assets from the other directories.
 
 ### Robots
 
-The robots directory contains individual robot definitions. Each robot follows a strict layered composition pattern and presents a single external interface file.
+Each robot directory follows this layout:
 
 ```
 assets/robots/picker/
 ├── source/                    # Original files
-│   ├── picker_export.blend    # Main file used to export geo and physics USDs
-│   ├── gripper.step
-│   ├── base_assembly.stl
+│   ├── picker_export.blend    # Blender file the geometry is exported from
+│   ├── gripper.step           # CAD from the manufacturer
 │   ├── reference_photos/
-│   └── specifications/
+│   └── notes.txt
 ├── geometry/
-│   └── picker_geo.usd         # Base geometry (Blender USD export)
+│   └── picker.usdc            # Mesh data exported from picker_export.blend
 ├── materials/
-│   └── picker_materials.usd
-├── physics/
-│   ├── picker_collision.usd   # Collision shapes (Blender USD export)
-│   ├── picker_joints.usd
-│   └── picker_physics.usd
-├── isaacsim/
-│   ├── rmpflow.yaml
-│   └── descriptor.yaml
-└── picker.usd                 # External interface
+│   └── gripper_pad.usda       # Materials only this asset uses
+├── isaacsim/                  # Configuration loaded by robot control code
+│   ├── picker.urdf
+│   ├── descriptor.yaml
+│   └── rmpflow.yaml
+└── picker.usd                 # Top-level asset file
 ```
 
-**Naming Convention:** Asset directories use original manufacturer and product names (e.g., `Opentrons/OT-2`, `Brooks/PF400`) for traceability to official documentation. Code in `slcore/robots/` uses lowercase identifiers (e.g., `ot2`, `pf400`) per Python naming conventions (PEP 8).
+**Naming Convention:** Asset directories use original manufacturer and product names (e.g., `Opentrons/OT-2`, `Brooks/PF400`) for traceability to official documentation. Code in `slcore/robots/` uses lowercase identifiers (e.g., `ot2`, `pf400`) per Python naming conventions (PEP 8). Within an asset directory, files are named after the asset: `<Name>.usd`, `geometry/<Name>.usdc`, `source/<Name>_export.blend`, and `isaacsim/<Name>.urdf`. The other files in `isaacsim/` keep the fixed names robot control code loads them by, such as `descriptor.yaml` and `rmpflow.yaml`. A directory can hold several closely related assets, such as the three lab table variants in `architecture/lab_table/`, each with its own set of files.
 
-### Architecture
+### Architecture, Labware, and Props
 
-This directory contains modular building components that can be assembled into different laboratory configurations. Components include walls, floors, ceilings, windows, and other structural elements. Each component follows the same layered approach as Robots but is typically simpler, requiring only geometry, materials, and physics.
+These follow the same layout as robots, usually without `isaacsim/`:
 
-### Labware
+- **Architecture**: structural elements such as rooms, tables, and carts.
+- **Labware**: laboratory consumables and equipment such as plates and tips.
+- **Props**: environmental objects that add visual detail to scenes but aren't primary simulation objects.
 
-Laboratory-specific equipment organized by function (tips, plates, reagents, instruments). Follows simpler composition patterns requiring only geometry, materials, and physics.
+## How an Asset Is Composed
 
-### Props
-
-Environmental objects that add visual detail or functional elements to scenes but aren't primary simulation objects. Follows simpler composition patterns requiring only geometry, materials, and physics.
-
-### Tools
-
-Tools for asset processing: converting .blend files into .usd files for geometry or collision shapes, verifying relative paths point to valid files, etc.
-
-## Layered Composition Approach
-
-One of USD's most powerful features is its ability to compose scenes from multiple layers. Our system leverages this through a structured approach where each asset is built in distinct layers:
-
-### Robot Composition Chain
-
-Each robot follows a **layered** composition chain that builds from raw geometry to a complete, simulation-ready asset:
-
-**Source files → Geometry → Materials → Physics → Isaac Sim Config → Final Interface**
-
-1. **Source Files**: Original source materials (CAD, Blender, etc.)
-2. **Geometry**: Pure mesh data without materials or physics
-3. **Materials**: Material assignments added to geometry
-4. **Physics**: Collision shapes, joints, and rigid body properties
-5. **Isaac Sim Integration**: Configurations for simulation behaviors
-6. **External Interface**: The single reference point with variants
-
-### Layer 1: Source Directory
-
-The source directory serves as a permanent archive of all original materials used to create the USD representation. This preserves the origin of all data and enables future modifications from the original sources. The *_export.blend file combines all relevant source material into the final form used to export the geometry and physics USD files in the other layers.
+A top-level asset file lists its layers as sublayers, strongest first: the asset's own materials, the shared materials it uses, and its geometry. Everything else in the file overrides prims the geometry defines (material bindings, rigid bodies, colliders, joints, drives, and visibility), or defines prims that exist only in Isaac Sim, such as joints and lights.
 
 ```
-source/
-├── *_export.blend             # Main Blender file
-├── gripper_mechanism.step     # CAD file from manufacturer
-├── base_platform.stl          # 3D printed parts
-├── wiring_diagram.pdf         # Documentation
-├── reference_photos/          # Visual references
-└── specifications/            # Technical documentation
-```
-
-### Layer 2: Geometry
-
-The geometry layer contains pure mesh data exported from 3D software. This layer contains only geometric definitions. No materials, physics, or behavior.
-
-```usd
-# geometry/picker_geo.usd
-#usda 1.0
-def Xform "Picker"
-{
-    def Mesh "Body"
-    {
-        # Raw geometry data only
-        point3f[] points = [...]
-        int[] faceVertexIndices = [...]
-        int[] faceVertexCounts = [...]
-    }
-
-    def Mesh "Arm" { ... }
-    def Mesh "Gripper" { ... }
-}
-```
-
-### Layer 3: Materials
-
-The materials layer uses **sublayers** to add material assignments to the base geometry. This layer can reference both shared materials from the global library and asset-specific custom materials. This separation allows materials to be updated independently from geometry.
-
-Asset-specific custom materials:
-
-```
-# materials/picker_custom.usd
-#usda 1.0
-def "Materials"
-{
-    def Material "SpecialGrip"
-    {
-        color3f inputs:diffuse_color = (0.2, 0.2, 0.2)
-        float inputs:metallic = 0.0
-        float inputs:roughness = 0.8
-        # Custom material properties specific to this robot
-    }
-}
-```
-
-Composition of materials over the previous layer:
-
-```
-# materials/picker_materials.usd
+# picker.usd
 #usda 1.0
 (
-    sublayers = [
-        @../geometry/picker_geo.usd@,
-        @./custom_material.usd@,
-        @../../../materials/metals/aluminum_anodized.usd@
+    defaultPrim = "World"
+    subLayers = [
+        @materials/gripper_pad.usda@,
+        @../../materials/metal.usda@,
+        @geometry/picker.usdc@
     ]
 )
 
-# Override geometry to add material bindings
-over "Picker"
-{
-    over "Body"
-    {
-        rel material:binding = </Materials/MetalBody>
-    }
-
-    over "Gripper"
-    {
-        rel material:binding = </Materials/GripperPads>
-    }
-}
-
-# Define materials
-def "Materials"
-{
-    def Material "MetalBody" { ... }
-    def Material "GripperPads" { ... }
-}
-```
-
-### Layer 4: Physics
-
-The physics layer adds simulation properties such as collision shapes from the source material, joints defined in Isaac Sim, and rigid body definitions.
-
-**Collision Shapes** (exported from source software):
-```
-# physics/picker_collision.usd
-#usda 1.0
-def "CollisionShapes"
-{
-    def Mesh "BodyCollision"
-    {
-        # Simplified collision geometry (much lower poly than visual mesh)
-        point3f[] points = [...]
-        # Often basic shapes like boxes, cylinders, spheres
-    }
-
-    def Mesh "ArmCollision" { ... }
-}
-```
-
-Composition of collisions and joints over the previous layer:
-
-```
-# physics/picker_physics.usd
-#usda 1.0
-(
-    sublayers = [
-        @../materials/picker_materials.usd@,
-        @./picker_collision.usd@
-    ]
+over "World" (
+    prepend apiSchemas = ["PhysicsArticulationRootAPI"]
 )
-
-# Add physics properties to existing geometry
-over "Picker"
 {
-    # Make the entire robot a rigid body system
-    def RigidBodyAPI "RigidBodyAPI"
+    over "base" (
+        prepend apiSchemas = ["PhysicsRigidBodyAPI"]
+    )
     {
-        bool rigidBodyEnabled = true
-    }
-
-    over "Body"
-    {
-        def CollisionAPI "CollisionAPI"
+        over "base_mesh" (
+            prepend apiSchemas = ["PhysicsCollisionAPI"]
+        )
         {
-            bool collisionEnabled = true
-            rel physics:collisionMesh = </CollisionShapes/BodyCollision>
+            rel material:binding = </World/Looks/common/metal>
         }
-    }
 
-    # Joint definitions directly in the physics file
-    def RevoluteJoint "ArmJoint"
-    {
-        rel physics:body0 = </Picker/Body>
-        rel physics:body1 = </Picker/Arm>
-        point3f physics:localPos0 = (0, 0, 0.2)
-        point3f physics:localPos1 = (0, 0, 0)
-        vector3f physics:localRot0 = (0, 0, 1)  # Joint axis
-        float physics:lowerLimit = -1.57
-        float physics:upperLimit = 1.57
+        def PhysicsRevoluteJoint "arm_joint" { ... }
     }
-
-    def PrismaticJoint "GripperJoint" { ... }
 }
 ```
 
-### Layer 5: Isaac Sim Integration
+Projects load an asset with `add_reference_to_stage`, which brings in the file's default prim, `World`. Anything outside `World` never reaches a project scene.
 
-This layer contains configuration files specific to Isaac Sim, including motion planning parameters and semantic labels:
+### Rules for Editing Assets
+
+- **Change meshes and their hierarchy in Blender, then re-export.** Don't move, rename, or reparent geometry prims in Isaac Sim. Isaac Sim can't move a prim that a sublayer defines, so it copies the whole mesh into the top-level file and deactivates the original. From then on, edits in Blender no longer show up.
+- **Keep Blender object names stable.** Overrides attach to geometry by prim path, so a renamed or reparented object silently loses its materials and physics. After re-exporting, run the check in [Checking Overrides After an Export](#checking-overrides-after-an-export).
+- **Don't keep PhysX cooked collision data in asset files.** These are the `physxCookedData*` attributes and `PhysxCookedDataAPI` schemas. They're a cache Isaac Sim rebuilds when it loads an asset, and they can add tens of megabytes to a file. If saving from Isaac Sim writes them back, remove them.
+- **Don't add a viewing environment (ground plane, lights) to asset files.** Put it in a scene instead.
+
+## Isaac Sim Integration
+
+The `isaacsim/` directory holds the configuration that robot control code loads by path, such as the URDF, the motion planner configuration, and the robot description. Robots with differential IK also have `motion_config.yaml` and `differential_ik_config.yaml`; see `robots/Brooks/PF400/isaacsim/`.
 
 ```yaml
 # isaacsim/rmpflow.yaml - Motion planner configuration
@@ -294,87 +153,146 @@ collision_spheres:
 # ... collision definitions
 ```
 
-### Final Layer: External Interface
+## Inspection Tools
 
-The external interface is the single file that scenes reference. It includes the complete physics layer and adds variants for different operational states:
+`tools/` holds scripts for inspecting assets without reading the files. Each script's `--help` lists its options.
+
+- `show_composition.py`: the tree of sublayers, references, and payloads a file pulls in; `--check` only reports missing files.
+- `layer_diff.py`: what a single layer defines (`def`) versus overrides (`over`), and the files it references.
+- `find_prim_source.py`: every layer that contributes to one prim.
+- `find_deactivated.py`: prims switched off with `active = false`. An unexpected one in a top-level file is often a geometry prim Isaac Sim copied when it was moved.
+- `list_prims.py`: lists prims under a path, by name, by type, or with duplicated names.
+
+## Exporting Geometry from Blender
+
+Use Blender 5.2. Other versions triangulate and compute normals differently, so exporting with them changes the geometry even when the `.blend` is untouched. The `.blend` files are saved in Blender 5.2's format, which older versions can't open.
+
+The export script below does the following, without saving anything back to the `.blend`:
+
+1. Parents every root object under an empty named `World`, creating it if needed, while keeping each object where it is. All prims then land under `/World`.
+2. Adds a Triangulate modifier (Beauty quad method) to each visible mesh, curve, surface, and text object. It goes just before any "Auto Smooth" or "Smooth by Angle" modifier, so normals are computed on the triangulated mesh.
+3. Names each object's mesh data `<object>_mesh`, which becomes the mesh prim's name.
+4. Exports those objects with matrix transforms, the original UV map names, no root prim, and no Blender metadata, lights, or cameras.
+5. Removes Blender's internal attributes (primvars starting with `__`), makes `/World` the default prim, and gives `/World` identity translate, orient, and scale ops.
+
+Save the script outside the repository, for example as `/tmp/export_usd.py`:
+
+```python
+"""Export the open .blend's geometry to the .usdc path after `--`. Nothing is saved back to the .blend."""
+import sys
+import bpy
+from pxr import Gf, Sdf, Usd, Vt
+
+out = sys.argv[sys.argv.index("--") + 1]
+GEOMETRY_TYPES = {"MESH", "CURVE", "SURFACE", "FONT", "META"}
+MODIFIABLE_TYPES = {"MESH", "CURVE", "SURFACE", "FONT"}
+
+if bpy.context.active_object is not None:
+    bpy.ops.object.mode_set(mode="OBJECT")
+scene = bpy.context.scene
+
+# Every asset's prims live under /World, which becomes the layer's default prim.
+world = bpy.data.objects.get("World")
+if world is None:
+    world = bpy.data.objects.new("World", None)
+    scene.collection.objects.link(world)
+for obj in scene.objects:
+    if obj is not world and obj.parent is None:
+        mw = obj.matrix_world.copy()
+        obj.parent = world
+        obj.matrix_world = mw
+
+bpy.ops.object.select_all(action="DESELECT")
+for obj in scene.objects:
+    if obj.type not in GEOMETRY_TYPES or not obj.visible_get():
+        continue
+    if obj.type in MODIFIABLE_TYPES:
+        tri = obj.modifiers.new("Triangulate", "TRIANGULATE")
+        tri.quad_method = "BEAUTY"
+        # Smoothing modifiers compute normals from the mesh they receive, so triangulate just before them.
+        smooth = [i for i, m in enumerate(obj.modifiers)
+                  if m.type == "NODES" and m.node_group is not None
+                  and m.node_group.name.startswith(("Auto Smooth", "Smooth by Angle"))]
+        if smooth:
+            obj.modifiers.move(len(obj.modifiers) - 1, smooth[0])
+    obj.data.name = obj.name + "_mesh"
+    obj.select_set(True)
+
+bpy.ops.wm.usd_export(
+    filepath=out, check_existing=False, selected_objects_only=True,
+    export_animation=False, export_hair=False,
+    export_uvmaps=True, rename_uvmaps=False, export_mesh_colors=False, export_normals=True,
+    export_materials=True, generate_preview_surface=False, generate_materialx_network=False,
+    use_instancing=True, relative_paths=True,
+    xform_op_mode="MAT", root_prim_path="", allow_unicode=False,
+    export_custom_properties=False, author_blender_name=False, convert_world_material=False,
+    export_lights=False, export_cameras=False,
+)
+
+stage = Usd.Stage.Open(out)
+# Blender exports its internal attributes (names starting with "__", such as modifier scratch data) as primvars.
+for prim in stage.Traverse():
+    for attr in prim.GetAttributes():
+        if attr.GetName().startswith("primvars:__"):
+            prim.RemoveProperty(attr.GetName())
+world_prim = stage.GetPrimAtPath("/World")
+stage.SetDefaultPrim(world_prim)
+world_prim.CreateAttribute("xformOp:translate", Sdf.ValueTypeNames.Double3).Set(Gf.Vec3d(0, 0, 0))
+world_prim.CreateAttribute("xformOp:orient", Sdf.ValueTypeNames.Quatd).Set(Gf.Quatd(1, 0, 0, 0))
+world_prim.CreateAttribute("xformOp:scale", Sdf.ValueTypeNames.Double3).Set(Gf.Vec3d(1, 1, 1))
+world_prim.CreateAttribute("xformOpOrder", Sdf.ValueTypeNames.TokenArray).Set(
+    Vt.TokenArray(["xformOp:translate", "xformOp:orient", "xformOp:scale"]))
+stage.Save()
+print("EXPORTED", out)
+```
+
+Export one asset, running from `assets/`:
+
+```bash
+blender -b --factory-startup \
+    robots/Brooks/PF400/source/PF400_export.blend \
+    --python /tmp/export_usd.py -- robots/Brooks/PF400/geometry/PF400.usdc
+```
+
+Each export is independent, so export several assets by running Blender processes in parallel:
+
+```bash
+find . -name '*_export.blend' | xargs -n 1 -P 6 sh -c '
+    blend="$1"; asset="${blend%/source/*}"; name="$(basename "$blend" _export.blend)"
+    blender -b --factory-startup "$blend" \
+        --python /tmp/export_usd.py -- "$asset/geometry/$name.usdc" > "/tmp/export_$name.log" 2>&1 \
+        || echo "FAILED: $blend"' _
+```
+
+### Checking Overrides After an Export
+
+Every prim a top-level file overrides must still exist after an export. A prim that's overridden but no longer defined anywhere means an object was renamed or moved in Blender. This lists any such prims, run from the repository root:
+
+```bash
+python -c '
+from pxr import Usd
+stage = Usd.Stage.Open("assets/robots/Brooks/PF400/PF400.usd")
+for prim in stage.TraverseAll():
+    if not prim.IsDefined():
+        print("override on missing prim:", prim.GetPath())'
+```
+
+## Planned: Wrapping Isaac Sim Robots
+
+Not implemented yet. A robot that Isaac Sim provides, such as the UR5e meant to replace `robots/UniversalRobots/ur5e/`, is to get its own directory here, with a top-level file that references the Isaac Sim asset and adds any overrides. Projects then load it the same way as every other asset. Where the reference points depends on where Isaac Sim's assets are installed, which is still to be settled.
 
 ```
-# picker.usd - Complete external interface
+# robots/UniversalRobots/ur5e/ur5e.usd
 #usda 1.0
-def "Picker" (
-    references = @./physics/picker_physics.usd@
-    variants = {
-        string operational_state = "idle"
-        string motion_planning = "enabled"
-        string lod = "high"
-    }
-    prepend variantSets = ["operational_state", "motion_planning", "lod"]
+(
+    defaultPrim = "World"
+)
+
+def Xform "World" (
+    references = @<path to the Isaac Sim UR5e asset>@
 )
 {
-    variantSet "operational_state" = {
-        "idle" { ... }
-        "picking" { ... }
-        "moving" { ... }
-        "error" { ... }
-    }
-
-    variantSet "motion_planning" = {
-        "enabled" {
-            # Load motion planning configs
-            custom string rmpflow_path = "./isaacsim/rmpflow.yaml"
-            custom string descriptor_path = "./isaacsim/descriptor.yaml"
-        }
-        "disabled" {
-            # Robot without motion planning (pure visuals)
-        }
-    }
-
-    variantSet "lod" = {
-        "high" { ... }
-        "medium" { ... }
-        "low" { ... }
-    }
-}
-```
-
-## Consistent External Interface
-
-All robots, regardless of internal complexity or source, present the same external interface pattern:
-
-```
-# In scene files - all robots accessed uniformly
-def "Robot001" (
-    references = @../../assets/robots/picker/picker.usd@
-)
-{
-    # Set variants for this instance
-    string operational_state = "picking"
-    string motion_planning = "enabled"
-    double3 xformOp:translate = (1.0, 2.0, 0.0)
-}
-```
-
-## NVIDIA Robot Integration
-
-For integrating NVIDIA's pre-built robots, we maintain our organizational structure while referencing their assets:
-
-```
-# carter/carter.usd - Wrapping NVIDIA asset with custom configurations
-#usda 1.0
-def "Carter" (
-    references = </path/to/isaac/assets/carter.usd>
-    variants = {
-        string navigation_mode = "laboratory"
-        string operational_state = "idle"
-    }
-    prepend variantSets = ["navigation_mode", "operational_state"]
-)
-{
-    # Custom configurations
-    variantSet "navigation_mode" = {
-        "laboratory" { ... }
-        "warehouse" { ... }
-    }
+    # Overrides on the Isaac Sim robot, such as material bindings or drive settings
 }
 ```
 
@@ -390,10 +308,3 @@ Understanding a few key USD concepts will help you work with this organization:
 ### Override Operators
 
 The `over` keyword modifies existing prims (USD objects) rather than creating new ones. This allows layers to modify properties of prims defined in earlier layers.
-
-### Variants
-
-Variants allow different configurations of the same asset. They're ideal for:
-- Different operational states (idle, working, error)
-- Level of detail settings
-- Feature toggles (motion planning on/off)
